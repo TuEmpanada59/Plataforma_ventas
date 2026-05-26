@@ -1,0 +1,251 @@
+﻿@model Plataforma_ventas.ViewModels.AccesoViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Londoño Gómez · Acceso</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{--azul:#003A70;--azul-m:#0055A5;--azul-b:#0077C8;--rojo:#E63946;--verde:#34C759;--label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(0,0,0,0.65);--sep:rgba(60,60,67,0.12);--fill3:rgba(120,120,128,0.08);--glass:rgba(255,255,255,0.78);--gb:rgba(255,255,255,0.6);--error:#E63946;}
+        html,body{height:100%;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+        body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 90% 70% at 5% 0%,rgba(0,119,200,0.18) 0%,transparent 55%),radial-gradient(ellipse 70% 60% at 95% 10%,rgba(0,58,112,0.12) 0%,transparent 50%),#EEF2F7;pointer-events:none;}
+        body::after{content:'';position:fixed;inset:0;z-index:0;background-image:radial-gradient(circle,rgba(0,58,112,0.05) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;}
+        .wrap{position:relative;z-index:1;width:920px;height:580px;border-radius:28px;overflow:hidden;box-shadow:0 40px 100px rgba(0,40,100,0.18),0 8px 30px rgba(0,0,0,0.07),0 0 0 1px rgba(255,255,255,0.55) inset;animation:wrapIn 0.5s cubic-bezier(.4,0,.2,1) both;}
+        @@keyframes wrapIn{from{opacity:0;transform:translateY(18px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+        .forms-area{position:absolute;inset:0;display:flex;}
+        .form-registro,.form-login{position:absolute;top:0;bottom:0;width:50%;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);display:flex;flex-direction:column;justify-content:center;padding:2rem 2.6rem;overflow-y:auto;}
+        .form-registro::-webkit-scrollbar,.form-login::-webkit-scrollbar{width:0;}
+        .form-registro{left:0;border-right:1px solid var(--gb);}
+        .form-login{right:0;}
+        .panel-azul{position:absolute;top:0;bottom:0;width:50%;left:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem;transition:left 0.7s cubic-bezier(.77,0,.18,1);overflow:hidden;}
+        .panel-azul::before{content:'';position:absolute;inset:0;background:linear-gradient(145deg,var(--azul) 0%,var(--azul-m) 45%,var(--azul-b) 100%);z-index:0;}
+        .panel-azul::after{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.07);z-index:0;}
+        .orbe2{position:absolute;bottom:-80px;left:-50px;width:220px;height:220px;border-radius:50%;background:rgba(0,0,0,0.07);z-index:0;pointer-events:none;}
+        .orbe3{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(58,172,255,0.1) 0%,transparent 70%);z-index:0;pointer-events:none;}
+        .wrap.modo-registro .panel-azul{left:50%;}
+        .panel-content{position:relative;z-index:1;text-align:center;width:100%;}
+        .app-icon{width:62px;height:62px;background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.28);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;box-shadow:0 8px 24px rgba(0,0,0,0.14);overflow:hidden;}
+        .app-icon img{width:100%;height:100%;object-fit:cover;}
+        .panel-content h2{font-size:1.5rem;font-weight:700;color:white;letter-spacing:-0.5px;line-height:1.2;margin-bottom:0.55rem;}
+        .panel-content p{font-size:0.84rem;color:rgba(255,255,255,0.68);line-height:1.65;margin-bottom:2rem;font-weight:400;}
+        .btn-panel{display:inline-flex;align-items:center;gap:6px;padding:10px 26px;border-radius:50px;border:1.5px solid rgba(255,255,255,0.55);background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);color:white;font-size:0.86rem;font-weight:600;cursor:pointer;transition:background 0.2s,border-color 0.2s,transform 0.15s;}
+        .btn-panel:hover{background:rgba(255,255,255,0.22);border-color:rgba(255,255,255,0.8);transform:scale(1.02);}
+        .panel-dots{display:flex;gap:6px;justify-content:center;margin-top:1.8rem;}
+        .panel-dot{height:5px;border-radius:3px;background:rgba(255,255,255,0.3);transition:all 0.3s cubic-bezier(.4,0,.2,1);width:5px;}
+        .panel-dot.on{background:white;width:18px;}
+        .form-header{margin-bottom:1.2rem;}
+        .form-header h1{font-size:1.5rem;font-weight:700;color:var(--label);letter-spacing:-0.6px;line-height:1.15;margin-bottom:0.28rem;}
+        .form-header p{font-size:0.83rem;color:var(--label2);}
+        .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;}
+        .campo{margin-bottom:8px;}
+        .campo label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);margin-bottom:3px;}
+        .input-wrap{position:relative;}
+        .input-wrap .ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--label3);pointer-events:none;}
+        .campo input{width:100%;padding:9px 14px 9px 34px;background:rgba(255,255,255,0.65);border:1px solid var(--sep);border-radius:12px;font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--label);outline:none;transition:border-color 0.2s,box-shadow 0.2s,background 0.2s;}
+        .campo input::placeholder{color:var(--label3);}
+        .campo input:focus{border-color:var(--azul-b);background:white;box-shadow:0 0 0 3px rgba(0,119,200,0.11);}
+        .campo input.input-ok{border-color:#34C759;background:white;}
+        .campo input.input-err{border-color:var(--rojo);}
+        .btn-ojo{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--label3);display:flex;align-items:center;border-radius:5px;padding:2px;transition:color 0.15s;}
+        .btn-ojo:hover{color:var(--label2);}
+        .btn-ojo svg{width:14px;height:14px;}
+        .alerta{display:flex;align-items:center;gap:7px;background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.18);border-radius:12px;padding:9px 13px;margin-bottom:10px;color:var(--error);font-size:13px;font-weight:500;}
+        .alerta::before{content:'⚠';flex-shrink:0;}
+        .exito{display:flex;align-items:center;gap:7px;background:rgba(52,199,89,0.08);border:1px solid rgba(52,199,89,0.2);border-radius:12px;padding:9px 13px;margin-bottom:10px;color:#1A7A35;font-size:13px;font-weight:500;}
+        .exito::before{content:'✓';flex-shrink:0;}
+        .error-msg{display:block;font-size:11px;color:var(--error);margin-top:3px;padding-left:3px;}
+        .btn-submit{margin-top:10px;width:100%;padding:12px;background:linear-gradient(135deg,var(--azul-m),var(--azul-b));color:white;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 16px rgba(0,119,200,0.3);transition:all 0.2s;}
+        .btn-submit:hover{background:linear-gradient(135deg,var(--azul),var(--azul-m));box-shadow:0 6px 20px rgba(0,119,200,0.4);transform:translateY(-1px);}
+        .btn-submit svg{width:15px;height:15px;}
+        .proy-badge{display:none;align-items:center;gap:6px;background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:10px;padding:7px 12px;margin-top:6px;font-size:12px;font-weight:600;color:#1A7A35;}
+        .proy-badge.visible{display:flex;}
+        .proy-badge-err{display:none;font-size:12px;color:var(--error);margin-top:5px;padding-left:3px;}
+        .proy-badge-err.visible{display:block;}
+    </style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+    <div class="forms-area">
+        <!-- REGISTRO -->
+        <div class="form-registro">
+            <div class="form-header">
+                <h1>Crear cuenta</h1>
+                <p>Completa los datos para registrarte</p>
+            </div>
+            <form asp-action="Registro" asp-controller="Account" method="post">
+                @Html.AntiForgeryToken()
+                <div class="campo">
+                    <label>Código del proyecto</label>
+                    <div class="input-wrap">
+                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input asp-for="Registro.CodigoProyecto" id="codigoProyecto" placeholder="Ej: VENTTO-X7K2" autocomplete="off" oninput="verificarCodigo(this.value)" style="text-transform:uppercase"/>
+                    </div>
+                    <div class="proy-badge" id="proyBadge">✅ <span id="proyNombre"></span></div>
+                    <div class="proy-badge-err" id="proyErr">Código inválido</div>
+                    <span asp-validation-for="Registro.CodigoProyecto" class="error-msg"></span>
+                </div>
+                <div class="grid-2">
+                    <div class="campo">
+                        <label>Nombre</label>
+                        <div class="input-wrap">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <input asp-for="Registro.Nombre" placeholder="Tu nombre"/>
+                        </div>
+                    </div>
+                    <div class="campo">
+                        <label>Apellido</label>
+                        <div class="input-wrap">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <input asp-for="Registro.Apellido" placeholder="Tu apellido"/>
+                        </div>
+                    </div>
+                    <div class="campo">
+                        <label>Documento</label>
+                        <div class="input-wrap">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>
+                            <input asp-for="Registro.Documento" placeholder="Número documento"/>
+                        </div>
+                    </div>
+                    <div class="campo">
+                        <label>Celular</label>
+                        <div class="input-wrap">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                            <input asp-for="Registro.Celular" placeholder="Tu celular"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="campo">
+                    <label>Correo</label>
+                    <div class="input-wrap">
+                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                        <input asp-for="Registro.Correo" type="email" placeholder="correo@ejemplo.com"/>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="campo">
+                        <label>Usuario</label>
+                        <div class="input-wrap">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                            <input asp-for="Registro.Usuario" placeholder="Nombre de usuario"/>
+                        </div>
+                    </div>
+                    <div class="campo">
+                        <label>Contraseña</label>
+                        <div class="input-wrap">
+                            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <input asp-for="Registro.Contrasena" type="password" placeholder="••••••••"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="campo">
+                    <label>Confirmar contraseña</label>
+                    <div class="input-wrap">
+                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input asp-for="Registro.ConfirmarContrasena" type="password" placeholder="••••••••"/>
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit">
+                    Crear cuenta
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- LOGIN -->
+        <div class="form-login">
+            <div class="form-header">
+                <h1>Bienvenido</h1>
+                <p>Ingresa tus credenciales para acceder</p>
+            </div>
+            @if (TempData["Exito"] != null) { <div class="exito">@TempData["Exito"]</div> }
+            @if (!ViewData.ModelState.IsValid) {
+                foreach (var entry in ViewData.ModelState.Values)
+                    foreach (var error in entry.Errors) { <div class="alerta">@error.ErrorMessage</div> }
+            }
+            <form asp-action="Login" asp-controller="Account" method="post">
+                @Html.AntiForgeryToken()
+                <div class="campo">
+                    <label>Usuario</label>
+                    <div class="input-wrap">
+                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <input asp-for="Login.Usuario" type="text" placeholder="Tu usuario" autofocus autocomplete="username"/>
+                    </div>
+                </div>
+                <div class="campo">
+                    <label>Contraseña</label>
+                    <div class="input-wrap">
+                        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input asp-for="Login.Password" type="password" id="inputPass" placeholder="••••••••" autocomplete="current-password"/>
+                        <button type="button" class="btn-ojo" id="togglePass">
+                            <svg id="iconOjo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit">
+                    Ingresar
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- PANEL DESLIZANTE -->
+    <div class="panel-azul" id="panelAzul">
+        <div class="orbe2"></div><div class="orbe3"></div>
+        <div class="panel-content">
+            <div class="app-icon">
+                <img src="data:image/png;base64,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" alt="Londoño Gómez"/>
+            </div>
+            <h2 id="panelTitulo">¿No tienes<br>cuenta?</h2>
+            <p id="panelDesc">Regístrate con el código de tu proyecto y empieza a gestionar tus lanzamientos.</p>
+            <button class="btn-panel" id="btnCambiar">Registrarse <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+            <div class="panel-dots"><div class="panel-dot on" id="dot0"></div><div class="panel-dot" id="dot1"></div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const wrap=document.getElementById('wrap'),panelTitulo=document.getElementById('panelTitulo'),panelDesc=document.getElementById('panelDesc'),btnCambiar=document.getElementById('btnCambiar'),dot0=document.getElementById('dot0'),dot1=document.getElementById('dot1');
+    let enRegistro=false;
+    const arrowSVG=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+    btnCambiar.addEventListener('click',()=>{
+        enRegistro=!enRegistro;
+        wrap.classList.toggle('modo-registro',enRegistro);
+        if(enRegistro){panelTitulo.innerHTML='¿Ya tienes<br>cuenta?';panelDesc.textContent='Inicia sesión y continúa gestionando tus lanzamientos.';btnCambiar.innerHTML='Iniciar sesión '+arrowSVG;dot0.classList.remove('on');dot1.classList.add('on');}
+        else{panelTitulo.innerHTML='¿No tienes<br>cuenta?';panelDesc.textContent='Regístrate con el código de tu proyecto y empieza a gestionar tus lanzamientos.';btnCambiar.innerHTML='Registrarse '+arrowSVG;dot0.classList.add('on');dot1.classList.remove('on');}
+    });
+    document.getElementById('togglePass').addEventListener('click',function(){
+        const input=document.getElementById('inputPass'),icono=document.getElementById('iconOjo'),visible=input.type==='text';
+        input.type=visible?'password':'text';
+        icono.innerHTML=visible?'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>':'<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    });
+    let timer=null;
+    function verificarCodigo(val){
+        val=val.trim().toUpperCase();
+        const badge=document.getElementById('proyBadge'),err=document.getElementById('proyErr'),input=document.getElementById('codigoProyecto');
+        badge.classList.remove('visible');err.classList.remove('visible');
+        if(val.length < 4) return;
+        clearTimeout(timer);
+        timer=setTimeout(async()=>{
+            const token=document.querySelector('input[name="__RequestVerificationToken"]').value;
+            const res=await fetch('/Account/VerificarCodigo',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','RequestVerificationToken':token},body:'codigo='+encodeURIComponent(val)+'&__RequestVerificationToken='+encodeURIComponent(token)});
+            const data=await res.json();
+            if(data.ok){
+                document.getElementById('proyNombre').textContent=data.nombre;
+                badge.classList.add('visible');
+                input.classList.add('input-ok');input.classList.remove('input-err');
+            } else {
+                err.textContent=data.mensaje;
+                err.classList.add('visible');
+                input.classList.add('input-err');input.classList.remove('input-ok');
+            }
+        },600);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,514 @@
+﻿/* ═══════════════════════════════════════════════════
+   LONDOÑO GÓMEZ — CSS Global / Responsive
+   Agregar en todas las vistas DESPUÉS de los estilos
+   propios de cada página:
+   <link rel="stylesheet" href="/css/app.css" />
+═══════════════════════════════════════════════════ */
+
+/* ── RESET GLOBAL RESPONSIVE ── */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Permitir scroll vertical en portátiles y móviles */
+html, body {
+    min-height: 100%;
+    overflow-x: hidden;
+}
+
+/* ── LAYOUT BASE ── */
+.app {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1), left 0.3s cubic-bezier(.4,0,.2,1);
+}
+
+    .sidebar::-webkit-scrollbar {
+        width: 0;
+    }
+
+.main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.view {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+    .view::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .view::-webkit-scrollbar-thumb {
+        background: rgba(120,120,128,0.2);
+        border-radius: 4px;
+    }
+
+/* ── TOPBAR ── */
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    flex-shrink: 0;
+}
+
+/* ── HAMBURGER (oculto por defecto en escritorio) ── */
+.hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    background: rgba(120,120,128,0.08);
+    border: none;
+    flex-shrink: 0;
+}
+
+    .hamburger span {
+        display: block;
+        width: 18px;
+        height: 2px;
+        background: rgba(0,0,0,0.85);
+        border-radius: 2px;
+        transition: all 0.3s;
+    }
+
+/* ── OVERLAY MÓVIL ── */
+.sb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+    .sb-overlay.open {
+        display: block;
+    }
+
+/* ── LOGO EN SIDEBAR ── */
+.sb-logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0,85,165,0.25);
+}
+
+    .sb-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+/* sb-top con logo */
+.sb-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 14px 0;
+}
+
+.sb-brand .sb-app {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+
+.sb-brand .sb-sub {
+    font-size: 10px;
+    margin-top: 1px;
+}
+
+/* ── TOPBAR LEFT WRAPPER ── */
+.tb-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ── GRIDS RESPONSIVE ── */
+
+/* KPIs: 5 col → 3 col → 2 col */
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+}
+
+/* Dash row 3 cols */
+.dash-row {
+    display: grid;
+    gap: 12px;
+}
+
+/* Listas panel 2 cols */
+.listas-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 18px;
+}
+
+/* ══════════════════════════════════════
+   BREAKPOINT — PORTÁTIL MEDIANO (< 1280px)
+   Contenido se ve "mocho" en portátiles
+══════════════════════════════════════ */
+@media (max-width: 1280px) {
+    .sidebar {
+        width: 210px;
+    }
+
+    .kpi-row {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .dash-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+        .dash-row > *:nth-child(3) {
+            grid-column: 1 / -1;
+        }
+}
+
+@media (max-width: 1100px) {
+    .sidebar {
+        width: 200px;
+    }
+
+    .kpi-num {
+        font-size: 24px !important;
+    }
+
+    .listas-body {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* ══════════════════════════════════════
+   BREAKPOINT — TABLET (< 900px)
+══════════════════════════════════════ */
+@media (max-width: 900px) {
+    .sidebar {
+        width: 190px;
+    }
+
+    .sb-app {
+        font-size: 14px !important;
+    }
+
+    .kpi-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .dash-row {
+        grid-template-columns: 1fr;
+    }
+
+    .listas-body {
+        grid-template-columns: 1fr;
+    }
+
+    .dos-col {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ══════════════════════════════════════
+   BREAKPOINT — MÓVIL (< 700px)
+══════════════════════════════════════ */
+@media (max-width: 700px) {
+    html, body {
+        overflow: auto;
+        height: auto;
+    }
+
+    .app {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    /* Sidebar fuera de pantalla por defecto */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -270px;
+        width: 260px !important;
+        height: 100vh;
+        z-index: 100;
+        overflow-y: auto;
+    }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+    .main {
+        width: 100%;
+        overflow: visible;
+        height: auto;
+    }
+
+    .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
+    .hamburger {
+        display: flex;
+    }
+
+    .view {
+        overflow-y: visible;
+        height: auto;
+        padding: 12px !important;
+    }
+
+    /* Grids móvil */
+    .kpi-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .dash-row {
+        grid-template-columns: 1fr;
+    }
+
+    .listas-body {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .dos-col {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Ocultar chip de proyecto en topbar (ahorra espacio) */
+    .tb-chip {
+        display: none;
+    }
+
+    /* Tabla responsiva */
+    .tbl-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tbl {
+        min-width: 600px;
+    }
+
+    /* Cards */
+    .card, .card-full, .kpi {
+        border-radius: 14px;
+    }
+
+    /* KPIs más compactos */
+    .kpi {
+        padding: 10px;
+    }
+
+    .kpi-num {
+        font-size: 22px !important;
+    }
+
+    .kpi-lbl {
+        font-size: 10px !important;
+    }
+
+    .kpi-ico {
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 12px !important;
+    }
+
+    /* Footer sidebar con espacio para home bar iOS */
+    .sb-footer {
+        padding: 10px 12px 30px;
+    }
+}
+
+/* ══════════════════════════════════════
+   BREAKPOINT — MÓVIL PEQUEÑO (< 420px)
+══════════════════════════════════════ */
+@media (max-width: 420px) {
+    .kpi-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .kpi-num {
+        font-size: 20px !important;
+    }
+
+    .view {
+        padding: 8px !important;
+        gap: 8px !important;
+    }
+
+    .card-head {
+        padding: 10px 12px;
+    }
+
+    .tbl th, .tbl td {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+}
+
+/* ── TABLAS SIEMPRE SCROLL HORIZONTAL ── */
+.tbl-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── FORMS RESPONSIVOS ── */
+@media (max-width: 700px) {
+    .form-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .field.full {
+        grid-column: auto !important;
+    }
+
+    .btn-row {
+        flex-direction: column;
+    }
+
+        .btn-row .ios-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+    .export-row {
+        grid-template-columns: 1fr !important;
+    }
+
+    .prog-pair {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .lista-btns {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .inm-card {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .inm-datos {
+        justify-content: flex-start;
+    }
+}
+
+/* ── JS HELPERS ── */
+/* Clase para deshabilitar scroll del body cuando sidebar abierto */
+body.sidebar-open {
+    overflow: hidden;
+}
+/* ── FIX PORTÁTIL 1366px ── */
+@media (max-width: 1400px) {
+    .sidebar {
+        width: 200px;
+    }
+
+    .dash-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+        .dash-row > .card:last-child {
+            grid-column: 1 / -1;
+            max-width: 420px;
+            justify-self: center;
+            width: 100%;
+        }
+
+    .kpi-num {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .sidebar {
+        width: 185px;
+    }
+
+    .sb-app {
+        font-size: 14px !important;
+    }
+
+    .sb-sub {
+        font-size: 10px !important;
+    }
+
+    .nav-item {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+
+    .kpi-row {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+    }
+
+    .kpi {
+        padding: 11px;
+    }
+
+    .kpi-num {
+        font-size: 22px;
+    }
+        .listas-body {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 175px;
+    }
+
+    .kpi-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .dash-row {
+        grid-template-columns: 1fr;
+    }
+
+        .dash-row > .card:last-child {
+            max-width: 100%;
+            justify-self: stretch;
+        }
+
+    .listas-body {
+        grid-template-columns: 1fr;
+    }
+}
