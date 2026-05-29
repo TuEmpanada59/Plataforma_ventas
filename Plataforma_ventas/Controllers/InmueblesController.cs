@@ -18,6 +18,59 @@ namespace Plataforma_ventas.Controllers
             _hub = hub;
         }
 
+        public IActionResult Proyectos()
+        {
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
+            ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+
+            using var con = new SqlConnection(_conn);
+            con.Open();
+
+            var proyectosGrid = new List<dynamic>();
+            var cmdGrid = new SqlCommand(@"
+                SELECT p.IdProyectos, p.Nombre, p.CodigoAcceso, p.TipProyecto, p.FechaCarga,
+                       ISNULL(COUNT(i.IdInmuebles), 0) AS Total,
+                       ISNULL(SUM(CASE WHEN i.Estado='DISPONIBLE' THEN 1 ELSE 0 END), 0) AS Disponibles,
+                       ISNULL(SUM(CASE WHEN i.Estado='VENDIDO'    THEN 1 ELSE 0 END), 0) AS Vendidos,
+                       ISNULL(SUM(CASE WHEN i.Estado='RESERVADO'  THEN 1 ELSE 0 END), 0) AS Reservados,
+                       ISNULL(SUM(CASE WHEN i.Estado='EN PROCESO' THEN 1 ELSE 0 END), 0) AS EnProceso,
+                       u.Nombre + ' ' + u.Apellido AS NombreAdmin
+                FROM Proyectos p
+                LEFT JOIN Inmuebles i ON i.IdProyecto = p.IdProyectos
+                LEFT JOIN Usuarios u ON u.IdUsuario = p.IdAdminCreador
+                WHERE p.Activo = 1
+                GROUP BY p.IdProyectos, p.Nombre, p.CodigoAcceso, p.TipProyecto, p.FechaCarga, u.Nombre, u.Apellido
+                ORDER BY p.FechaCarga DESC", con);
+            using (var rg = cmdGrid.ExecuteReader())
+                while (rg.Read())
+                    proyectosGrid.Add(new
+                    {
+                        Id = (int)rg["IdProyectos"],
+                        Nombre = rg["Nombre"]?.ToString() ?? "",
+                        Codigo = rg["CodigoAcceso"]?.ToString() ?? "",
+                        Tipo = rg["TipProyecto"]?.ToString() ?? "APARTAMENTOS",
+                        Total = rg["Total"] == DBNull.Value ? 0 : (int)rg["Total"],
+                        Disponibles = rg["Disponibles"] == DBNull.Value ? 0 : (int)rg["Disponibles"],
+                        Vendidos = rg["Vendidos"] == DBNull.Value ? 0 : (int)rg["Vendidos"],
+                        Reservados = rg["Reservados"] == DBNull.Value ? 0 : (int)rg["Reservados"],
+                        EnProceso = rg["EnProceso"] == DBNull.Value ? 0 : (int)rg["EnProceso"],
+                        Admin = rg["NombreAdmin"]?.ToString() ?? "",
+                    });
+
+            ViewBag.ProyectosGrid = proyectosGrid;
+            ViewBag.Proyectos = proyectosGrid.Select(p => ((int)p.Id, (string)p.Nombre)).ToList();
+            return View();
+        }
+
+        [HttpPost]
+        public IActionResult SeleccionarProyecto(int idProyecto, string nombreProyecto)
+        {
+            HttpContext.Session.SetString("ProyectoId", idProyecto.ToString());
+            HttpContext.Session.SetString("ProyectoNombre", nombreProyecto ?? "");
+            return RedirectToAction("Index");
+        }
+
         public IActionResult Index([FromQuery] string torre = "", [FromQuery] string area = "")
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre");
@@ -26,16 +79,15 @@ namespace Plataforma_ventas.Controllers
             var proyIdStr = HttpContext.Session.GetString("ProyectoId") ?? "0";
             ViewBag.ProyectoActivo = proyNombre;
             int idProy = int.TryParse(proyIdStr, out int pid) ? pid : 0;
-            int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
+            if (idProy == 0) return RedirectToAction("Proyectos");
 
             using var con = new SqlConnection(_conn);
             con.Open();
 
-            // Proyectos del admin
+            // Todos los proyectos activos (sin filtro de admin)
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand(
-                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
-            cmdList.Parameters.AddWithValue("@admin", idAdmin);
+                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
             using (var r = cmdList.ExecuteReader())
                 while (r.Read())
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
@@ -251,15 +303,13 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
             ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "";
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
-            int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
 
             using var con = new SqlConnection(_conn);
             con.Open();
 
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand(
-                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
-            cmdList.Parameters.AddWithValue("@admin", idAdmin);
+                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
             using (var rp = cmdList.ExecuteReader())
                 while (rp.Read())
                     proyectos.Add(((int)rp["IdProyectos"], rp["Nombre"]?.ToString() ?? ""));
@@ -303,15 +353,13 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
             ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "";
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
-            int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
 
             using var con = new SqlConnection(_conn);
             con.Open();
 
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand(
-                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
-            cmdList.Parameters.AddWithValue("@admin", idAdmin);
+                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
             using (var rp = cmdList.ExecuteReader())
                 while (rp.Read())
                     proyectos.Add(((int)rp["IdProyectos"], rp["Nombre"]?.ToString() ?? ""));

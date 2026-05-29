@@ -29,9 +29,8 @@ namespace Plataforma_ventas.Controllers
             con.Open();
 
             var proyectos = new List<(int Id, string Nombre)>();
-            var cmdList = new SqlCommand(@"SELECT IdProyectos, Nombre FROM Proyectos 
-                WHERE Activo=1 AND IdAdminCreador=@uid ORDER BY FechaCarga DESC", con);
-            cmdList.Parameters.AddWithValue("@uid", idAdmin);
+            var cmdList = new SqlCommand(@"SELECT IdProyectos, Nombre FROM Proyectos
+                WHERE Activo=1 ORDER BY FechaCarga DESC", con);
             using (var r = cmdList.ExecuteReader())
                 while (r.Read())
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));

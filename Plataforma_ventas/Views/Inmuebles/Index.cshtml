@@ -355,6 +355,16 @@
                     font-weight: 600;
                 }
 
+                .tb-bread a {
+                    color: var(--blue);
+                    text-decoration: none;
+                    font-weight: 500;
+                }
+
+                .tb-bread a:hover {
+                    text-decoration: underline;
+                }
+
             .tb-right {
                 display: flex;
                 align-items: center;
@@ -1284,7 +1294,7 @@
                 {
                     foreach (var p in proyectos)
                     {
-                        <form action="/Dashboard/CambiarProyecto" method="post" style="margin:0">
+                        <form action="/Inmuebles/SeleccionarProyecto" method="post" style="margin:0">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="idProyecto" value="@p.Id" />
                             <input type="hidden" name="nombreProyecto" value="@p.Nombre" />
@@ -1292,11 +1302,12 @@
                         </form>
                     }
                 }
+                <a href="/Inmuebles/Proyectos" class="proy-drop-link">← Ver todos los proyectos</a>
                 <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
             </div>
             <div class="sb-sec">Principal</div>
             <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-            <a class="nav-item active" href="/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
+            <a class="nav-item active" href="/Inmuebles/Proyectos"><div class="nav-ico">🏢</div>Inmuebles</a>
             <a class="nav-item" href="/Inmuebles/Reservas"><div class="nav-ico">🔒</div>Reservas</a>
             <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
             <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
@@ -1315,12 +1326,13 @@
                 <div style="display:flex;align-items:center;gap:10px;">
                     <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
                     <span class="tb-bread">
-                        <strong>Inmuebles</strong>
+                        <a href="/Inmuebles/Proyectos">Proyectos</a>
+                        <span style="margin:0 4px;color:var(--label3)">›</span>
+                        <strong>@proyActivo</strong>
                         @if (!string.IsNullOrEmpty(areaActual))
                         {
                             <span> · @areaActual m²</span>
                         }
-                        · @proyActivo
                     </span>
                 </div>
                 <div class="tb-right"><div class="tb-chip"><span class="pulse"></span>@proyActivo</div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
