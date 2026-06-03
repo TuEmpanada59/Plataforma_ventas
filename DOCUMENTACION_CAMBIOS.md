@@ -3,6 +3,7 @@
 ## Índice
 1. [Cambio de Seguridad: Contraseñas (BCrypt)](#1-cambio-de-seguridad-contraseñas-bcrypt)
 2. [Actualización de Identidad Visual Corporativa](#2-actualización-de-identidad-visual-corporativa)
+3. [Sidebar Blanco + Logo + Navegación Consistente](#3-sidebar-blanco--logo--navegación-consistente)
 
 ---
 
@@ -70,15 +71,14 @@ Se reemplazó la paleta de colores genérica por los colores corporativos oficia
 
 ### Cambios de diseño adicionales
 
-**Sidebar oscuro (19 vistas):**  
-El panel lateral de navegación cambió de fondo blanco translúcido (`rgba(255,255,255,0.75)`) a fondo oscuro corporativo (`#1e222b`) para mejorar la jerarquía visual.
+**Sidebar (19 vistas):**  
+El panel lateral usa fondo blanco con acento corporativo azul.
 
-- Fondo: `#1e222b` (negro corporativo)
-- Texto de navegación: `rgba(255,255,255,0.65)`
-- Ítem activo: fondo azul corporativo `#0076e3`, texto blanco
-- Nombre del proyecto activo: blanco (`#fff`)
-- Dropdown de proyectos: fondo `#252c35` (variante oscura)
-- Enlace "Ver todos los proyectos": celeste `#00c9ff` — visible sobre fondo oscuro
+- Fondo: `#fff` + sombra sutil `2px 0 12px rgba(0,0,0,0.04)`
+- Nombre del proyecto activo: azul corporativo `#0076e3`
+- Ítem activo: fondo `#0076e3`, texto blanco
+- Hover: fondo `rgba(0,118,227,0.07)`, texto azul
+- Dropdown de proyectos: fondo blanco con sombra elevada
 
 **Gradientes actualizados:**  
 - Avatar de usuario (`.sb-av`): `azul → celeste` (`#0076e3 → #00c9ff`)
@@ -91,10 +91,55 @@ El panel lateral de navegación cambió de fondo blanco translúcido (`rgba(255,
 
 ---
 
+---
+
+## 3. Sidebar Blanco + Logo + Navegación Consistente
+
+### ¿Por qué se hizo?
+El sidebar oscuro (`#1e222b`) fue revertido a blanco corporativo. Además se unificaron el logo, el tamaño de los ítems de navegación y la ruta de acceso al selector de proyectos.
+
+### Sidebar blanco
+
+| Elemento | Antes | Después |
+|---|---|---|
+| Fondo | `#1e222b` (oscuro) | `#fff` + sombra lateral |
+| Texto normal | `rgba(255,255,255,0.65)` | `rgba(30,34,43,0.65)` |
+| Ítem activo | Azul `#0076e3` + texto blanco | Igual (sin cambio) |
+| Nombre proyecto | Texto blanco | Azul corporativo `#0076e3` |
+| Dropdown | Fondo `#252c35` oscuro | Fondo blanco + sombra |
+
+### Logo corporativo
+
+**Problema:** Solo la vista Dashboard tenía el logo; las demás 18 vistas mostraban solo texto o un logo base64 inline.
+
+**Solución:** Se agrega `<div class="sb-logo-area">` con el logo `~/Images/Logo azul 2.jpg` en el encabezado del sidebar de todas las vistas. El CSS aplica `mix-blend-mode: multiply` para que el fondo blanco del JPEG desaparezca visualmente y el logo se integre sin verse como una imagen pegada.
+
+### Navegación consistente
+
+**Tamaño uniforme de ítems:** Todos los `.nav-item` tienen `padding: 9px 12px`, `font-size: 14px`, `min-height: 40px` garantizando que ninguna pestaña se vea más grande o pequeña que otra.
+
+**Enlace "Inmuebles" → Selector de proyectos:** En todas las vistas de administrador, el enlace del sidebar que antes iba a `/Inmuebles` (grilla directa) ahora va a `/Inmuebles/Proyectos` (selector). El flujo es:
+
+```
+[Nav: Proyectos] → /Inmuebles/Proyectos (selector con tarjetas)
+                       ↓ (click en un proyecto)
+               [POST] /Inmuebles/SeleccionarProyecto
+                       ↓ (guarda en sesión)
+               /Inmuebles/Index (grilla del proyecto)
+```
+
+El proyecto seleccionado **persiste en sesión** hasta que el usuario seleccione otro desde el selector. Si no hay proyecto activo en sesión, cualquier intento de acceder a `/Inmuebles` redirige automáticamente al selector.
+
+### Archivos modificados
+- 19 vistas con sidebar: CSS del sidebar blanco, logo añadido, enlace nav actualizado
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
 | 2026-06-03 | Selector de proyectos en Inmuebles + visibilidad global admin | Claude (IA) |
 | 2026-06-03 | Migración BCrypt + Paleta corporativa | Claude (IA) |
+| 2026-06-03 | Sidebar blanco + logo en todas las vistas + nav consistente | Claude (IA) |
 
