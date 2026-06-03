@@ -29,9 +29,9 @@
             }
 
             :root {
-                --azul: #003A70;
-                --mid: #0055A5;
-                --blue: #0077C8;
+                --azul: #0076e3; --celeste: #00c9ff; --negro: #1e222b; --plata: #c3cfdb; --menta: #00d4a1;
+                --mid: #0060bb;
+                --blue: #0076e3;
                 --rojo: #E63946;
                 --verde: #34C759;
                 --oro: #FF9500;
@@ -62,7 +62,7 @@
                 position: fixed;
                 inset: 0;
                 z-index: 0;
-                background: radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,119,200,0.12) 0%,transparent 55%),#EEF2F7;
+                background: radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,118,227,0.12) 0%,transparent 55%),#EEF2F7;
                 pointer-events: none;
             }
 
@@ -102,8 +102,8 @@
 
             .sb-proy {
                 margin: 14px 10px 0;
-                background: rgba(0,119,200,0.08);
-                border: 1px solid rgba(0,119,200,0.18);
+                background: rgba(0,118,227,0.08);
+                border: 1px solid rgba(0,118,227,0.18);
                 border-radius: 14px;
                 padding: 10px 12px;
                 cursor: pointer;
@@ -200,7 +200,7 @@
                 font-weight: 600;
                 color: var(--blue);
                 text-decoration: none;
-                background: rgba(0,119,200,0.04);
+                background: rgba(0,118,227,0.04);
             }
 
             .sb-sec {
@@ -234,7 +234,7 @@
                     background: var(--blue);
                     color: white;
                     font-weight: 600;
-                    box-shadow: 0 4px 12px rgba(0,119,200,0.28);
+                    box-shadow: 0 4px 12px rgba(0,118,227,0.28);
                 }
 
             .nav-ico {
@@ -266,7 +266,7 @@
                 width: 30px;
                 height: 30px;
                 border-radius: 50%;
-                background: linear-gradient(135deg,var(--mid),var(--blue));
+                background: linear-gradient(135deg,var(--azul),var(--celeste));
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -390,7 +390,7 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                box-shadow: 0 8px 24px rgba(0,58,112,0.25);
+                box-shadow: 0 8px 24px rgba(0,118,227,0.25);
                 animation: fu 0.3s ease both;
                 flex-wrap: wrap;
                 gap: 12px;
@@ -546,12 +546,12 @@
 
                 .destino-opt:hover {
                     border-color: var(--blue);
-                    background: rgba(0,119,200,0.03);
+                    background: rgba(0,118,227,0.03);
                 }
 
                 .destino-opt.sel {
                     border-color: var(--blue);
-                    background: rgba(0,119,200,0.07);
+                    background: rgba(0,118,227,0.07);
                 }
 
             .destino-ico {
@@ -645,7 +645,7 @@
                     .field input:focus, .field select:focus {
                         background: white;
                         border-color: var(--blue);
-                        box-shadow: 0 0 0 3px rgba(0,119,200,0.1);
+                        box-shadow: 0 0 0 3px rgba(0,118,227,0.1);
                     }
 
             .btn-row {
@@ -666,7 +666,7 @@
                 font-size: 14px;
                 font-weight: 600;
                 cursor: pointer;
-                box-shadow: 0 4px 12px rgba(0,119,200,0.28);
+                box-shadow: 0 4px 12px rgba(0,118,227,0.28);
                 transition: all 0.2s;
                 text-decoration: none;
             }
@@ -702,7 +702,27 @@
                 .form-grid {
                     grid-template-columns: 1fr !important;
                 }
-        }</style>
+        }
+        /* ── Sidebar oscuro corporativo ── */
+        .sidebar{background:#1e222b!important;border-right:1px solid rgba(255,255,255,0.08)!important;backdrop-filter:none!important;}
+        .sb-app{color:rgba(255,255,255,0.95)!important;}
+        .sb-sub{color:rgba(255,255,255,0.4)!important;}
+        .sb-proy{background:rgba(255,255,255,0.07)!important;border-color:rgba(255,255,255,0.12)!important;}
+        .sb-proy:hover{background:rgba(255,255,255,0.11)!important;}
+        .sb-proy-lbl{color:rgba(255,255,255,0.45)!important;}
+        .sb-proy-name{color:#fff!important;}
+        .sb-proy-meta{color:rgba(255,255,255,0.55)!important;}
+        .proy-drop{background:#252c35!important;border-color:rgba(255,255,255,0.1)!important;}
+        .proy-drop-item{color:rgba(255,255,255,0.8)!important;}
+        .proy-drop-item:hover{background:rgba(255,255,255,0.08)!important;}
+        .proy-drop-link{color:#00c9ff!important;background:rgba(0,201,255,0.06)!important;}
+        .sb-sec{color:rgba(255,255,255,0.38)!important;}
+        .nav-item{color:rgba(255,255,255,0.65)!important;}
+        .nav-item:hover{background:rgba(255,255,255,0.08)!important;color:#fff!important;}
+        .nav-ico{background:rgba(255,255,255,0.08)!important;}
+        .sb-footer{border-top-color:rgba(255,255,255,0.08)!important;}
+        .sb-logout{background:rgba(255,255,255,0.07)!important;color:rgba(255,255,255,0.5)!important;}
+    </style>
     </head>
     <body>
         <div class="app">

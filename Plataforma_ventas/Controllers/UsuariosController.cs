@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Plataforma_ventas.Filters;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Plataforma_ventas.Controllers
 {
@@ -127,7 +125,8 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@c", celular ?? "");
             cmd.Parameters.AddWithValue("@e", correo ?? "");
             cmd.Parameters.AddWithValue("@u", usuario ?? "");
-            cmd.Parameters.AddWithValue("@p", HashSHA256(contrasena ?? ""));
+            // BCrypt.HashPassword genera una sal aleatoria embebida en el hash (factor de coste = 12)
+            cmd.Parameters.AddWithValue("@p", BCrypt.Net.BCrypt.HashPassword(contrasena ?? "", 12));
             cmd.Parameters.AddWithValue("@proy", idProyecto);
             cmd.ExecuteNonQuery();
 
@@ -165,7 +164,8 @@ namespace Plataforma_ventas.Controllers
             con.Open();
 
             var cmd = new SqlCommand("UPDATE Usuarios SET Contraseña=@p WHERE IdUsuario=@id", con);
-            cmd.Parameters.AddWithValue("@p", HashSHA256(nuevaContrasena ?? ""));
+            // BCrypt.HashPassword genera una sal aleatoria embebida en el hash (factor de coste = 12)
+            cmd.Parameters.AddWithValue("@p", BCrypt.Net.BCrypt.HashPassword(nuevaContrasena ?? "", 12));
             cmd.Parameters.AddWithValue("@id", idUsuario);
             cmd.ExecuteNonQuery();
 
@@ -194,11 +194,5 @@ namespace Plataforma_ventas.Controllers
             return RedirectToAction("Index");
         }
 
-        private static string HashSHA256(string input)
-        {
-            using var sha = SHA256.Create();
-            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-            return Convert.ToHexString(bytes).ToLower();
-        }
     }
 }

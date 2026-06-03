@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using System.Security.Cryptography;
-using System.Text;
 using Plataforma_ventas.ViewModels;
 using Plataforma_ventas.Filters;
 
@@ -31,22 +29,24 @@ namespace Plataforma_ventas.Controllers
 
             if (!ModelState.IsValid) return View(model);
 
-            string hashPass = HashSHA256(model.Login.Password);
-
             using var con = new SqlConnection(_conn);
             con.Open();
 
+            // BCrypt: primero traemos el hash almacenado, luego verificamos
+            // Esto es necesario porque BCrypt incluye la sal dentro del hash
             var cmd = new SqlCommand(@"
                 SELECT u.IdUsuario, u.Nombre, u.Apellido, u.Rol, u.IdProyecto,
+                       u.Contraseña,
                        p.Nombre AS NombreProyecto, p.IdProyectos
                 FROM Usuarios u
                 LEFT JOIN Proyectos p ON u.IdProyecto = p.IdProyectos
-                WHERE u.Usuario = @u AND u.Contraseña = @p", con);
+                WHERE u.Usuario = @u", con);
             cmd.Parameters.AddWithValue("@u", model.Login.Usuario);
-            cmd.Parameters.AddWithValue("@p", hashPass);
 
             using var reader = cmd.ExecuteReader();
-            if (reader.Read())
+            // BCrypt.Verify compara la contraseña en texto plano contra el hash
+            // almacenado (que ya incluye la sal). Nunca guardamos la contraseña real.
+            if (reader.Read() && BCrypt.Net.BCrypt.Verify(model.Login.Password, reader["Contraseña"]?.ToString() ?? ""))
             {
                 string rol = reader["Rol"]?.ToString() ?? "";
                 HttpContext.Session.SetString("UsuarioId", reader["IdUsuario"].ToString()!);
@@ -160,7 +160,9 @@ namespace Plataforma_ventas.Controllers
             insert.Parameters.AddWithValue("@cel", model.Registro.Celular);
             insert.Parameters.AddWithValue("@cor", model.Registro.Correo);
             insert.Parameters.AddWithValue("@usu", model.Registro.Usuario);
-            insert.Parameters.AddWithValue("@pas", HashSHA256(model.Registro.Contrasena));
+            // BCrypt.HashPassword genera automáticamente una sal aleatoria
+            // y la incluye dentro del hash resultante (factor de coste = 12)
+            insert.Parameters.AddWithValue("@pas", BCrypt.Net.BCrypt.HashPassword(model.Registro.Contrasena, 12));
             insert.Parameters.AddWithValue("@proy", idProyecto);
             insert.ExecuteNonQuery();
 
@@ -184,11 +186,5 @@ namespace Plataforma_ventas.Controllers
                 : RedirectToAction("Index", "Vendedor");
         }
 
-        private static string HashSHA256(string input)
-        {
-            using var sha = SHA256.Create();
-            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-            return Convert.ToHexString(bytes).ToLower();
-        }
     }
 }
