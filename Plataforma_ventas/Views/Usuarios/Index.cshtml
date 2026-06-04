@@ -310,7 +310,9 @@
                             </thead>
                             <tbody>
                             @foreach (var u in usuarios) {
-                                var ini = ((u.Nombre?.Length > 0 ? u.Nombre[..1] : "") + (u.Apellido?.Length > 0 ? u.Apellido[..1] : "")).ToUpper();
+                                string uNom = u.Nombre as string ?? "";
+                                string uApe = u.Apellido as string ?? "";
+                                var ini = ((uNom.Length > 0 ? uNom.Substring(0,1) : "") + (uApe.Length > 0 ? uApe.Substring(0,1) : "")).ToUpper();
                                 <tr data-nombre="@u.Nombre @u.Apellido" data-usuario="@u.Usuario" data-proy="@u.NombreProyecto" data-rol="@u.Rol">
                                     <td>
                                         <div class="user-info">
