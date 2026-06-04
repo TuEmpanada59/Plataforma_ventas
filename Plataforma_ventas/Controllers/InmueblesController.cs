@@ -64,6 +64,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult SeleccionarProyecto(int idProyecto, string nombreProyecto)
         {
             HttpContext.Session.SetString("ProyectoId", idProyecto.ToString());
@@ -246,6 +247,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Reservar ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ReservarInmueble(int idInmueble)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -406,6 +408,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Confirmar venta desde reserva ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ConfirmarVentaReserva(int idInmueble, long precioVenta,
             int? idClienteExistente, string tipoCliente, string destino,
             string clienteNombre, string clienteApellido, string clienteDocumento,
@@ -483,6 +486,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Liberar reserva ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult LiberarReserva(int idInmueble)
         {
             using var con = new SqlConnection(_conn);
@@ -499,6 +503,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Tomar inmueble ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult TomarInmueble(int idInmueble)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -522,6 +527,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Cancelar proceso ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult CancelarProceso(int idInmueble)
         {
             using var con = new SqlConnection(_conn);
@@ -612,6 +618,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Cambiar lista de un área ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> CambiarListaArea(string metros, int listaActual)
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
@@ -635,6 +642,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Editar precio de lista por área ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult EditarPrecioArea(string metros, int numLista, long nuevoPrecio)
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
@@ -653,6 +661,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Configurar escalamiento automático por área ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ConfigurarAutoArea(string metros, int aptsPorLista)
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
@@ -677,6 +686,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Confirmar venta (flujo normal) ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ConfirmarVenta(int idInmueble, int listaAplicada, long precioVenta,
             string accion, int? idClienteExistente, string tipoCliente, string destino,
             string clienteNombre, string clienteApellido, string clienteDocumento,

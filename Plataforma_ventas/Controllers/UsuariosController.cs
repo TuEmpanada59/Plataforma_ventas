@@ -72,6 +72,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Crear(string nombre, string apellido, string documento,
             string celular, string correo, string usuario, string contrasena,
             string rol, int idProyecto)
@@ -114,6 +115,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Editar(int idUsuario, string nombre, string apellido,
             string documento, string celular, string correo, string rol, int idProyecto)
         {
@@ -142,6 +144,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ResetPassword(int idUsuario, string nuevaContrasena)
         {
             using var con = new SqlConnection(_conn);
@@ -158,6 +161,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Eliminar(int idUsuario)
         {
             int idActual = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;

@@ -144,6 +144,7 @@ namespace Plataforma_ventas.Controllers
 
         //-------------------Editar cliente
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Editar(int idCliente, string nombre, string apellido,
             string documento, string celular, string correo, string direccion)
         {

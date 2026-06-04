@@ -89,6 +89,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult AsignarProyecto(string codigo)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -126,6 +127,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult CambiarProyecto(int idProyecto, string nombreProyecto)
         {
             return RedirectToAction("Index");
@@ -248,6 +250,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult TomarInmueble(int idInmueble)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -270,6 +273,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult CancelarProceso(int idInmueble)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -286,6 +290,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Reservar — guarda precio bloqueado ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ReservarInmueble(int idInmueble)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -339,6 +344,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult LiberarReserva(int idInmueble)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -441,6 +447,7 @@ namespace Plataforma_ventas.Controllers
 
         // ── Confirmar venta desde reserva (POST) ──
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ConfirmarVentaReserva(int idInmueble, long precioVenta,
             int? idClienteExistente, string tipoCliente, string destino,
             string clienteNombre, string clienteApellido, string clienteDocumento,
@@ -589,6 +596,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult ConfirmarVenta(int idInmueble, int listaAplicada, long precioVenta,
             string accion, int? idClienteExistente, string tipoCliente,
             string clienteNombre, string clienteApellido, string clienteDocumento,

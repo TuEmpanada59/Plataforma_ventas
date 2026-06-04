@@ -135,10 +135,67 @@ El proyecto seleccionado **persiste en sesión** hasta que el usuario seleccione
 
 ---
 
+---
+
+## 4. Eliminación de Registro Público + Endurecimiento de Seguridad (OWASP)
+
+### ¿Por qué se hizo?
+El formulario de registro público permitía que cualquier persona creara cuentas de vendedor con solo conocer un código de proyecto — sin verificación ni aprobación administrativa. Se eliminó completamente.
+
+### Cambios aplicados
+
+#### A) Registro público eliminado (OWASP A07 — Broken Access Control)
+- **Eliminado:** Acción `Registro` POST en `AccountController.cs`
+- **Eliminado:** Acción `VerificarCodigo` POST (validación AJAX de código)
+- **Simplificada:** `Views/Account/Login.cshtml` — de 251 líneas con dos formularios a pantalla de solo login
+- **Resultado:** Los usuarios solo pueden ser creados por el administrador desde el panel de Usuarios
+
+#### B) Corrección crítica en `RolAutorizadoAttribute` (OWASP A01 — Broken Access Control)
+**Problema:** El filtro usaba `OnActionExecuted` (se ejecuta DESPUÉS de la acción) → las acciones protegidas se ejecutaban ANTES de que el filtro verificara el rol. Además, el array `_roles` no se usaba para verificar el rol actual.
+
+**Solución:**
+- `OnActionExecuted` → `OnActionExecuting` (verifica ANTES de ejecutar la acción)
+- Se agregó `_roles.Contains(rol)` para verificar que el rol del usuario coincida
+- Redirección inteligente: admin → Dashboard, vendedor → Vendedor
+
+#### C) Bloqueo de cuenta por intentos fallidos (OWASP A07 — Broken Authentication)
+- **5 intentos fallidos** bloquean la cuenta por **15 minutos**
+- Implementado con `IMemoryCache` (sin dependencias adicionales)
+- Al login exitoso se reinicia el contador de intentos
+- Mensajes informativos: indica cuántos intentos quedan antes del bloqueo
+
+#### D) Cabeceras de seguridad HTTP (OWASP A05 — Security Misconfiguration)
+Middleware inyectado en `Program.cs` para todas las respuestas:
+
+| Cabecera | Valor | Protege contra |
+|---|---|---|
+| `X-Content-Type-Options` | `nosniff` | MIME sniffing |
+| `X-Frame-Options` | `DENY` | Clickjacking |
+| `X-XSS-Protection` | `1; mode=block` | XSS reflejado (legacy) |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Fuga de URL en Referer |
+
+#### E) Cookie de sesión con SameSite=Strict (OWASP A01 — CSRF)
+- `options.Cookie.SameSite = SameSiteMode.Strict` en `AddSession()`
+- Complementa `[ValidateAntiForgeryToken]` en todos los 27 POST del sistema
+
+#### F) [ValidateAntiForgeryToken] en todos los POST
+Todos los 27 POST del sistema tienen el atributo, distribuidos en 7 controladores:
+- `InmueblesController` (9), `VendedorController` (7), `UsuariosController` (4), `DashboardController` (2), `CargaController` (3), `ClientesController` (1), `AccountController` (1)
+
+**Archivos modificados:**
+- `Filters/RolAutorizadoAttribute.cs`
+- `Controllers/AccountController.cs`
+- `Controllers/UsuariosController.cs` + 5 controladores más
+- `Program.cs`
+- `Views/Account/Login.cshtml`
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-06-04 | Registro eliminado + OWASP: bloqueo de cuenta, cabeceras HTTP, SameSite, RolAutorizado fix, CSRF completo | Claude (IA) |
 | 2026-06-03 | Selector de proyectos en Inmuebles + visibilidad global admin | Claude (IA) |
 | 2026-06-03 | Migración BCrypt + Paleta corporativa | Claude (IA) |
 | 2026-06-03 | Sidebar blanco + logo en todas las vistas + nav consistente | Claude (IA) |

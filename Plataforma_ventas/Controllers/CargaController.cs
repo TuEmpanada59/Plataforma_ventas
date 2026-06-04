@@ -48,6 +48,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Subir(IFormFile archivo, string nombreProyecto, string tipoProyecto)
         {
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
@@ -222,6 +223,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult RegenerarCodigo(int idProyecto, string nombreProyecto)
         {
             string nuevoCodigo = GenerarCodigo(nombreProyecto);
@@ -237,6 +239,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult EliminarProyecto(int idProyecto)
         {
             using var con = new SqlConnection(_conn);

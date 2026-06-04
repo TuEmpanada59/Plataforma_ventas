@@ -131,6 +131,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult CambiarProyecto(int idProyecto, string nombreProyecto)
         {
             HttpContext.Session.SetString("ProyectoId", idProyecto.ToString());
@@ -139,6 +140,7 @@ namespace Plataforma_ventas.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfigurarLista(int apartamentosPorLista)
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
