@@ -119,7 +119,7 @@ namespace Plataforma_ventas.Controllers
             Response.Cookies.Delete(".AspNetCore.Session");
             foreach (var cookie in Request.Cookies.Keys)
                 Response.Cookies.Delete(cookie);
-            return View("Login", new LoginViewModel());
+            return RedirectToAction("Login");
         }
 
         private IActionResult RedirectSegunRol()
