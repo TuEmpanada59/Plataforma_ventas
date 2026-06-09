@@ -6,214 +6,419 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Londoño Gómez — Iniciar sesión</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{
-            --azul:#0076e3;--celeste:#00c9ff;--negro:#1e222b;--plata:#c3cfdb;--menta:#00d4a1;
-            --azul-m:#0060bb;--navy:#07254a;--navy2:#0a2747;
-            --rojo:#E63946;--verde:#34C759;
-            --label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(0,0,0,0.55);
-            --sep:rgba(60,60,67,0.14);
-        }
-        html,body{height:100%;}
-        body{margin:0;background:var(--navy);overflow:hidden;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Londoño Gómez — Iniciar sesión</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens ── */
+:root{
+  --lg-blue-deep:#003A70;--lg-blue-mid:#0055A5;--lg-blue:#0077C8;
+  --lg-red:#E63946;--lg-green:#34C759;--lg-green-text:#1EA851;--lg-green-ink:#1A7A35;
+  --lg-orange:#FF9500;
+  --lg-label:rgba(0,0,0,0.85);--lg-label-2:rgba(60,60,67,0.60);--lg-label-3:rgba(60,60,67,0.30);
+  --lg-sep:rgba(60,60,67,0.12);--lg-fill-3:rgba(120,120,128,0.08);
+  --lg-glass:rgba(255,255,255,0.75);--lg-glass-border:rgba(255,255,255,0.60);
+  --r-lg:12px;--r-xl:14px;--r-3xl:28px;--r-cap:50px;
+  --shadow-accent:0 4px 12px rgba(0,119,200,0.28);
+  --shadow-accent-lg:0 6px 20px rgba(0,119,200,0.40);
+  --ease-ios:cubic-bezier(.4,0,.2,1);
+  --font-sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --focus-ring:0 0 0 3px rgba(0,119,200,0.11);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;-webkit-font-smoothing:antialiased;font-family:var(--font-sans);}
+body{background:#07254a;overflow:hidden;}
 
-        /* ── Fondo mosaico reactivo (canvas) ── */
-        #mosaico{position:fixed;inset:0;display:block;}
+/* ── Keyframes ── */
+@@keyframes lg-pulse-ring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
+@@keyframes lg-tile-idle{0%,100%{filter:brightness(.84)}50%{filter:brightness(1.05)}}
+@@keyframes lg-spin{to{transform:rotate(360deg)}}
+@@keyframes lg-shake{10%,90%{transform:translateY(-50%) translateX(-2px)}20%,80%{transform:translateY(-50%) translateX(4px)}30%,50%,70%{transform:translateY(-50%) translateX(-7px)}40%,60%{transform:translateY(-50%) translateX(7px)}}
+@@keyframes lg-fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-        /* ── Titular editorial (izquierda) ── */
-        .f-headline{position:fixed;left:6vw;top:50%;transform:translateY(-50%);z-index:2;max-width:520px;pointer-events:none;}
-        .f-headline .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--celeste);margin-bottom:18px;}
-        .f-headline .kicker::before{content:'';width:28px;height:2px;background:var(--celeste);border-radius:2px;}
-        .f-headline h1{font-size:clamp(2rem,4.2vw,3.4rem);font-weight:800;color:#fff;letter-spacing:-1.5px;line-height:1.08;margin-bottom:18px;}
-        .f-headline h1 em{font-style:normal;color:var(--celeste);}
-        .f-headline p{font-size:1rem;color:rgba(255,255,255,0.55);line-height:1.7;max-width:420px;}
+/* ── Stage ── */
+.ab{width:100%;height:100%;position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:var(--font-sans);}
 
-        /* ── Tarjeta sólida (derecha) ── */
-        .fin-card{position:fixed;right:7vw;top:50%;transform:translateY(-50%);z-index:3;width:400px;background:#fff;border-radius:22px;box-shadow:0 40px 90px rgba(2,16,38,0.55),0 4px 18px rgba(2,16,38,0.3);padding:2.3rem 2.4rem 2.4rem;animation:cardIn 0.55s cubic-bezier(.3,.9,.3,1) both;}
-        @@keyframes cardIn{from{opacity:0;transform:translateY(calc(-50% + 22px));}to{opacity:1;transform:translateY(-50%);}}
-        .fin-card.shake{animation:shake 0.45s cubic-bezier(.36,.07,.19,.97) both;}
-        @@keyframes shake{10%,90%{transform:translate(-2px,-50%)}20%,80%{transform:translate(4px,-50%)}30%,50%,70%{transform:translate(-6px,-50%)}40%,60%{transform:translate(6px,-50%)}100%{transform:translate(0,-50%)}}
+/* ── Reflector dwall ── */
+.dwall{position:absolute;inset:-2% 0;z-index:0;display:grid;
+  grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(6,1fr);
+  grid-auto-flow:dense;gap:8px;background:#07254a;
+  --mx:50%;--my:42%;}
+.dwall .dt{border-radius:7px;overflow:hidden;
+  background:linear-gradient(150deg,#0d3a6e 0%,#082a54 100%);
+  box-shadow:inset 0 0 0 1px rgba(130,195,255,.09),inset 0 1px 0 rgba(165,212,255,.13);
+  animation:lg-tile-idle 6.5s ease-in-out infinite;
+  animation-delay:calc((var(--col) + var(--row)) * -.5s);
+  will-change:filter;}
+.dwall .dt::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(138deg,rgba(160,210,255,.16) 0%,transparent 46%);opacity:.7;}
 
-        .card-logo{display:flex;align-items:center;gap:12px;margin-bottom:1.6rem;}
-        .card-logo img{height:44px;object-fit:contain;mix-blend-mode:multiply;}
-        .card-title{font-size:1.45rem;font-weight:800;color:var(--negro);letter-spacing:-0.6px;margin-bottom:0.3rem;}
-        .card-sub{font-size:0.85rem;color:var(--label2);margin-bottom:1.5rem;}
+/* ── Magnify (cursor effect) ── */
+.dwall.magnify .dt{
+  transform:scale(var(--mag,1));
+  filter:brightness(var(--br,.86));
+  transition:transform .18s var(--ease-ios),filter .18s linear,box-shadow .18s;
+  animation:none;}
+.dwall.magnify .dt[data-hot="1"]{
+  box-shadow:inset 0 0 0 1px rgba(170,220,255,.5),0 8px 26px rgba(0,90,190,.45);z-index:4;}
 
-        .campo{margin-bottom:14px;}
-        .campo label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);margin-bottom:5px;}
-        .input-wrap{position:relative;}
-        .input-wrap .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--label3);pointer-events:none;}
-        .campo input{width:100%;padding:11px 40px 11px 36px;background:#f4f7fb;border:1.5px solid transparent;border-radius:12px;font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--label);outline:none;transition:border-color 0.2s,box-shadow 0.2s,background 0.2s;}
-        .campo input::placeholder{color:var(--label3);}
-        .campo input:focus{border-color:var(--azul);background:#fff;box-shadow:0 0 0 4px rgba(0,118,227,0.12);}
-        .btn-ojo{position:absolute;right:11px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--label3);display:flex;align-items:center;border-radius:5px;padding:3px;transition:color 0.15s;}
-        .btn-ojo:hover{color:var(--negro);}
-        .btn-ojo svg{width:15px;height:15px;}
+/* ── Reflector light (spotlight) ── */
+.reflector-light{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(circle 380px at var(--mx) var(--my),
+    rgba(160,218,255,.48) 0%,rgba(90,170,255,.24) 22%,
+    rgba(45,115,215,.09) 42%,transparent 60%);
+  mix-blend-mode:screen;}
 
-        .alerta{display:flex;align-items:flex-start;gap:8px;background:rgba(230,57,70,0.07);border:1px solid rgba(230,57,70,0.22);border-radius:12px;padding:10px 13px;margin-bottom:14px;color:var(--rojo);font-size:13px;font-weight:500;line-height:1.45;}
-        .alerta::before{content:'⚠';flex-shrink:0;}
-        .exito{display:flex;align-items:center;gap:8px;background:rgba(52,199,89,0.08);border:1px solid rgba(52,199,89,0.22);border-radius:12px;padding:10px 13px;margin-bottom:14px;color:#1A7A35;font-size:13px;font-weight:500;}
-        .exito::before{content:'✓';flex-shrink:0;}
-        .error-msg{display:block;font-size:11px;color:var(--rojo);margin-top:4px;padding-left:3px;}
+/* ── Scrim left (darkens left half) ── */
+.scrim-f{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(90deg,rgba(2,18,42,.78) 0%,rgba(3,22,50,.42) 42%,rgba(3,20,48,.30) 100%),
+    linear-gradient(180deg,rgba(0,30,70,.45) 0%,transparent 30%,rgba(0,16,40,.70) 100%);}
 
-        .btn-submit{margin-top:8px;width:100%;padding:13px;background:linear-gradient(135deg,var(--azul-m),var(--azul));color:#fff;border:none;border-radius:13px;font-family:'Inter',system-ui,sans-serif;font-size:15px;font-weight:700;letter-spacing:-0.2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 18px rgba(0,118,227,0.35);transition:transform 0.15s,box-shadow 0.2s,filter 0.2s;}
-        .btn-submit:hover{filter:brightness(1.07);box-shadow:0 8px 24px rgba(0,118,227,0.45);transform:translateY(-1px);}
-        .btn-submit:active{transform:translateY(0);}
-        .btn-submit svg{width:16px;height:16px;}
-        .card-foot{margin-top:1.4rem;text-align:center;font-size:11.5px;color:var(--label3);display:flex;align-items:center;justify-content:center;gap:6px;}
-        .card-foot svg{width:12px;height:12px;flex-shrink:0;}
+/* ── Top-left brand ── */
+.f-top{position:absolute;top:30px;left:48px;z-index:4;display:flex;align-items:center;gap:11px;}
+.logo-tile{display:inline-flex;align-items:center;justify-content:center;overflow:hidden;
+  background:#fff;box-shadow:0 4px 14px rgba(0,85,165,.20);flex-shrink:0;
+  width:38px;height:38px;border-radius:12px;}
+.logo-tile img{width:128%;height:128%;object-fit:contain;mix-blend-mode:multiply;}
+.bf-name{color:#fff;font-size:15px;font-weight:700;letter-spacing:-.3px;
+  text-shadow:0 1px 10px rgba(0,0,0,.4);}
 
-        @@media (max-width:820px){
-            .f-headline{display:none;}
-            .fin-card{right:50%;transform:translate(50%,-50%);width:min(92vw,400px);}
-            @@keyframes cardIn{from{opacity:0;transform:translate(50%,calc(-50% + 22px));}to{opacity:1;transform:translate(50%,-50%);}}
-            @@keyframes shake{10%,90%{transform:translate(calc(50% - 2px),-50%)}20%,80%{transform:translate(calc(50% + 4px),-50%)}30%,50%,70%{transform:translate(calc(50% - 6px),-50%)}40%,60%{transform:translate(calc(50% + 6px),-50%)}100%{transform:translate(50%,-50%)}}
-        }
-    </style>
+/* ── Bottom-left headline ── */
+.f-headline{position:absolute;left:48px;bottom:50px;z-index:3;max-width:440px;
+  animation:lg-fade-up .6s var(--ease-ios) .1s both;}
+.live-pill.light{display:inline-flex;align-items:center;gap:7px;
+  background:rgba(255,255,255,.16);color:#fff;
+  font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:var(--r-cap);
+  margin-bottom:16px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.28);}
+.pulse{width:6px;height:6px;border-radius:50%;background:#4ade80;flex-shrink:0;
+  animation:lg-pulse-ring 2.5s ease infinite;}
+.f-h1{color:#fff;font-size:46px;font-weight:700;letter-spacing:-1.6px;line-height:1.04;
+  margin:0 0 14px;text-shadow:0 2px 36px rgba(0,0,0,.45);}
+.f-sub{color:rgba(255,255,255,.82);font-size:15px;line-height:1.55;margin:0;max-width:360px;
+  text-shadow:0 1px 14px rgba(0,0,0,.35);}
+
+/* ── Card ── */
+.fin-card{position:absolute;right:72px;top:50%;transform:translateY(-50%);
+  z-index:5;width:388px;overflow:hidden;
+  background:#fff;border:1px solid rgba(0,40,90,.06);border-radius:var(--r-3xl);
+  box-shadow:0 50px 110px rgba(0,26,66,.42),0 8px 28px rgba(0,30,70,.12);
+  font-family:var(--font-sans);animation:lg-fade-up .55s var(--ease-ios) both;}
+.fin-card.shake{animation:lg-shake .42s var(--ease-ios);}
+.fin-body{padding:36px 36px 32px;}
+.fin-accent{height:4px;width:46px;border-radius:4px;margin-bottom:20px;
+  background:linear-gradient(90deg,var(--lg-blue),#46b3ff);}
+.fin-h1{font-size:25px;font-weight:700;letter-spacing:-.7px;color:var(--lg-label);
+  line-height:1.1;margin:0 0 6px;}
+.fin-p{font-size:13.5px;color:var(--lg-label-2);margin:0 0 22px;line-height:1.5;}
+
+/* ── Fields ── */
+.fin-stack{display:flex;flex-direction:column;gap:14px;margin-bottom:8px;}
+.fin-field{display:block;}
+.fin-flabel{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:rgba(0,0,0,.62);margin-bottom:5px;}
+.fin-wrap{position:relative;display:flex;align-items:center;}
+.fin-ico{position:absolute;left:13px;color:rgba(0,0,0,.4);display:flex;pointer-events:none;
+  transition:color .2s;}
+.fin-input{width:100%;padding:11px 14px 11px 38px;font-family:var(--font-sans);
+  font-size:14px;color:var(--lg-label);background:#fff;
+  border:1px solid var(--lg-sep);border-radius:var(--r-lg);outline:none;
+  transition:border-color .2s,box-shadow .2s;}
+.fin-input.has-trail{padding-right:42px;}
+.fin-input::placeholder{color:rgba(0,0,0,.32);}
+.fin-input:focus{border-color:var(--lg-blue);box-shadow:var(--focus-ring);}
+.fin-wrap:focus-within .fin-ico{color:var(--lg-blue);}
+.fin-trail{position:absolute;right:8px;display:flex;align-items:center;
+  justify-content:center;width:30px;height:30px;border-radius:8px;
+  color:rgba(0,0,0,.42);background:none;border:none;cursor:pointer;
+  transition:background .15s,color .15s;}
+.fin-trail:hover{background:var(--lg-fill-3);color:var(--lg-blue);}
+.fin-field.err .fin-input{border-color:var(--lg-red);box-shadow:0 0 0 3px rgba(230,57,70,.10);}
+.fin-field.err .fin-ico{color:var(--lg-red);}
+.fin-msg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--lg-red);
+  margin-top:6px;padding-left:2px;}
+.fin-field.ok .fin-input{border-color:var(--lg-green);}
+
+/* ── Row (recordarme + link) ── */
+.fin-row{display:flex;align-items:center;justify-content:space-between;margin:16px 0 18px;}
+.fin-check{display:flex;align-items:center;gap:8px;font-size:12.5px;
+  color:var(--lg-label-2);cursor:pointer;user-select:none;}
+.fin-cbox{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--lg-sep);
+  display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;
+  transition:background .15s,border-color .15s;}
+.fin-check.on .fin-cbox{background:var(--lg-blue);border-color:var(--lg-blue);}
+.fin-link{font-size:12.5px;color:var(--lg-blue);font-weight:500;cursor:default;opacity:.7;}
+
+/* ── CTA button ── */
+.fin-cta{width:100%;display:inline-flex;align-items:center;justify-content:center;
+  gap:8px;padding:12px 18px;font-family:var(--font-sans);font-size:14.5px;
+  font-weight:600;color:#fff;border:none;border-radius:var(--r-lg);cursor:pointer;
+  background:linear-gradient(135deg,var(--lg-blue-mid),var(--lg-blue));
+  box-shadow:var(--shadow-accent);position:relative;overflow:hidden;
+  transition:transform .12s,box-shadow .2s,background .3s;}
+.fin-cta:hover{box-shadow:var(--shadow-accent-lg);}
+.fin-cta:active{transform:scale(.98);}
+.fin-cta.loading{color:transparent;pointer-events:none;}
+.fin-cta.loading::after{content:'';position:absolute;width:18px;height:18px;
+  border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+  animation:lg-spin .7s linear infinite;}
+.fin-cta.done{background:var(--lg-green);box-shadow:0 4px 14px rgba(52,199,89,.4);pointer-events:none;}
+
+/* ── Alerts ── */
+.fin-alert{display:flex;align-items:flex-start;gap:8px;
+  background:rgba(230,57,70,.07);border:1px solid rgba(230,57,70,.22);
+  border-radius:var(--r-lg);padding:10px 13px;margin-bottom:14px;
+  color:var(--lg-red);font-size:13px;font-weight:500;line-height:1.45;}
+.fin-alert::before{content:'⚠';flex-shrink:0;}
+.fin-success-toast{display:flex;align-items:center;gap:8px;
+  background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.22);
+  border-radius:var(--r-lg);padding:10px 13px;margin-bottom:14px;
+  color:var(--lg-green-ink);font-size:13px;font-weight:500;}
+.fin-success-toast::before{content:'✓';flex-shrink:0;}
+
+/* ── Success splash ── */
+.fin-success{position:absolute;inset:0;z-index:6;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;background:#fff;
+  opacity:0;pointer-events:none;transition:opacity .3s;}
+.fin-success.show{opacity:1;}
+.fin-check-big{width:64px;height:64px;border-radius:50%;background:var(--lg-green);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 10px 30px rgba(52,199,89,.45);transform:scale(.4);
+  transition:transform .4s var(--ease-ios);}
+.fin-success.show .fin-check-big{transform:scale(1);animation:lg-pulse-ring 1.6s ease infinite;}
+.fin-success-t{font-size:17px;font-weight:700;color:var(--lg-label);letter-spacing:-.3px;}
+.fin-success-s{font-size:13px;color:var(--lg-label-2);margin-top:-8px;}
+
+/* ── Responsive ── */
+@@media(max-width:820px){
+  .f-headline{display:none;}
+  .fin-card{right:50%;transform:translate(50%,-50%);width:min(92vw,388px);}
+  .fin-card.shake{animation:none;}
+  .f-top{left:24px;top:20px;}
+}
+@@media(prefers-reduced-motion:reduce){
+  .dwall.magnify .dt,.fin-cta.loading::after,.fin-success .fin-check-big{animation:none;transition:none;}
+}
+</style>
 </head>
 <body>
+<div class="ab reflector-stage" id="stage">
 
-<canvas id="mosaico" aria-hidden="true"></canvas>
+  <!-- Mosaic tiles background (R2 · Lupa magnética) -->
+  <div class="dwall magnify" id="dwall">
+    <!-- 22 asymmetric tiles that tessellate an 8×6 grid -->
+    <div class="dt" style="grid-column:1/span 2;grid-row:1/span 2;--col:0;--row:0;"></div>
+    <div class="dt" style="grid-column:3/span 2;grid-row:1/span 1;--col:2;--row:0;"></div>
+    <div class="dt" style="grid-column:5/span 1;grid-row:1/span 1;--col:4;--row:0;"></div>
+    <div class="dt" style="grid-column:6/span 1;grid-row:1/span 2;--col:5;--row:0;"></div>
+    <div class="dt" style="grid-column:7/span 2;grid-row:1/span 1;--col:6;--row:0;"></div>
+    <div class="dt" style="grid-column:3/span 1;grid-row:2/span 2;--col:2;--row:1;"></div>
+    <div class="dt" style="grid-column:4/span 2;grid-row:2/span 1;--col:3;--row:1;"></div>
+    <div class="dt" style="grid-column:7/span 2;grid-row:2/span 2;--col:6;--row:1;"></div>
+    <div class="dt" style="grid-column:1/span 2;grid-row:3/span 1;--col:0;--row:2;"></div>
+    <div class="dt" style="grid-column:4/span 1;grid-row:3/span 1;--col:3;--row:2;"></div>
+    <div class="dt" style="grid-column:5/span 2;grid-row:3/span 2;--col:4;--row:2;"></div>
+    <div class="dt" style="grid-column:1/span 1;grid-row:4/span 2;--col:0;--row:3;"></div>
+    <div class="dt" style="grid-column:2/span 2;grid-row:4/span 1;--col:1;--row:3;"></div>
+    <div class="dt" style="grid-column:4/span 1;grid-row:4/span 2;--col:3;--row:3;"></div>
+    <div class="dt" style="grid-column:7/span 2;grid-row:4/span 1;--col:6;--row:3;"></div>
+    <div class="dt" style="grid-column:2/span 1;grid-row:5/span 2;--col:1;--row:4;"></div>
+    <div class="dt" style="grid-column:3/span 1;grid-row:5/span 1;--col:2;--row:4;"></div>
+    <div class="dt" style="grid-column:5/span 2;grid-row:5/span 1;--col:4;--row:4;"></div>
+    <div class="dt" style="grid-column:7/span 2;grid-row:5/span 2;--col:6;--row:4;"></div>
+    <div class="dt" style="grid-column:1/span 1;grid-row:6/span 1;--col:0;--row:5;"></div>
+    <div class="dt" style="grid-column:3/span 2;grid-row:6/span 1;--col:2;--row:5;"></div>
+    <div class="dt" style="grid-column:5/span 2;grid-row:6/span 1;--col:4;--row:5;"></div>
+  </div>
 
-<div class="f-headline">
-    <span class="kicker">Londoño Gómez</span>
-    <h1>Gestiona tus <em>lanzamientos</em> inmobiliarios</h1>
-    <p>Inventario, ventas y reportes de todos tus proyectos en una sola plataforma.</p>
-</div>
+  <!-- Spotlight overlay -->
+  <div class="reflector-light" id="rlight"></div>
 
-<div class="fin-card @(hayError ? "shake" : "")" id="finCard">
-    <div class="card-logo">
-        <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" />
-    </div>
-    <div class="card-title">Iniciar sesión</div>
-    <div class="card-sub">Ingresa tus credenciales para continuar</div>
+  <!-- Left gradient scrim -->
+  <div class="scrim-f"></div>
 
-    @if (TempData["Exito"] != null) { <div class="exito">@TempData["Exito"]</div> }
-    @if (hayError) {
+  <!-- Top-left brand -->
+  <div class="f-top">
+    <span class="logo-tile">
+      <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" />
+    </span>
+    <span class="bf-name">Londoño Gómez</span>
+  </div>
+
+  <!-- Bottom-left editorial headline -->
+  <div class="f-headline">
+    <div class="live-pill light"><span class="pulse"></span> Lanzamientos en tiempo real</div>
+    <h1 class="f-h1">Cada metro,<br>bajo control.</h1>
+    <p class="f-sub">El inventario de todos tus proyectos, vivo, en una sola plataforma.</p>
+  </div>
+
+  <!-- Right: solid white card -->
+  <div class="fin-card @(hayError ? "shake" : "")" id="finCard">
+    <div class="fin-body">
+      <div class="fin-accent"></div>
+      <h1 class="fin-h1">Iniciar sesión</h1>
+      <p class="fin-p">Bienvenido de vuelta. Ingresa para continuar.</p>
+
+      @if (TempData["Exito"] != null) {
+        <div class="fin-success-toast">@TempData["Exito"]</div>
+      }
+      @if (hayError) {
         foreach (var entry in ViewData.ModelState.Values)
-            foreach (var error in entry.Errors) { <div class="alerta">@error.ErrorMessage</div> }
-    }
+          foreach (var err in entry.Errors) {
+            <div class="fin-alert">@err.ErrorMessage</div>
+          }
+      }
 
-    <form asp-action="Login" asp-controller="Account" method="post" autocomplete="on">
+      <form asp-action="Login" asp-controller="Account" method="post" id="loginForm" novalidate>
         @Html.AntiForgeryToken()
-        <div class="campo">
-            <label for="inputUser">Usuario</label>
-            <div class="input-wrap">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <input asp-for="Usuario" id="inputUser" type="text" placeholder="Tu usuario" autofocus
-                       autocomplete="username" maxlength="60" autocapitalize="off" spellcheck="false" />
-            </div>
-            <span asp-validation-for="Usuario" class="error-msg"></span>
-        </div>
-        <div class="campo">
-            <label for="inputPass">Contraseña</label>
-            <div class="input-wrap">
-                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <input asp-for="Password" id="inputPass" type="password" placeholder="••••••••"
-                       autocomplete="current-password" maxlength="128" />
-                <button type="button" class="btn-ojo" id="togglePass" title="Mostrar contraseña" aria-label="Mostrar contraseña">
-                    <svg id="iconOjo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
-            </div>
-            <span asp-validation-for="Password" class="error-msg"></span>
-        </div>
-        <button type="submit" class="btn-submit" id="btnSubmit">
-            Ingresar
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </button>
-    </form>
 
-    <div class="card-foot">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Conexión segura · Acceso solo para personal autorizado
+        <!-- Usuario -->
+        <div class="fin-stack">
+          <label class="fin-field @(ViewData.ModelState["Usuario"]?.Errors.Count > 0 ? "err" : (Model?.Usuario?.Length > 0 ? "ok" : ""))" id="fieldUser">
+            <span class="fin-flabel">Usuario</span>
+            <span class="fin-wrap">
+              <span class="fin-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </span>
+              <input asp-for="Usuario" class="fin-input" type="text" placeholder="Tu usuario"
+                     autofocus autocomplete="username" maxlength="60"
+                     autocapitalize="off" spellcheck="false"
+                     oninput="onFieldInput(this,'fieldUser')" />
+            </span>
+            @if (ViewData.ModelState["Usuario"]?.Errors.Count > 0) {
+              <span class="fin-msg">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                @ViewData.ModelState["Usuario"]!.Errors[0].ErrorMessage
+              </span>
+            }
+          </label>
+
+          <!-- Contraseña -->
+          <label class="fin-field @(ViewData.ModelState["Password"]?.Errors.Count > 0 ? "err" : "")" id="fieldPass">
+            <span class="fin-flabel">Contraseña</span>
+            <span class="fin-wrap">
+              <span class="fin-ico">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input asp-for="Password" class="fin-input has-trail" type="password"
+                     id="inputPass" placeholder="••••••••"
+                     autocomplete="current-password" maxlength="128" />
+              <button type="button" class="fin-trail" id="togglePass" aria-label="Mostrar contraseña">
+                <svg id="eyeIco" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </span>
+            @if (ViewData.ModelState["Password"]?.Errors.Count > 0) {
+              <span class="fin-msg">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                @ViewData.ModelState["Password"]!.Errors[0].ErrorMessage
+              </span>
+            }
+          </label>
+        </div>
+
+        <!-- Row: recordarme + olvidé contraseña -->
+        <div class="fin-row">
+          <span class="fin-check on" id="rememberBtn" onclick="toggleRemember(this)">
+            <span class="fin-cbox" id="rememberBox">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            Recordarme
+          </span>
+          <span class="fin-link">¿Olvidaste tu contraseña?</span>
+        </div>
+
+        <button type="submit" class="fin-cta" id="btnCta">
+          Ingresar
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </form>
     </div>
+
+    <!-- Success splash -->
+    <div class="fin-success" id="finSuccess">
+      <div class="fin-check-big">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="fin-success-t">¡Bienvenido!</div>
+      <div class="fin-success-s">Cargando tu panel…</div>
+    </div>
+  </div>
 </div>
 
 <script>
-    // ── Fondo mosaico reactivo con efecto lupa ──
-    (function () {
-        const canvas = document.getElementById('mosaico');
-        const ctx = canvas.getContext('2d');
-        const TILE = 34, GAP = 7, RADIO = 200;
-        let cols = 0, rows = 0, dpr = 1;
-        let mx = -9999, my = -9999;      // posición real del mouse
-        let lx = -9999, ly = -9999;      // posición suavizada (lerp)
+(function () {
+  /* ── Reflector: magnify effect ── */
+  const stage = document.getElementById('stage');
+  const dwall = document.getElementById('dwall');
+  const rlight = document.getElementById('rlight');
 
-        function resize() {
-            dpr = window.devicePixelRatio || 1;
-            canvas.width = innerWidth * dpr;
-            canvas.height = innerHeight * dpr;
-            canvas.style.width = innerWidth + 'px';
-            canvas.style.height = innerHeight + 'px';
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            cols = Math.ceil(innerWidth / (TILE + GAP)) + 1;
-            rows = Math.ceil(innerHeight / (TILE + GAP)) + 1;
-        }
+  stage.addEventListener('mousemove', function (e) {
+    const r = stage.getBoundingClientRect();
+    const xp = (e.clientX - r.left) / r.width;
+    const yp = (e.clientY - r.top) / r.height;
+    dwall.style.setProperty('--mx', xp * 100 + '%');
+    dwall.style.setProperty('--my', yp * 100 + '%');
+    rlight.style.background = `radial-gradient(circle 380px at ${xp*100}% ${yp*100}%, rgba(160,218,255,.48) 0%, rgba(90,170,255,.24) 22%, rgba(45,115,215,.09) 42%, transparent 60%)`;
 
-        function rr(x, y, w, h, r) {
-            ctx.beginPath();
-            ctx.moveTo(x + r, y);
-            ctx.arcTo(x + w, y, x + w, y + h, r);
-            ctx.arcTo(x + w, y + h, x, y + h, r);
-            ctx.arcTo(x, y + h, x, y, r);
-            ctx.arcTo(x, y, x + w, y, r);
-            ctx.closePath();
-        }
-
-        function draw() {
-            lx += (mx - lx) * 0.12;
-            ly += (my - ly) * 0.12;
-            ctx.clearRect(0, 0, innerWidth, innerHeight);
-            for (let i = 0; i < cols; i++) {
-                for (let j = 0; j < rows; j++) {
-                    const x = i * (TILE + GAP), y = j * (TILE + GAP);
-                    const cx = x + TILE / 2, cy = y + TILE / 2;
-                    const d = Math.hypot(cx - lx, cy - ly);
-                    // intensidad de lupa: 1 en el centro del cursor → 0 fuera del radio
-                    const t = Math.max(0, 1 - d / RADIO);
-                    const ease = t * t * (3 - 2 * t);
-                    const alpha = 0.05 + ease * 0.5;
-                    const grow = ease * 5;
-                    if (ease > 0.02) {
-                        ctx.fillStyle = 'rgba(0,201,255,' + alpha.toFixed(3) + ')';
-                    } else {
-                        ctx.fillStyle = 'rgba(0,118,227,' + alpha.toFixed(3) + ')';
-                    }
-                    rr(x - grow / 2, y - grow / 2, TILE + grow, TILE + grow, 5 + grow / 2);
-                    ctx.fill();
-                }
-            }
-            requestAnimationFrame(draw);
-        }
-
-        addEventListener('resize', resize);
-        addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
-        addEventListener('mouseleave', () => { mx = -9999; my = -9999; });
-        resize();
-        draw();
-    })();
-
-    // ── Mostrar/ocultar contraseña ──
-    document.getElementById('togglePass').addEventListener('click', function () {
-        const input = document.getElementById('inputPass'), icono = document.getElementById('iconOjo'), visible = input.type === 'text';
-        input.type = visible ? 'password' : 'text';
-        icono.innerHTML = visible
-            ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
-            : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    const radius = Math.max(140, r.width * 0.26);
+    dwall.querySelectorAll('.dt').forEach(function (t) {
+      const tr = t.getBoundingClientRect();
+      const dx = tr.left + tr.width / 2 - e.clientX;
+      const dy = tr.top + tr.height / 2 - e.clientY;
+      const f = Math.max(0, 1 - Math.hypot(dx, dy) / radius);
+      t.style.setProperty('--mag', (1 + 0.18 * f).toFixed(3));
+      t.style.setProperty('--br', (0.82 + 0.55 * f).toFixed(3));
+      t.dataset.hot = f > 0.35 ? '1' : '0';
     });
-
-    // ── Doble envío: deshabilitar el botón al enviar ──
-    document.querySelector('form').addEventListener('submit', function () {
-        const btn = document.getElementById('btnSubmit');
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.firstChild.textContent = 'Verificando… ';
+  });
+  stage.addEventListener('mouseleave', function () {
+    dwall.querySelectorAll('.dt').forEach(function (t) {
+      t.style.setProperty('--mag', '1');
+      t.style.setProperty('--br', '0.86');
+      t.dataset.hot = '0';
     });
+  });
+
+  /* ── Toggle password visibility ── */
+  document.getElementById('togglePass').addEventListener('click', function () {
+    const inp = document.getElementById('inputPass');
+    const ico = document.getElementById('eyeIco');
+    const visible = inp.type === 'text';
+    inp.type = visible ? 'password' : 'text';
+    ico.innerHTML = visible
+      ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+      : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+  });
+
+  /* ── Recordarme checkbox toggle ── */
+  window.toggleRemember = function (el) {
+    el.classList.toggle('on');
+    var box = document.getElementById('rememberBox');
+    if (el.classList.contains('on')) {
+      box.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    } else {
+      box.innerHTML = '';
+    }
+  };
+
+  /* ── Field inline validation ── */
+  window.onFieldInput = function (input, fieldId) {
+    var field = document.getElementById(fieldId);
+    if (!field) return;
+    field.classList.remove('err');
+    field.classList.toggle('ok', input.value.trim().length > 0);
+  };
+
+  /* ── Form submit: loading state + success splash ── */
+  document.getElementById('loginForm').addEventListener('submit', function () {
+    var btn = document.getElementById('btnCta');
+    btn.classList.add('loading');
+    btn.disabled = true;
+  });
+
+})();
 </script>
 </body>
 </html>
