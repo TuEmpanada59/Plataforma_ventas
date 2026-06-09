@@ -191,10 +191,64 @@ Todos los 27 POST del sistema tienen el atributo, distribuidos en 7 controladore
 
 ---
 
+## 5. Nuevo Diseño de Login + Hardening ISO 27001 / OWASP
+
+### Nuevo diseño del Login
+Rediseño completo basado en el mockup corporativo:
+- **Fondo mosaico reactivo:** grilla de mosaicos azules sobre azul marino (`#07254a`) dibujada en `<canvas>`; los mosaicos cercanos al cursor se iluminan en celeste y crecen con efecto lupa (suavizado con interpolación).
+- **Titular editorial** a la izquierda con el kicker "Londoño Gómez" en celeste corporativo.
+- **Tarjeta sólida blanca** a la derecha con logo, formulario y animación *shake* cuando hay error de credenciales.
+- **Responsive:** en pantallas < 820px se oculta el titular y la tarjeta se centra.
+
+### Hardening adicional (ISO 27001 / OWASP)
+
+#### A) Registro de auditoría de autenticación (ISO 27001 A.8.15 — Logging)
+`ILogger` en `AccountController` registra con usuario e IP de origen:
+- Login exitoso (usuario + rol)
+- Cada intento fallido (con número de intento)
+- Bloqueo de cuenta activado
+- Intentos sobre cuentas bloqueadas
+- Logout
+
+#### B) Protección contra fijación de sesión (OWASP A07)
+`HttpContext.Session.Clear()` antes de establecer la identidad autenticada — descarta cualquier estado de sesión previo al login.
+
+#### C) Content-Security-Policy (OWASP A03/A05 — defensa en profundidad contra XSS)
+| Directiva | Valor | Efecto |
+|---|---|---|
+| `default-src` | `'self'` | Solo recursos del propio origen |
+| `script-src` | `'self' 'unsafe-inline' cdnjs.cloudflare.com` | Scripts propios + SignalR CDN |
+| `style-src` | `'self' 'unsafe-inline' fonts.googleapis.com` | CSS propio + Google Fonts |
+| `font-src` | `'self' fonts.gstatic.com` | Fuentes |
+| `img-src` | `'self' data:` | Imágenes propias y embebidas |
+| `connect-src` | `'self' ws: wss:` | AJAX + WebSockets (SignalR) |
+| `frame-ancestors` | `'none'` | Anti-clickjacking (refuerza X-Frame-Options) |
+| `form-action` | `'self'` | Formularios solo envían al propio sitio |
+| `base-uri` | `'self'` | Bloquea inyección de `<base>` |
+
+> `'unsafe-inline'` se mantiene porque todas las vistas usan CSS/JS inline. Aun así, la CSP bloquea cargas desde cualquier origen no listado.
+
+#### D) Permissions-Policy (OWASP A05)
+`camera=(), microphone=(), geolocation=(), payment=()` — desactiva APIs del navegador que la app no usa.
+
+#### E) Endurecimiento del formulario de login
+- `maxlength` en usuario (60) y contraseña (128) — limita payloads
+- `autocomplete="username"` / `current-password` — integración correcta con gestores de contraseñas
+- Botón deshabilitado al enviar — evita doble submit
+- Mensajes de error genéricos — no revelan si el usuario existe
+
+**Archivos modificados:**
+- `Views/Account/Login.cshtml` (rediseño completo)
+- `Controllers/AccountController.cs` (auditoría + anti session-fixation)
+- `Program.cs` (CSP + Permissions-Policy)
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-06-09 | Nuevo login mosaico reactivo + CSP + Permissions-Policy + auditoría + anti session-fixation | Claude (IA) |
 | 2026-06-04 | Registro eliminado + OWASP: bloqueo de cuenta, cabeceras HTTP, SameSite, RolAutorizado fix, CSRF completo | Claude (IA) |
 | 2026-06-03 | Selector de proyectos en Inmuebles + visibilidad global admin | Claude (IA) |
 | 2026-06-03 | Migración BCrypt + Paleta corporativa | Claude (IA) |

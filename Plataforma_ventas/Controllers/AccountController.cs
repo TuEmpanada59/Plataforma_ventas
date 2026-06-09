@@ -9,14 +9,16 @@ namespace Plataforma_ventas.Controllers
     {
         private readonly string _conn;
         private readonly IMemoryCache _cache;
+        private readonly ILogger<AccountController> _logger;
 
         private const int MaxIntentos = 5;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
-        public AccountController(IConfiguration config, IMemoryCache cache)
+        public AccountController(IConfiguration config, IMemoryCache cache, ILogger<AccountController> logger)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
             _cache = cache;
+            _logger = logger;
         }
 
         public IActionResult Login()
@@ -32,11 +34,13 @@ namespace Plataforma_ventas.Controllers
         {
             if (!ModelState.IsValid) return View(model);
 
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocida";
             string lockKey = $"lockout:{model.Usuario?.ToLower()}";
             string attemptKey = $"attempts:{model.Usuario?.ToLower()}";
 
             if (_cache.TryGetValue(lockKey, out _))
             {
+                _logger.LogWarning("Login rechazado: cuenta '{Usuario}' bloqueada. IP: {Ip}", model.Usuario, ip);
                 ModelState.AddModelError("", "Cuenta bloqueada temporalmente. Intenta de nuevo en 15 minutos.");
                 return View(model);
             }
@@ -57,6 +61,10 @@ namespace Plataforma_ventas.Controllers
             if (reader.Read() && BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""))
             {
                 _cache.Remove(attemptKey);
+
+                // Anti session-fixation: descartar cualquier sesión previa antes de
+                // establecer la identidad autenticada
+                HttpContext.Session.Clear();
 
                 string rol = reader["Rol"]?.ToString() ?? "";
                 HttpContext.Session.SetString("UsuarioId", reader["IdUsuario"].ToString()!);
@@ -92,17 +100,21 @@ namespace Plataforma_ventas.Controllers
                     }
                 }
 
+                _logger.LogInformation("Login exitoso: usuario '{Usuario}' rol '{Rol}'. IP: {Ip}", model.Usuario, rol, ip);
                 return RedirectSegunRol();
             }
 
             _cache.TryGetValue<int>(attemptKey, out int intentos);
             intentos++;
             _cache.Set(attemptKey, intentos, new MemoryCacheEntryOptions { SlidingExpiration = LockoutDuration });
+            _logger.LogWarning("Login fallido #{Intento} para '{Usuario}'. IP: {Ip}", intentos, model.Usuario, ip);
 
             if (intentos >= MaxIntentos)
             {
                 _cache.Set(lockKey, true, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = LockoutDuration });
                 _cache.Remove(attemptKey);
+                _logger.LogWarning("Cuenta '{Usuario}' bloqueada por {Min} minutos tras {Max} intentos. IP: {Ip}",
+                    model.Usuario, LockoutDuration.TotalMinutes, MaxIntentos, ip);
                 ModelState.AddModelError("", "Demasiados intentos fallidos. Cuenta bloqueada por 15 minutos.");
             }
             else
@@ -115,6 +127,9 @@ namespace Plataforma_ventas.Controllers
 
         public IActionResult Logout()
         {
+            _logger.LogInformation("Logout: usuario '{Usuario}'. IP: {Ip}",
+                HttpContext.Session.GetString("Usuario") ?? "desconocido",
+                HttpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocida");
             HttpContext.Session.Clear();
             Response.Cookies.Delete(".AspNetCore.Session");
             foreach (var cookie in Request.Cookies.Keys)
