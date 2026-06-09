@@ -244,10 +244,55 @@ Rediseño completo basado en el mockup corporativo:
 
 ---
 
+## 6. Recuperación de Contraseña + Optimización del Login
+
+### Recuperación de contraseña (flujo OWASP estándar)
+
+```
+[Login] → ¿Olvidaste tu contraseña?
+   ↓
+[/Account/RecuperarPassword]  usuario escribe su correo
+   ↓ POST (rate-limit: 5 solicitudes / 15 min por IP)
+Respuesta SIEMPRE genérica: "Si el correo está registrado, recibirás un enlace"
+   ↓ (si el correo existe)
+Token aleatorio de 256 bits → solo el hash SHA-256 se guarda en caché (15 min)
+   ↓ correo con enlace /Account/RestablecerPassword?token=...
+[Formulario nueva contraseña]  mínimo 8 caracteres + confirmación + medidor de fortaleza
+   ↓ POST válido
+BCrypt(12) → UPDATE → token eliminado (un solo uso) → lockout limpiado → [Login]
+```
+
+**Prácticas aplicadas:**
+- **Anti-enumeración:** la respuesta es idéntica exista o no el correo.
+- **Token seguro:** 32 bytes de `RandomNumberGenerator`, codificado Base64Url; en el servidor solo se almacena su hash SHA-256 (si alguien lee la caché no obtiene el token).
+- **Expiración corta (15 min) y un solo uso** — se elimina al consumirse.
+- **Rate-limit por IP** (5 solicitudes/15 min) contra spam de correos.
+- **Auditoría:** cada solicitud y restablecimiento queda en el log con IP.
+- **Desbloqueo automático:** restablecer la contraseña limpia el lockout de la cuenta.
+
+**Envío de correo:** `SmtpEmailService` configurable en `appsettings.json` (sección `Smtp`). Sin SMTP configurado (desarrollo), el enlace se escribe en el log del servidor para poder probar el flujo.
+
+### Correcciones y optimización del Login
+- **Tarjeta cortada en pantallas bajas:** media queries por altura — `max-height:740px` compacta paddings y tipografía; `max-height:540px` desancla la tarjeta y permite scroll.
+- **JS del mosaico optimizado:** los centros de los 22 tiles se calculan una sola vez (y en resize) en lugar de 22 × `getBoundingClientRect()` por cada pixel de movimiento; el render va acoplado a `requestAnimationFrame` (máximo 1 actualización por frame) con listener `passive`.
+- **"Recordarme" funcional:** guarda el nombre de usuario (nunca la contraseña) en `localStorage` y lo restaura al volver, saltando el foco a la contraseña.
+- **Toast informativo** para mensajes de recuperación (`TempData["Info"]`).
+
+**Archivos nuevos:**
+- `Services/EmailService.cs`
+- `Views/Account/RecuperarPassword.cshtml`
+- `Views/Account/RestablecerPassword.cshtml`
+
+**Archivos modificados:**
+- `Controllers/AccountController.cs`, `Views/Account/Login.cshtml`, `Program.cs`, `appsettings.json`
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-06-09 | Recuperación de contraseña (token seguro) + fix corte de tarjeta + JS optimizado | Claude (IA) |
 | 2026-06-09 | Nuevo login mosaico reactivo + CSP + Permissions-Policy + auditoría + anti session-fixation | Claude (IA) |
 | 2026-06-04 | Registro eliminado + OWASP: bloqueo de cuenta, cabeceras HTTP, SameSite, RolAutorizado fix, CSRF completo | Claude (IA) |
 | 2026-06-03 | Selector de proyectos en Inmuebles + visibilidad global admin | Claude (IA) |

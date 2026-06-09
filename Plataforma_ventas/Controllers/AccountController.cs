@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Caching.Memory;
+using Plataforma_ventas.Services;
 using Plataforma_ventas.ViewModels;
 
 namespace Plataforma_ventas.Controllers
@@ -10,15 +13,19 @@ namespace Plataforma_ventas.Controllers
         private readonly string _conn;
         private readonly IMemoryCache _cache;
         private readonly ILogger<AccountController> _logger;
+        private readonly IEmailService _email;
 
         private const int MaxIntentos = 5;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+        private static readonly TimeSpan ResetTokenDuration = TimeSpan.FromMinutes(15);
 
-        public AccountController(IConfiguration config, IMemoryCache cache, ILogger<AccountController> logger)
+        public AccountController(IConfiguration config, IMemoryCache cache,
+            ILogger<AccountController> logger, IEmailService email)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
             _cache = cache;
             _logger = logger;
+            _email = email;
         }
 
         public IActionResult Login()
@@ -123,6 +130,139 @@ namespace Plataforma_ventas.Controllers
             }
 
             return View(model);
+        }
+
+        // ── Recuperación de contraseña ──────────────────────────────
+        // Flujo estándar OWASP: respuesta genérica (no revela si el correo
+        // existe), token aleatorio de un solo uso con expiración corta,
+        // almacenado hasheado, y rate-limit por IP.
+
+        public IActionResult RecuperarPassword()
+        {
+            if (!string.IsNullOrEmpty(HttpContext.Session.GetString("Rol")))
+                return RedirectSegunRol();
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RecuperarPassword(string correo)
+        {
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocida";
+
+            // Rate-limit: máximo 5 solicitudes por IP cada 15 minutos
+            string rlKey = $"pwdreq:{ip}";
+            _cache.TryGetValue<int>(rlKey, out int solicitudes);
+            if (solicitudes >= 5)
+            {
+                _logger.LogWarning("Recuperación bloqueada por rate-limit. IP: {Ip}", ip);
+                TempData["Info"] = "Si el correo está registrado, recibirás un enlace de recuperación.";
+                return RedirectToAction("Login");
+            }
+            _cache.Set(rlKey, solicitudes + 1, TimeSpan.FromMinutes(15));
+
+            if (!string.IsNullOrWhiteSpace(correo))
+            {
+                using var con = new SqlConnection(_conn);
+                con.Open();
+                var cmd = new SqlCommand("SELECT IdUsuario, Nombre FROM Usuarios WHERE Correo=@c", con);
+                cmd.Parameters.AddWithValue("@c", correo.Trim());
+                using var r = cmd.ExecuteReader();
+                if (r.Read())
+                {
+                    int idUsuario = (int)r["IdUsuario"];
+                    string nombre = r["Nombre"]?.ToString() ?? "";
+
+                    // Token criptográficamente seguro; solo el hash se guarda
+                    string token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+                        .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+                    string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+                    _cache.Set($"pwdreset:{hash}", idUsuario, ResetTokenDuration);
+
+                    string link = Url.Action("RestablecerPassword", "Account", new { token }, Request.Scheme)!;
+                    bool enviado = await _email.EnviarAsync(correo,
+                        "Recuperación de contraseña — Londoño Gómez",
+                        $@"<p>Hola {nombre},</p>
+                           <p>Recibimos una solicitud para restablecer tu contraseña.
+                              Haz clic en el siguiente enlace (expira en 15 minutos):</p>
+                           <p><a href=""{link}"">Restablecer mi contraseña</a></p>
+                           <p>Si no solicitaste este cambio, ignora este correo —
+                              tu contraseña actual seguirá funcionando.</p>");
+
+                    if (!enviado)
+                        // Solo en desarrollo (sin SMTP): el enlace queda en el log del servidor
+                        _logger.LogInformation("Enlace de recuperación para {Correo}: {Link}", correo, link);
+
+                    _logger.LogInformation("Solicitud de recuperación para '{Correo}'. IP: {Ip}", correo, ip);
+                }
+                else
+                {
+                    _logger.LogInformation("Recuperación solicitada para correo no registrado. IP: {Ip}", ip);
+                }
+            }
+
+            // Respuesta idéntica exista o no el correo (anti-enumeración)
+            TempData["Info"] = "Si el correo está registrado, recibirás un enlace de recuperación.";
+            return RedirectToAction("Login");
+        }
+
+        public IActionResult RestablecerPassword(string token)
+        {
+            if (string.IsNullOrEmpty(token)) return RedirectToAction("Login");
+            ViewBag.Token = token;
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult RestablecerPassword(string token, string contrasena, string confirmar)
+        {
+            if (string.IsNullOrEmpty(token)) return RedirectToAction("Login");
+            ViewBag.Token = token;
+
+            if (string.IsNullOrEmpty(contrasena) || contrasena.Length < 8)
+            {
+                ModelState.AddModelError("", "La contraseña debe tener al menos 8 caracteres.");
+                return View();
+            }
+            if (contrasena != confirmar)
+            {
+                ModelState.AddModelError("", "Las contraseñas no coinciden.");
+                return View();
+            }
+
+            string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+            if (!_cache.TryGetValue($"pwdreset:{hash}", out int idUsuario))
+            {
+                ModelState.AddModelError("", "El enlace no es válido o ya expiró. Solicita uno nuevo.");
+                return View();
+            }
+
+            using var con = new SqlConnection(_conn);
+            con.Open();
+            var cmd = new SqlCommand("UPDATE Usuarios SET Contraseña=@p WHERE IdUsuario=@id", con);
+            cmd.Parameters.AddWithValue("@p", BCrypt.Net.BCrypt.HashPassword(contrasena, 12));
+            cmd.Parameters.AddWithValue("@id", idUsuario);
+            cmd.ExecuteNonQuery();
+
+            // Token de un solo uso
+            _cache.Remove($"pwdreset:{hash}");
+
+            // Desbloquear la cuenta si estaba en lockout
+            var cmdUser = new SqlCommand("SELECT Usuario FROM Usuarios WHERE IdUsuario=@id", con);
+            cmdUser.Parameters.AddWithValue("@id", idUsuario);
+            string? usuario = cmdUser.ExecuteScalar()?.ToString();
+            if (!string.IsNullOrEmpty(usuario))
+            {
+                _cache.Remove($"lockout:{usuario.ToLower()}");
+                _cache.Remove($"attempts:{usuario.ToLower()}");
+            }
+
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocida";
+            _logger.LogInformation("Contraseña restablecida vía token para IdUsuario {Id}. IP: {Ip}", idUsuario, ip);
+
+            TempData["Exito"] = "Contraseña actualizada correctamente. Inicia sesión.";
+            return RedirectToAction("Login");
         }
 
         public IActionResult Logout()
