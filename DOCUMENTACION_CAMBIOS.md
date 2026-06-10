@@ -4,6 +4,10 @@
 1. [Cambio de Seguridad: Contraseñas (BCrypt)](#1-cambio-de-seguridad-contraseñas-bcrypt)
 2. [Actualización de Identidad Visual Corporativa](#2-actualización-de-identidad-visual-corporativa)
 3. [Sidebar Blanco + Logo + Navegación Consistente](#3-sidebar-blanco--logo--navegación-consistente)
+4. [Eliminación de Registro Público + Endurecimiento de Seguridad (OWASP)](#4-eliminación-de-registro-público--endurecimiento-de-seguridad-owasp)
+5. [Nuevo Diseño de Login + Hardening ISO 27001 / OWASP](#5-nuevo-diseño-de-login--hardening-iso-27001--owasp)
+6. [Recuperación de Contraseña + Optimización del Login](#6-recuperación-de-contraseña--optimización-del-login)
+7. [Refactorización integral (diagnóstico + corrección)](#7-refactorización-integral-diagnóstico--corrección)
 
 ---
 
@@ -288,10 +292,100 @@ BCrypt(12) → UPDATE → token eliminado (un solo uso) → lockout limpiado →
 
 ---
 
+## 7. Refactorización integral (diagnóstico + corrección)
+
+### ¿Por qué se hizo?
+Tras un diagnóstico completo del proyecto se detectaron problemas de concurrencia, duplicación masiva de código en las vistas, bloqueo de hilos por acceso a datos síncrono y carencias de infraestructura (errores sin manejar, claves de cifrado volátiles). Esta refactorización corrige todo lo anterior en una sola pasada.
+
+### 7.1 Corrección de condición de carrera (crítico)
+
+**Problema:** `TomarInmueble` y `ReservarInmueble` en `VendedorController` e `InmueblesController` hacían **SELECT-luego-UPDATE**: primero leían el estado del inmueble y, si estaba disponible, lo actualizaban. Entre la lectura y la escritura existe una ventana en la que **dos vendedores simultáneos podían tomar el mismo inmueble** — escenario realista en lanzamientos con decenas de asesores compitiendo por las mismas unidades.
+
+**Solución:** UPDATE atómico con condición de estado previo + verificación de filas afectadas:
+
+```sql
+UPDATE Inmuebles SET Estado = 'EN_PROCESO', ...
+WHERE Id = @id AND Estado = 'DISPONIBLE'
+```
+
+Si `ExecuteNonQueryAsync()` devuelve `0` filas, otro vendedor ganó la carrera y el segundo recibe un mensaje claro de que el inmueble ya no está disponible. SQL Server garantiza la atomicidad de la sentencia: solo uno de los dos UPDATE concurrentes encuentra la fila en `DISPONIBLE`.
+
+### 7.2 Selector de proyecto movido al topbar
+
+- Se **eliminó el bloque "Toca para cambiar"** del sidebar en las 19 vistas.
+- La **píldora del topbar** (visible en todas las páginas) ahora es el selector de proyecto, con dropdown.
+- En móvil ya no se oculta: antes tenía `display:none`; ahora usa `max-width` + ellipsis para mantenerse visible.
+- El selector del vendedor se **eliminó por completo**: apuntaba a una acción *stub* sin efecto real. El proyecto del vendedor se asigna por código mediante `AsignarProyecto`.
+
+### 7.3 Layouts compartidos (refactor mayor)
+
+**Problema:** 19 vistas duplicaban ~200 líneas cada una de sidebar + topbar + CSS. Cualquier cambio de navegación obligaba a tocar 19 archivos (como evidencian las secciones 2 y 3 de este documento).
+
+**Solución:**
+- `Views/Shared/_AdminLayout.cshtml` y `Views/Shared/_VendedorLayout.cshtml` — sidebar, topbar y estructura comunes en un solo lugar por rol.
+- `wwwroot/css/platform.css` — 527 líneas de CSS compartido (variables corporativas, sidebar, topbar, tarjetas, paginador, etc.).
+- Cada vista ahora solo declara `Layout`, `ViewBag.ActiveNav` (ítem activo del sidebar) y `ViewBag.TbBread` (breadcrumb del topbar), y conserva únicamente su CSS/JS específico en `@section Styles` / `@section Scripts`.
+
+**Resultado:** ~9.000 líneas eliminadas del repositorio.
+
+**Bonus:** los iconos emoji del sidebar se reemplazaron por **SVG (estilo Lucide)** — renderizado consistente en todas las plataformas (los emoji variaban entre Windows, Android y navegadores).
+
+### 7.4 Migración async completa
+
+Todos los controladores migraron de `ExecuteReader` / `ExecuteNonQuery` / `ExecuteScalar` a sus versiones **Async con `await`** (igual que `OpenAsync`, `ReadAsync`, etc.).
+
+**¿Por qué importa?** Con las versiones síncronas, cada consulta SQL bloqueaba un hilo del pool de ASP.NET Core mientras esperaba la respuesta de la BD. En un lanzamiento con muchos vendedores simultáneos eso agota el pool y degrada toda la aplicación. Con async, los hilos quedan libres durante la espera de I/O — mucha mejor capacidad de concurrencia.
+
+### 7.5 Paginación en Clientes y Ventas
+
+- Parámetros `page` / `pageSize` (25 por defecto) con `OFFSET ... FETCH NEXT` en SQL Server — la BD solo devuelve la página solicitada, en lugar de cargar todas las filas en memoria.
+- Componente `.paginator` en las vistas (estilos en `platform.css`).
+
+### 7.6 SignalR tipado y conectado
+
+- `Hub<IVentasClient>` con interfaz tipada: `ListaActualizada`, `ListaAreaActualizada`, `InmuebleActualizado` — los nombres de métodos se verifican en compilación (antes eran strings mágicos).
+- **Broadcast en cada cambio de estado** de inmueble (tomar, reservar, vender, liberar): todos los clientes conectados ven el cambio en tiempo real.
+- Cliente SignalR añadido al **Dashboard del admin** — antes solo la vista Vendedor/Inmuebles escuchaba los eventos.
+
+### 7.7 Robustez de infraestructura
+
+#### A) DataProtection persistente
+- Claves persistidas en el directorio `Keys/` (incluido en `.gitignore`), nombre de aplicación fijo y TTL de 90 días.
+- **Efecto:** los tokens antiforgery y las cookies de sesión **sobreviven reinicios** de la aplicación (antes, cada reinicio invalidaba todos los formularios abiertos).
+- > **Nota:** en Linux sin certificado, las claves **no se cifran en reposo**. Para producción configurar `ProtectKeysWithCertificate`.
+
+#### B) Manejo global de errores
+- `UseExceptionHandler("/Error")` — excepciones no controladas muestran una página amigable en lugar del stack trace.
+- `UseStatusCodePagesWithReExecute("/Error/{0}")` — páginas propias para 404/403.
+
+#### C) Aviso de expiración de sesión
+Banner con **countdown 2 minutos antes** de que expiren los 20 minutos de sesión, con botón **"Renovar"** que extiende la sesión vía AJAX — evita perder formularios a medio llenar.
+
+### 7.8 Optimización
+
+| Mejora | Antes | Después |
+|---|---|---|
+| Logo corporativo | 5001×1952 px / 424 KB | 1024×400 px / 19 KB (**−96 %**) |
+| `platform.css` | — | servido con `asp-append-version` (cache busting automático) |
+| Documentación XML | inexistente | `/// <summary>` en todos los métodos públicos de Controllers, Services y Hubs |
+
+**Archivos nuevos:**
+- `Views/Shared/_AdminLayout.cshtml`, `Views/Shared/_VendedorLayout.cshtml`
+- `wwwroot/css/platform.css`
+
+**Archivos modificados:**
+- Todos los controladores (async + race fix + paginación + XML docs)
+- `Hubs/VentasHub.cs` (interfaz tipada `IVentasClient`)
+- `Program.cs` (DataProtection, manejo de errores)
+- Las 19 vistas con sidebar (migradas a layouts compartidos)
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-06-10 | Refactorización integral: fix race condition, layouts compartidos, async completo, paginación, SignalR tipado, DataProtection, manejo de errores, optimización | Claude (IA) |
 | 2026-06-09 | Recuperación de contraseña (token seguro) + fix corte de tarjeta + JS optimizado | Claude (IA) |
 | 2026-06-09 | Nuevo login mosaico reactivo + CSP + Permissions-Policy + auditoría + anti session-fixation | Claude (IA) |
 | 2026-06-04 | Registro eliminado + OWASP: bloqueo de cuenta, cabeceras HTTP, SameSite, RolAutorizado fix, CSRF completo | Claude (IA) |
