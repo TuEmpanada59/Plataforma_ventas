@@ -8,6 +8,10 @@ using Plataforma_ventas.ViewModels;
 
 namespace Plataforma_ventas.Controllers
 {
+    /// <summary>
+    /// Handles authentication: login with brute-force lockout, password recovery
+    /// via time-limited tokens, and logout with full session/cookie teardown.
+    /// </summary>
     public class AccountController : Controller
     {
         private readonly string _conn;
@@ -28,6 +32,7 @@ namespace Plataforma_ventas.Controllers
             _email = email;
         }
 
+        /// <summary>Renders the login page. Redirects already-authenticated users to their dashboard.</summary>
         public IActionResult Login()
         {
             if (!string.IsNullOrEmpty(HttpContext.Session.GetString("Rol")))
@@ -35,6 +40,14 @@ namespace Plataforma_ventas.Controllers
             return View();
         }
 
+        /// <summary>
+        /// Processes login credentials. Security controls:
+        /// - BCrypt hash verification (cost 12) prevents timing-based enumeration.
+        /// - Per-user attempt counter with 15-minute lockout after 5 failed attempts.
+        /// - Anti session-fixation: session is cleared before setting new identity.
+        /// - All login events (success and failure) are logged with IP for auditing.
+        /// Performs a SELECT query on Usuarios joined with Proyectos.
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult Login(LoginViewModel model)
@@ -137,6 +150,7 @@ namespace Plataforma_ventas.Controllers
         // existe), token aleatorio de un solo uso con expiración corta,
         // almacenado hasheado, y rate-limit por IP.
 
+        /// <summary>Renders the password recovery page. Redirects authenticated users away.</summary>
         public IActionResult RecuperarPassword()
         {
             if (!string.IsNullOrEmpty(HttpContext.Session.GetString("Rol")))
@@ -144,6 +158,15 @@ namespace Plataforma_ventas.Controllers
             return View();
         }
 
+        /// <summary>
+        /// Initiates the password reset flow. Security controls (OWASP standard):
+        /// - Response is identical whether the email exists or not (anti-enumeration).
+        /// - Token is 32 bytes of cryptographically random data; only its SHA-256 hash
+        ///   is stored in the cache (prevents token theft via cache inspection).
+        /// - Token expires in 15 minutes and is one-use only.
+        /// - Rate-limited to 5 requests per IP per 15 minutes to prevent abuse.
+        /// - All requests (including for unknown emails) are logged with IP.
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RecuperarPassword(string correo)
@@ -206,6 +229,11 @@ namespace Plataforma_ventas.Controllers
             return RedirectToAction("Login");
         }
 
+        /// <summary>
+        /// Renders the password reset form after the user clicks the email link.
+        /// The token is passed as a query parameter and forwarded to the view
+        /// for inclusion in the POST form.
+        /// </summary>
         public IActionResult RestablecerPassword(string token)
         {
             if (string.IsNullOrEmpty(token)) return RedirectToAction("Login");
@@ -213,6 +241,12 @@ namespace Plataforma_ventas.Controllers
             return View();
         }
 
+        /// <summary>
+        /// Completes the password reset. Validates the token against the stored hash,
+        /// enforces minimum password length, updates the BCrypt hash in the DB,
+        /// invalidates the token (one-use), and clears any active lockout on the account.
+        /// Performs UPDATE on Usuarios and SELECT to look up the username for lockout removal.
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
         public IActionResult RestablecerPassword(string token, string contrasena, string confirmar)
@@ -265,6 +299,11 @@ namespace Plataforma_ventas.Controllers
             return RedirectToAction("Login");
         }
 
+        /// <summary>
+        /// Logs out the current user. Clears the session and deletes all cookies
+        /// (including the session cookie) to prevent session reuse after logout.
+        /// The logout event is logged with the username and IP for auditing.
+        /// </summary>
         public IActionResult Logout()
         {
             _logger.LogInformation("Logout: usuario '{Usuario}'. IP: {Ip}",

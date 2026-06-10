@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,14 +26,36 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/Account/Logout";
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
     });
+
+// ── Data Protection ──
+// Keys are persisted to the file system so they survive app restarts.
+// Without persistence, every restart invalidates antiforgery tokens and
+// session cookies, causing users to be unexpectedly logged out and
+// antiforgery validation failures (HTTP 400) on in-flight requests.
+// The 90-day lifetime balances security (key rotation) with operational
+// stability. Keys directory must be excluded from source control (.gitignore).
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "Keys")))
+    .SetApplicationName("PlataformaVentas")
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+
 QuestPDF.Settings.License = LicenseType.Community;
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    // Show full exception details only in development — never expose stack traces in production.
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    // Production: show a user-friendly error page, set HSTS headers.
+    app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+// Handle 404, 403, etc. with a friendly re-executed route instead of blank responses.
+app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

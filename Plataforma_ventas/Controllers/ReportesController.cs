@@ -23,7 +23,12 @@ namespace Plataforma_ventas.Controllers
             _conn = config.GetConnectionString("DefaultConnection")!;
         }
 
-        public IActionResult Index()
+        /// <summary>
+        /// Displays the reports dashboard with KPIs, asesor rankings, tipology breakdown,
+        /// destination analysis, property map, and full sale list for the active project.
+        /// Performs multiple SELECT queries against Inmuebles, Ventas, Usuarios, and Clientes.
+        /// </summary>
+        public async Task<IActionResult> Index()
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
@@ -32,13 +37,13 @@ namespace Plataforma_ventas.Controllers
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid2) ? uid2 : 0;
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand("SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
             cmdList.Parameters.AddWithValue("@admin", idAdmin);
-            using (var r = cmdList.ExecuteReader())
-                while (r.Read())
+            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
+                while (await r.ReadAsync())
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
@@ -50,8 +55,8 @@ namespace Plataforma_ventas.Controllers
                     SUM(CASE WHEN Estado='EN PROCESO' THEN 1 ELSE 0 END) AS EnProceso
                 FROM Inmuebles WHERE IdProyecto=@id", con);
             cmdKpi.Parameters.AddWithValue("@id", idProy);
-            using (var rk = cmdKpi.ExecuteReader())
-                if (rk.Read())
+            using (var rk = (SqlDataReader)await cmdKpi.ExecuteReaderAsync())
+                if (await rk.ReadAsync())
                 {
                     ViewBag.Total = rk["Total"] == DBNull.Value ? 0 : (int)rk["Total"];
                     ViewBag.Disponibles = rk["Disponibles"] == DBNull.Value ? 0 : (int)rk["Disponibles"];
@@ -62,15 +67,15 @@ namespace Plataforma_ventas.Controllers
 
             var cmdValor = new SqlCommand("SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'", con);
             cmdValor.Parameters.AddWithValue("@id", idProy);
-            ViewBag.ValorTotal = (long)cmdValor.ExecuteScalar()!;
+            ViewBag.ValorTotal = (long)(await cmdValor.ExecuteScalarAsync())!;
 
             var cmdHoy = new SqlCommand(@"
                 SELECT COUNT(*) AS VentasHoy, ISNULL(SUM(PrecioVenta),0) AS ValorHoy
                 FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'
                   AND CAST(FechaVenta AS DATE) = CAST(GETDATE() AS DATE)", con);
             cmdHoy.Parameters.AddWithValue("@id", idProy);
-            using (var rh = cmdHoy.ExecuteReader())
-                if (rh.Read())
+            using (var rh = (SqlDataReader)await cmdHoy.ExecuteReaderAsync())
+                if (await rh.ReadAsync())
                 {
                     ViewBag.VentasHoy = rh["VentasHoy"] == DBNull.Value ? 0 : (int)rh["VentasHoy"];
                     ViewBag.ValorHoy = rh["ValorHoy"] == DBNull.Value ? 0L : (long)rh["ValorHoy"];
@@ -87,8 +92,8 @@ namespace Plataforma_ventas.Controllers
                 GROUP BY u.IdUsuario, u.Nombre, u.Apellido
                 ORDER BY TotalVentas DESC", con);
             cmdAs.Parameters.AddWithValue("@id", idProy);
-            using (var ra = cmdAs.ExecuteReader())
-                while (ra.Read())
+            using (var ra = (SqlDataReader)await cmdAs.ExecuteReaderAsync())
+                while (await ra.ReadAsync())
                     asesores.Add(new { Nombre = ra["Nombre"]?.ToString() ?? "", TotalVentas = (int)ra["TotalVentas"], ValorTotal = (long)ra["ValorTotal"] });
             ViewBag.Asesores = asesores;
 
@@ -102,8 +107,8 @@ namespace Plataforma_ventas.Controllers
                 FROM Inmuebles WHERE IdProyecto=@id AND Tipo IS NOT NULL AND Tipo != ''
                 GROUP BY Tipo ORDER BY Vendidos DESC", con);
             cmdTipo.Parameters.AddWithValue("@id", idProy);
-            using (var rt = cmdTipo.ExecuteReader())
-                while (rt.Read())
+            using (var rt = (SqlDataReader)await cmdTipo.ExecuteReaderAsync())
+                while (await rt.ReadAsync())
                     tipologias.Add(new { Tipo = rt["Tipo"]?.ToString() ?? "", Total = (int)rt["Total"], Vendidos = (int)rt["Vendidos"], Disponibles = (int)rt["Disponibles"], Reservados = (int)rt["Reservados"] });
             ViewBag.Tipologias = tipologias;
 
@@ -113,16 +118,16 @@ namespace Plataforma_ventas.Controllers
                 FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'
                 GROUP BY Destino ORDER BY Total DESC", con);
             cmdDest.Parameters.AddWithValue("@id", idProy);
-            using (var rd = cmdDest.ExecuteReader())
-                while (rd.Read())
+            using (var rd = (SqlDataReader)await cmdDest.ExecuteReaderAsync())
+                while (await rd.ReadAsync())
                     destinos.Add(new { Destino = rd["Destino"]?.ToString() ?? "Sin especificar", Total = (int)rd["Total"] });
             ViewBag.Destinos = destinos;
 
             var mapa = new List<dynamic>();
             var cmdMapa = new SqlCommand("SELECT Apto, Tipo, Metros, Torre, Estado FROM Inmuebles WHERE IdProyecto=@id ORDER BY Torre, Apto", con);
             cmdMapa.Parameters.AddWithValue("@id", idProy);
-            using (var rm = cmdMapa.ExecuteReader())
-                while (rm.Read())
+            using (var rm = (SqlDataReader)await cmdMapa.ExecuteReaderAsync())
+                while (await rm.ReadAsync())
                     mapa.Add(new { Apto = rm["Apto"]?.ToString() ?? "", Tipo = rm["Tipo"]?.ToString() ?? "", Metros = rm["Metros"]?.ToString() ?? "", Torre = rm["Torre"]?.ToString() ?? "", Estado = rm["Estado"]?.ToString() ?? "" });
             ViewBag.Mapa = mapa;
 
@@ -141,8 +146,8 @@ namespace Plataforma_ventas.Controllers
                 WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
                 ORDER BY u.Nombre, v.FechaVenta DESC", con);
             cmdVentas.Parameters.AddWithValue("@id", idProy);
-            using (var rvd = cmdVentas.ExecuteReader())
-                while (rvd.Read())
+            using (var rvd = (SqlDataReader)await cmdVentas.ExecuteReaderAsync())
+                while (await rvd.ReadAsync())
                     ventas.Add(new
                     {
                         Asesor = rvd["Asesor"]?.ToString() ?? "",
@@ -161,8 +166,12 @@ namespace Plataforma_ventas.Controllers
             return View();
         }
 
-        // ── PDF TÉCNICO ──
-        public IActionResult ReportePDF()
+        /// <summary>
+        /// Generates a PDF technical sales report with KPIs, tipology breakdown,
+        /// destination analysis, and full per-asesor sale detail table.
+        /// Performs multiple SELECT queries then renders with QuestPDF.
+        /// </summary>
+        public async Task<IActionResult> ReportePDF()
         {
             QuestPDF.Settings.License = LicenseType.Community;
 
@@ -170,7 +179,7 @@ namespace Plataforma_ventas.Controllers
             var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             int total = 0, disponibles = 0, vendidos = 0, reservados = 0, enProceso = 0;
             long valorTotal = 0, valorHoy = 0;
@@ -184,8 +193,8 @@ namespace Plataforma_ventas.Controllers
                     SUM(CASE WHEN Estado='EN PROCESO' THEN 1 ELSE 0 END) AS EnProceso
                 FROM Inmuebles WHERE IdProyecto=@id", con);
             cmdKpi.Parameters.AddWithValue("@id", idProy);
-            using (var rk = cmdKpi.ExecuteReader())
-                if (rk.Read())
+            using (var rk = (SqlDataReader)await cmdKpi.ExecuteReaderAsync())
+                if (await rk.ReadAsync())
                 {
                     total = rk["Total"] == DBNull.Value ? 0 : (int)rk["Total"];
                     disponibles = rk["Disponibles"] == DBNull.Value ? 0 : (int)rk["Disponibles"];
@@ -196,14 +205,14 @@ namespace Plataforma_ventas.Controllers
 
             var cmdV = new SqlCommand("SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'", con);
             cmdV.Parameters.AddWithValue("@id", idProy);
-            valorTotal = (long)cmdV.ExecuteScalar()!;
+            valorTotal = (long)(await cmdV.ExecuteScalarAsync())!;
 
             var cmdH = new SqlCommand(@"SELECT COUNT(*) AS VH, ISNULL(SUM(PrecioVenta),0) AS VLH
                 FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'
                 AND CAST(FechaVenta AS DATE)=CAST(GETDATE() AS DATE)", con);
             cmdH.Parameters.AddWithValue("@id", idProy);
-            using (var rh = cmdH.ExecuteReader())
-                if (rh.Read()) { ventasHoy = (int)rh["VH"]; valorHoy = (long)rh["VLH"]; }
+            using (var rh = (SqlDataReader)await cmdH.ExecuteReaderAsync())
+                if (await rh.ReadAsync()) { ventasHoy = (int)rh["VH"]; valorHoy = (long)rh["VLH"]; }
 
             var ventas = new List<(string Asesor, string Apto, string Torre, string Tipo, string Metros, string Cliente, string Destino, string Lista, long Precio, string Fecha)>();
             var cmdVentas = new SqlCommand(@"
@@ -220,8 +229,8 @@ namespace Plataforma_ventas.Controllers
                 WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
                 ORDER BY u.Nombre, v.FechaVenta DESC", con);
             cmdVentas.Parameters.AddWithValue("@id", idProy);
-            using (var rv2 = cmdVentas.ExecuteReader())
-                while (rv2.Read())
+            using (var rv2 = (SqlDataReader)await cmdVentas.ExecuteReaderAsync())
+                while (await rv2.ReadAsync())
                     ventas.Add((rv2["Asesor"]?.ToString() ?? "", rv2["Apto"]?.ToString() ?? "", rv2["Torre"]?.ToString() ?? "",
                         rv2["Tipo"]?.ToString() ?? "", rv2["Metros"]?.ToString() ?? "", rv2["Cliente"]?.ToString() ?? "",
                         rv2["Destino"]?.ToString() ?? "—", rv2["ListaAplicada"]?.ToString() ?? "",
@@ -236,8 +245,8 @@ namespace Plataforma_ventas.Controllers
                 FROM Inmuebles WHERE IdProyecto=@id AND Tipo IS NOT NULL AND Tipo!=''
                 GROUP BY Tipo ORDER BY Vendidos DESC", con);
             cmdT.Parameters.AddWithValue("@id", idProy);
-            using (var rt = cmdT.ExecuteReader())
-                while (rt.Read())
+            using (var rt = (SqlDataReader)await cmdT.ExecuteReaderAsync())
+                while (await rt.ReadAsync())
                     tips.Add((rt["Tipo"]?.ToString() ?? "", (int)rt["Total"], (int)rt["Vendidos"], (int)rt["Disponibles"], (int)rt["Reservados"]));
 
             var dests = new List<(string Dest, int Tot)>();
@@ -246,8 +255,8 @@ namespace Plataforma_ventas.Controllers
                 FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'
                 GROUP BY Destino ORDER BY Total DESC", con);
             cmdD.Parameters.AddWithValue("@id", idProy);
-            using (var rd = cmdD.ExecuteReader())
-                while (rd.Read())
+            using (var rd = (SqlDataReader)await cmdD.ExecuteReaderAsync())
+                while (await rd.ReadAsync())
                     dests.Add((rd["Destino"]?.ToString() ?? "", (int)rd["Total"]));
 
             double pctV = total > 0 ? Math.Round((double)vendidos / total * 100, 1) : 0;
@@ -544,20 +553,23 @@ namespace Plataforma_ventas.Controllers
                 $"Informe_Tecnico_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
         }
 
-        // ── MAPA EXCEL ──
-        public IActionResult GenerarMapa()
+        /// <summary>
+        /// Generates a colour-coded Excel map of all properties with area column.
+        /// Performs a SELECT query for all properties in the active project.
+        /// </summary>
+        public async Task<IActionResult> GenerarMapa()
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var inmuebles = new List<dynamic>();
             var cmd = new SqlCommand("SELECT Apto,Piso,Torre,Tipo,Metros,Estado FROM Inmuebles WHERE IdProyecto=@id ORDER BY Torre,Piso DESC,Apto", con);
             cmd.Parameters.AddWithValue("@id", idProy);
-            using (var reader = cmd.ExecuteReader())
-                while (reader.Read())
+            using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await reader.ReadAsync())
                     inmuebles.Add(new { Apto = reader["Apto"]?.ToString() ?? "", Piso = reader["Piso"]?.ToString() ?? "", Torre = reader["Torre"]?.ToString() ?? "", Tipo = reader["Tipo"]?.ToString() ?? "", Metros = reader["Metros"]?.ToString() ?? "", Estado = reader["Estado"]?.ToString() ?? "" });
 
             ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
@@ -638,14 +650,18 @@ namespace Plataforma_ventas.Controllers
                 $"Mapa_Ventas_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.xlsx");
         }
 
-        // ── REPORTE ASESORES EXCEL ──
-        public IActionResult ReporteAsesores()
+        /// <summary>
+        /// Generates an Excel workbook with a per-asesor sale breakdown including
+        /// subtotals per asesor and a grand total row.
+        /// Performs a SELECT query joining Ventas, Inmuebles, Clientes, and Usuarios.
+        /// </summary>
+        public async Task<IActionResult> ReporteAsesores()
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var ventas = new List<dynamic>();
             var cmd = new SqlCommand(@"
@@ -662,8 +678,8 @@ namespace Plataforma_ventas.Controllers
                 WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
                 ORDER BY u.Nombre, v.FechaVenta DESC", con);
             cmd.Parameters.AddWithValue("@id", idProy);
-            using (var r = cmd.ExecuteReader())
-                while (r.Read())
+            using (var r = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await r.ReadAsync())
                     ventas.Add(new { Asesor = r["Asesor"]?.ToString() ?? "", Apto = r["Apto"]?.ToString() ?? "", Torre = r["Torre"]?.ToString() ?? "", Tipo = r["Tipo"]?.ToString() ?? "", Piso = r["Piso"]?.ToString() ?? "", Metros = r["Metros"]?.ToString() ?? "", Cliente = r["Cliente"]?.ToString() ?? "", Documento = r["Documento"]?.ToString() ?? "", Celular = r["Celular"]?.ToString() ?? "", Destino = r["Destino"]?.ToString() ?? "—", Lista = r["ListaAplicada"]?.ToString() ?? "", PrecioVenta = (long)r["PrecioVenta"], FechaVenta = r["FechaVenta"]?.ToString() ?? "" });
 
             ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");

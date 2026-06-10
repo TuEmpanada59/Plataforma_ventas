@@ -23,6 +23,17 @@ namespace Plataforma_ventas.Services
             _logger = logger;
         }
 
+        /// <summary>
+        /// Sends an HTML email via SMTP. Returns true on success, false if SMTP is not
+        /// configured (Smtp:Host missing in appsettings) or if an error occurs.
+        /// When false is returned the caller is responsible for fallback behaviour
+        /// (e.g. writing the recovery link to the application log in development).
+        /// Credentials are read from Smtp:User / Smtp:Password in configuration;
+        /// never store SMTP credentials in source control.
+        /// </summary>
+        /// <param name="destinatario">Recipient email address.</param>
+        /// <param name="asunto">Email subject line.</param>
+        /// <param name="cuerpoHtml">HTML body of the email.</param>
         public async Task<bool> EnviarAsync(string destinatario, string asunto, string cuerpoHtml)
         {
             var host = _config["Smtp:Host"];

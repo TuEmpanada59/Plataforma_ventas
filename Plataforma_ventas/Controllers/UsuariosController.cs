@@ -4,31 +4,40 @@ using Plataforma_ventas.Filters;
 
 namespace Plataforma_ventas.Controllers
 {
+    /// <summary>
+    /// Administrator controller for user management:
+    /// listing, creating, editing, resetting passwords, and deleting user accounts.
+    /// </summary>
     [RolAutorizado("Administrador")]
     public class UsuariosController : Controller
     {
         private readonly string _conn;
 
+        /// <summary>Initializes the controller with DB connection string from configuration.</summary>
         public UsuariosController(IConfiguration config)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
         }
 
-        public IActionResult Index()
+        /// <summary>
+        /// Lists all users in the system with their assigned project and sale count.
+        /// Performs SELECT queries on Usuarios, Proyectos, and Ventas.
+        /// </summary>
+        public async Task<IActionResult> Index()
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
             ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             // Todos los proyectos activos — para sidebar y formulario de creación/edición
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand(
                 "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
-            using (var r = cmdList.ExecuteReader())
-                while (r.Read())
+            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
+                while (await r.ReadAsync())
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
@@ -46,8 +55,8 @@ namespace Plataforma_ventas.Controllers
                          u.Documento, u.Celular, u.Rol, u.IdProyecto, p.Nombre
                 ORDER BY u.Rol DESC, p.Nombre, u.Nombre", con);
 
-            using (var reader = cmd.ExecuteReader())
-                while (reader.Read())
+            using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await reader.ReadAsync())
                     usuarios.Add(new
                     {
                         Id            = (int)reader["IdUsuario"],
@@ -71,19 +80,24 @@ namespace Plataforma_ventas.Controllers
             return View();
         }
 
+        /// <summary>
+        /// Creates a new user account. Validates username/email uniqueness before inserting.
+        /// Passwords are hashed with BCrypt (cost factor 12) before storage — never stored in plain text.
+        /// Performs SELECT (uniqueness check) and INSERT queries on Usuarios.
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Crear(string nombre, string apellido, string documento,
+        public async Task<IActionResult> Crear(string nombre, string apellido, string documento,
             string celular, string correo, string usuario, string contrasena,
             string rol, int idProyecto)
         {
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE Usuario=@u OR Correo=@e", con);
             cmdCheck.Parameters.AddWithValue("@u", usuario ?? "");
             cmdCheck.Parameters.AddWithValue("@e", correo  ?? "");
-            if ((int)cmdCheck.ExecuteScalar() > 0)
+            if ((int)(await cmdCheck.ExecuteScalarAsync())! > 0)
             {
                 TempData["Error"] = "El nombre de usuario o correo ya está en uso.";
                 return RedirectToAction("Index");
@@ -108,19 +122,23 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@p",    BCrypt.Net.BCrypt.HashPassword(contrasena ?? "", 12));
             cmd.Parameters.AddWithValue("@r",    rolFinal);
             cmd.Parameters.AddWithValue("@proy", proyParam);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = $"Usuario '{usuario}' ({rolFinal}) creado correctamente.";
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Updates an existing user's profile data (excluding password and username).
+        /// Performs an UPDATE query on Usuarios.
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Editar(int idUsuario, string nombre, string apellido,
+        public async Task<IActionResult> Editar(int idUsuario, string nombre, string apellido,
             string documento, string celular, string correo, string rol, int idProyecto)
         {
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             object proyParam = idProyecto > 0 ? (object)idProyecto : DBNull.Value;
 
@@ -137,32 +155,41 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@r",    rol      ?? "Vendedor");
             cmd.Parameters.AddWithValue("@proy", proyParam);
             cmd.Parameters.AddWithValue("@id",   idUsuario);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Usuario actualizado correctamente.";
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Resets a user's password. The new password is hashed with BCrypt (cost 12)
+        /// before storage. Only admins can trigger this operation.
+        /// Performs an UPDATE query on Usuarios.
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult ResetPassword(int idUsuario, string nuevaContrasena)
+        public async Task<IActionResult> ResetPassword(int idUsuario, string nuevaContrasena)
         {
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var cmd = new SqlCommand("UPDATE Usuarios SET Contraseña=@p WHERE IdUsuario=@id", con);
             // BCrypt genera una sal aleatoria embebida en el hash (factor de coste = 12)
             cmd.Parameters.AddWithValue("@p",  BCrypt.Net.BCrypt.HashPassword(nuevaContrasena ?? "", 12));
             cmd.Parameters.AddWithValue("@id", idUsuario);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Contraseña actualizada correctamente.";
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Deletes a user account permanently. Prevents self-deletion for safety.
+        /// Performs a DELETE query on Usuarios.
+        /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Eliminar(int idUsuario)
+        public async Task<IActionResult> Eliminar(int idUsuario)
         {
             int idActual = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             if (idUsuario == idActual)
@@ -172,11 +199,11 @@ namespace Plataforma_ventas.Controllers
             }
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var cmd = new SqlCommand("DELETE FROM Usuarios WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@id", idUsuario);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Usuario eliminado correctamente.";
             return RedirectToAction("Index");
