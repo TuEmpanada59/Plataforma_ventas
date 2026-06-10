@@ -1,7 +1,9 @@
-﻿@{
-    Layout = null;
-    var nombre     = ViewBag.Nombre   as string ?? "Admin";
-    var apellido   = ViewBag.Apellido as string ?? "";
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Reportes";
+    ViewBag.ActiveNav = "reportes";
+    ViewBag.TbBread   = "Reportes";
+
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     int total      = ViewBag.Total       != null ? (int)ViewBag.Total       : 0;
     int disponibles= ViewBag.Disponibles != null ? (int)ViewBag.Disponibles : 0;
@@ -20,447 +22,307 @@
     double pctD    = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
     double pctR    = total > 0 ? Math.Round((double)reservados  / total * 100, 1) : 0;
     double pctP    = total > 0 ? Math.Round((double)enProceso   / total * 100, 1) : 0;
-    var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-    <title>Reportes · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{--azul:#0076e3;--celeste:#00c9ff;--negro:#1e222b;--plata:#c3cfdb;--menta:#00d4a1;--mid:#0060bb;--blue:#0076e3;--rojo:#E63946;--verde:#34C759;--oro:#FF9500;--label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(60,60,67,0.3);--sep:rgba(60,60,67,0.12);--sep2:rgba(60,60,67,0.06);--fill2:rgba(120,120,128,0.12);--fill3:rgba(120,120,128,0.08);--glass:rgba(255,255,255,0.75);--gb:rgba(255,255,255,0.6);--sh:0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);}
-        html,body{background:#EEF2F7;color:var(--label);overflow-x:hidden;}
-        *{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
-        body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,118,227,0.12) 0%,transparent 55%),#EEF2F7;pointer-events:none;}
-        .app{display:flex;min-height:100vh;position:relative;z-index:1;}
-        .sidebar{width:230px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-right:1px solid var(--gb);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
-        .sb-app{font-size:17px;font-weight:700;color:var(--label);letter-spacing:-0.4px;}
-        .sb-sub{font-size:11px;color:var(--label3);margin-top:1px;}
-        .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;display:inline-block;}
-        @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0))}}
-        .proy-drop{display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;z-index:120;background:white;border:1px solid var(--sep);border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
-        .proy-drop.open{display:block;}
-        .proy-drop-item{width:100%;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--sep2);text-align:left;font-size:13px;font-weight:500;cursor:pointer;color:var(--label);display:flex;align-items:center;gap:8px;transition:background 0.15s;}
-        .proy-drop-item:hover{background:var(--fill3);}
-        .proy-drop-link{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;background:rgba(0,118,227,0.04);}
-        .sb-sec{padding:16px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);}
-        .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 6px;border-radius:11px;font-size:14px;color:var(--label2);text-decoration:none;transition:all 0.2s;}
-        .nav-item:hover{background:var(--fill3);color:var(--label);}
-        .nav-item.active{background:var(--blue);color:white;font-weight:600;box-shadow:0 4px 12px rgba(0,118,227,0.28);}
-        .nav-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--fill3);flex-shrink:0;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.2);}
-        .sb-footer{margin-top:auto;padding:10px 12px 20px;border-top:1px solid var(--sep2);display:flex;align-items:center;gap:8px;}
-        .sb-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
-        .sb-logout{margin-left:auto;width:26px;height:26px;border-radius:7px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--label2);text-decoration:none;}
-        .sb-logout:hover{background:rgba(230,57,70,0.1);color:var(--rojo);}
-        .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:visible;}
-        .topbar{height:50px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-bottom:1px solid var(--sep);padding:0 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-        .tb-bread{font-size:13px;color:var(--label2);}.tb-bread strong{color:var(--label);font-weight:600;}
-        .tb-right{display:flex;align-items:center;gap:8px;}
-        .tb-proy{position:relative;}
-        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;font-family:inherit;}
-        .tb-chip-caret{font-size:9px;margin-left:5px;opacity:.7;}
-        .tb-ibtn{width:30px;height:30px;border-radius:9px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:var(--label);}
-        .view{flex:1;padding:18px;display:flex;flex-direction:column;gap:16px;}
-        @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        /* KPIs */
-        .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
-        .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:14px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
-        .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
-        .kpi-ico{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;}
-        .kpi-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;}
-        .kpi-num{font-size:26px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
-        .kpi-lbl{font-size:11px;color:var(--label2);}
-        .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
-        .kpi.k2 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k2 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k2 .kpi-num{color:#1EA851}
-        .kpi.k3 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k3 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k3 .kpi-num{color:var(--rojo)}
-        .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
-        .kpi.k5 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k5 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k5 .kpi-num{color:#1EA851;font-size:15px;}
-        /* Cards */
-        .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.15s both;display:flex;flex-direction:column;}
-        .card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep2);flex-shrink:0;}
-        .card-title{font-size:15px;font-weight:600;color:var(--label);}
-        .card-body{padding:16px;}
-        /* Grid layouts */
-        .tres-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
-        .dos-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-        /* Progreso */
-        .prog-row{margin-bottom:12px;}
-        .prog-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
-        .prog-name{font-size:13px;color:var(--label);font-weight:500;}
-        .prog-val{font-size:12px;font-weight:600;}
-        .prog-track{height:7px;background:var(--fill3);border-radius:50px;overflow:hidden;}
-        .prog-fill{height:100%;border-radius:50px;transition:width 1s ease;}
-        /* Tabla */
-        .tbl-wrap{overflow-x:auto;}
-        .tbl{width:100%;border-collapse:collapse;}
-        .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);}
-        .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:9px 14px;text-align:left;border-bottom:1px solid var(--sep2);}
-        .tbl td{padding:9px 14px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
-        .tbl tr:last-child td{border-bottom:none;}
-        .tbl tr:hover td{background:var(--fill3);}
-        /* Informe del día banner */
-        .hoy-banner{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.3s ease both;flex-wrap:wrap;gap:16px;}
-        .hoy-left h2{font-size:18px;font-weight:700;color:white;letter-spacing:-0.4px;margin-bottom:3px;}
-        .hoy-left p{font-size:13px;color:rgba(255,255,255,0.7);}
-        .hoy-stats{display:flex;gap:20px;flex-wrap:wrap;}
-        .hoy-stat{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 16px;}
-        .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;}
-        .hoy-stat-lbl{font-size:10px;color:rgba(255,255,255,0.65);margin-top:1px;font-weight:500;}
-        /* Mapa estado */
-        .mapa-wrap{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;padding:14px;}
-        .mapa-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;transition:background 0.15s;}
-        .mapa-row:hover{background:var(--fill3);}
-        .mapa-estado{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-        .mapa-apto{font-size:13px;font-weight:600;color:var(--label);min-width:60px;}
-        .mapa-tipo{font-size:11px;color:var(--label3);min-width:40px;}
-        .mapa-area{font-size:11px;color:var(--label2);min-width:60px;}
-        .mapa-torre{font-size:11px;color:var(--label2);flex:1;}
-        .mapa-bdg{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
-        .mapa-D{background:rgba(52,199,89,0.12);color:#1EA851}.mapa-V{background:rgba(230,57,70,0.12);color:var(--rojo)}
-        .mapa-R{background:rgba(255,149,0,0.12);color:#CC7700}.mapa-P{background:rgba(90,90,200,0.12);color:#5A5AC8}
-        /* Destinos donut */
-        .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
-        .destino-row{display:flex;align-items:center;gap:10px;}
-        .destino-bar-wrap{flex:1;height:8px;background:var(--fill3);border-radius:20px;overflow:hidden;}
-        .destino-bar{height:100%;border-radius:20px;}
-        .destino-lbl{font-size:12px;font-weight:500;color:var(--label);min-width:160px;}
-        .destino-cnt{font-size:12px;font-weight:700;color:var(--label2);min-width:30px;text-align:right;}
-        /* Botones */
-        .ios-btn{display:inline-flex;align-items:center;gap:6px;color:white;border:none;padding:7px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;text-decoration:none;box-shadow:0 3px 10px rgba(0,118,227,0.2);}
-        .ios-btn.azul{background:var(--blue);}.ios-btn.azul:hover{background:var(--mid);}
-        .ios-btn.verde{background:#1EA851;}.ios-btn.verde:hover{background:#167A3D;}
-        /* Asesor rank */
-        .asesor-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--sep2);}
-        .asesor-row:last-child{border-bottom:none;}
-        .asesor-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
-        .asesor-name{flex:1;font-size:13px;font-weight:600;color:var(--label);}
-        .asesor-ventas{font-size:12px;color:var(--label3);}
-        .asesor-valor{font-size:13px;font-weight:600;color:var(--azul);}
-        /* Tipología */
-        .tipo-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid var(--sep);background:white;transition:all 0.2s;}
-        .tipo-chip.active{border-color:var(--blue);background:rgba(0,118,227,0.08);color:var(--blue);}
-        /* Search */
-        .search-wrap{position:relative;max-width:200px;}
-        .search-wrap input{width:100%;padding:6px 12px 6px 28px;background:var(--fill3);border:1px solid var(--sep);border-radius:9px;font-size:13px;color:var(--label);outline:none;}
-        .search-wrap input:focus{background:white;border-color:var(--blue);}
-        .search-ico{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--label3);pointer-events:none;}
-        .asesor-sep{background:rgba(0,118,227,0.05);border-top:2px solid rgba(0,118,227,0.15);}
-        .asesor-sep td{font-size:12px;font-weight:700;color:var(--blue);padding:7px 14px;}
-        .empty{padding:30px;text-align:center;color:var(--label3);font-size:13px;}
-        /* Hamburger */
-        .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border-radius:8px;background:var(--fill3);border:none;}
-        .hamburger span{display:block;width:18px;height:2px;background:var(--label);border-radius:2px;}
-        @@media(max-width:1200px){.sidebar{width:185px!important;}.kpi-row{grid-template-columns:repeat(3,1fr)!important;}.tres-col{grid-template-columns:1fr 1fr!important;}}
-        @@media(max-width:1024px){.sidebar{width:175px!important;}.kpi-row{grid-template-columns:repeat(2,1fr)!important;}.tres-col,.dos-col{grid-template-columns:1fr!important;}}
-        @@media(max-width:700px){
-            html,body{height:auto!important;overflow:auto!important;}
-            .app{flex-direction:column!important;height:auto!important;}
-            .sidebar{position:fixed!important;top:0!important;left:-270px!important;width:260px!important;height:100vh!important;z-index:100!important;overflow-y:auto!important;transition:left 0.3s!important;}
-            .sidebar.open{left:0!important;}
-            .main{width:100%!important;overflow:visible!important;}
-            .hamburger{display:flex!important;}
-            .view{padding:12px!important;}
-            .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
-            .tres-col,.dos-col{grid-template-columns:1fr!important;}
-            .tb-chip{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-            .tbl-wrap{overflow-x:auto!important;}
-            .tbl{min-width:600px!important;}
-            .hoy-banner{flex-direction:column!important;}
-        }
-    
-        /* ── Sidebar blanco corporativo ── */
-        .sidebar{background:#fff!important;border-right:1px solid rgba(0,0,0,0.07)!important;backdrop-filter:none!important;box-shadow:2px 0 12px rgba(0,0,0,0.04)!important;}
-        .sb-logo-area{padding:16px 14px 12px;border-bottom:1px solid rgba(0,0,0,0.06);margin-bottom:4px;}
-        .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
-        .sb-app{color:#1e222b!important;font-weight:700!important;}
-        .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .proy-drop{background:#fff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 8px 24px rgba(0,0,0,0.1)!important;}
-        .proy-drop-item{color:#1e222b!important;}
-        .proy-drop-item:hover{background:rgba(0,118,227,0.06)!important;color:#0076e3!important;}
-        .proy-drop-link{color:#0076e3!important;background:rgba(0,118,227,0.04)!important;}
-        .sb-sec{color:rgba(30,34,43,0.38)!important;letter-spacing:0.08em!important;}
-        .nav-item{color:rgba(30,34,43,0.65)!important;}
-        .nav-item:hover{background:rgba(0,118,227,0.07)!important;color:#0076e3!important;}
-        .nav-item.active{background:#0076e3!important;color:#fff!important;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.22)!important;}
-        .nav-ico{background:rgba(30,34,43,0.06)!important;color:inherit!important;}
-        .sb-footer{border-top-color:rgba(0,0,0,0.07)!important;}
-        .sb-logout{background:rgba(30,34,43,0.05)!important;color:rgba(30,34,43,0.45)!important;}
-        .sb-logout:hover{background:rgba(230,57,70,0.08)!important;color:#E63946!important;}
-        .nav-item{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 12px!important;margin:1px 6px!important;border-radius:11px!important;font-size:14px!important;min-height:40px!important;text-decoration:none!important;transition:all 0.18s!important;}
-        .nav-ico{width:26px!important;height:26px!important;border-radius:8px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;flex-shrink:0!important;}
-        .sb-sec{padding:14px 18px 4px!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;}
-    </style>
-</head>
-<body>
-<div class="app">
-    <div class="sidebar" id="sidebar">
-        <div class="sb-logo-area">
-            <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
-        </div>
-        <div class="sb-sec">Principal</div>
-        <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-        <a class="nav-item" href="/Inmuebles"><div class="nav-ico">🏢</div>Proyectos</a>
-        <a class="nav-item" href="/Inmuebles/Reservas"><div class="nav-ico">🔒</div>Reservas</a>
-        <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
-        <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
-        <div class="sb-sec">General</div>
-        <a class="nav-item active" href="/Reportes"><div class="nav-ico">📊</div>Reportes</a>
-        <a class="nav-item" href="/Carga/Index"><div class="nav-ico">📂</div>Cargar Excel</a>
-        <a class="nav-item" href="/Usuarios"><div class="nav-ico">👥</div>Usuarios</a>
-        <div class="sb-footer">
-                <div class="sb-av">@iniciales</div>
-            <div><div style="font-size:12px;font-weight:600">@nombre @apellido</div><div style="font-size:10px;color:var(--label3)">Administrador</div></div>
-            <a class="sb-logout" href="/Account/Logout">↩</a>
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+    .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:14px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
+    .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+    .kpi-ico{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+    .kpi-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;}
+    .kpi-num{font-size:26px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
+    .kpi-lbl{font-size:11px;color:var(--label2);}
+    .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
+    .kpi.k2 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k2 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k2 .kpi-num{color:#1EA851}
+    .kpi.k3 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k3 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k3 .kpi-num{color:var(--rojo)}
+    .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
+    .kpi.k5 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k5 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k5 .kpi-num{color:#1EA851;font-size:15px;}
+    .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.15s both;display:flex;flex-direction:column;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep2);flex-shrink:0;}
+    .card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .card-body{padding:16px;}
+    .tres-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+    .dos-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .prog-row{margin-bottom:12px;}
+    .prog-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+    .prog-name{font-size:13px;color:var(--label);font-weight:500;}
+    .prog-val{font-size:12px;font-weight:600;}
+    .prog-track{height:7px;background:var(--fill3);border-radius:50px;overflow:hidden;}
+    .prog-fill{height:100%;border-radius:50px;transition:width 1s ease;}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;}
+    .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);}
+    .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:9px 14px;text-align:left;border-bottom:1px solid var(--sep2);}
+    .tbl td{padding:9px 14px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .hoy-banner{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.3s ease both;flex-wrap:wrap;gap:16px;}
+    .hoy-left h2{font-size:18px;font-weight:700;color:white;letter-spacing:-0.4px;margin-bottom:3px;}
+    .hoy-left p{font-size:13px;color:rgba(255,255,255,0.7);}
+    .hoy-stats{display:flex;gap:20px;flex-wrap:wrap;}
+    .hoy-stat{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 16px;}
+    .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;}
+    .hoy-stat-lbl{font-size:10px;color:rgba(255,255,255,0.65);margin-top:1px;font-weight:500;}
+    .mapa-wrap{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;padding:14px;}
+    .mapa-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;transition:background 0.15s;}
+    .mapa-row:hover{background:var(--fill3);}
+    .mapa-estado{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+    .mapa-apto{font-size:13px;font-weight:600;color:var(--label);min-width:60px;}
+    .mapa-tipo{font-size:11px;color:var(--label3);min-width:40px;}
+    .mapa-area{font-size:11px;color:var(--label2);min-width:60px;}
+    .mapa-torre{font-size:11px;color:var(--label2);flex:1;}
+    .mapa-bdg{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
+    .mapa-D{background:rgba(52,199,89,0.12);color:#1EA851}.mapa-V{background:rgba(230,57,70,0.12);color:var(--rojo)}
+    .mapa-R{background:rgba(255,149,0,0.12);color:#CC7700}.mapa-P{background:rgba(90,90,200,0.12);color:#5A5AC8}
+    .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
+    .destino-row{display:flex;align-items:center;gap:10px;}
+    .destino-bar-wrap{flex:1;height:8px;background:var(--fill3);border-radius:20px;overflow:hidden;}
+    .destino-bar{height:100%;border-radius:20px;}
+    .destino-lbl{font-size:12px;font-weight:500;color:var(--label);min-width:160px;}
+    .destino-cnt{font-size:12px;font-weight:700;color:var(--label2);min-width:30px;text-align:right;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;color:white;border:none;padding:7px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;text-decoration:none;box-shadow:0 3px 10px rgba(0,118,227,0.2);}
+    .ios-btn.azul{background:var(--blue);}.ios-btn.azul:hover{background:var(--mid);}
+    .ios-btn.verde{background:#1EA851;}.ios-btn.verde:hover{background:#167A3D;}
+    .asesor-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--sep2);}
+    .asesor-row:last-child{border-bottom:none;}
+    .asesor-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
+    .asesor-name{flex:1;font-size:13px;font-weight:600;color:var(--label);}
+    .asesor-ventas{font-size:12px;color:var(--label3);}
+    .asesor-valor{font-size:13px;font-weight:600;color:var(--azul);}
+    .tipo-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid var(--sep);background:white;transition:all 0.2s;}
+    .tipo-chip.active{border-color:var(--blue);background:rgba(0,118,227,0.08);color:var(--blue);}
+    .search-wrap{position:relative;max-width:200px;}
+    .search-wrap input{width:100%;padding:6px 12px 6px 28px;background:var(--fill3);border:1px solid var(--sep);border-radius:9px;font-size:13px;color:var(--label);outline:none;}
+    .search-wrap input:focus{background:white;border-color:var(--blue);}
+    .search-ico{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--label3);pointer-events:none;}
+    .asesor-sep{background:rgba(0,118,227,0.05);border-top:2px solid rgba(0,118,227,0.15);}
+    .asesor-sep td{font-size:12px;font-weight:700;color:var(--blue);padding:7px 14px;}
+    .empty{padding:30px;text-align:center;color:var(--label3);font-size:13px;}
+    @@media(max-width:1200px){.kpi-row{grid-template-columns:repeat(3,1fr)!important;}.tres-col{grid-template-columns:1fr 1fr!important;}}
+    @@media(max-width:1024px){.kpi-row{grid-template-columns:repeat(2,1fr)!important;}.tres-col,.dos-col{grid-template-columns:1fr!important;}}
+    @@media(max-width:700px){
+        .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
+        .tres-col,.dos-col{grid-template-columns:1fr!important;}
+        .tbl-wrap{overflow-x:auto!important;}
+        .tbl{min-width:600px!important;}
+        .hoy-banner{flex-direction:column!important;}
+    }
+</style>
+}
+
+<!-- INFORME DEL DÍA -->
+<div class="hoy-banner">
+    <div class="hoy-left">
+        <h2>📅 Informe del día</h2>
+        <p>@DateTime.Now.ToString("dddd, dd MMMM yyyy") · @proyActivo</p>
+    </div>
+    <div class="hoy-stats">
+        <div class="hoy-stat"><div class="hoy-stat-num">@ventasHoy</div><div class="hoy-stat-lbl">Ventas hoy</div></div>
+        <div class="hoy-stat"><div class="hoy-stat-num">$@string.Format("{0:N0}", valorHoy)</div><div class="hoy-stat-lbl">Valor vendido hoy</div></div>
+        <div class="hoy-stat"><div class="hoy-stat-num">@vendidos</div><div class="hoy-stat-lbl">Total vendidos</div></div>
+        <div class="hoy-stat"><div class="hoy-stat-num">@disponibles</div><div class="hoy-stat-lbl">Disponibles</div></div>
+        <div class="hoy-stat"><div class="hoy-stat-num">@string.Format("{0:P0}", total > 0 ? (double)vendidos/total : 0)</div><div class="hoy-stat-lbl">% Avance</div></div>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-row">
+    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
+    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">🔒</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
+    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">💰</div><span class="kpi-tag">Total</span></div><div class="kpi-num">$@string.Format("{0:N0}", valorTotal)</div><div class="kpi-lbl">Valor vendido</div></div>
+</div>
+
+<!-- PROGRESO + DESTINOS -->
+<div class="dos-col">
+    <div class="card">
+        <div class="card-head"><span class="card-title">📈 Progreso del proyecto</span></div>
+        <div class="card-body">
+            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:var(--rojo)">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
+            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:#1EA851">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
+            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctR)%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div></div>
+            <div class="prog-row"><div class="prog-meta"><span class="prog-name">En proceso</span><span class="prog-val" style="color:#5A5AC8">@enProceso / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctP)%;background:linear-gradient(90deg,#5A5AC8,#7878E0)"></div></div></div>
         </div>
     </div>
-    <div class="main">
-        <div class="topbar">
-            <div style="display:flex;align-items:center;gap:10px;"><button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button><span class="tb-bread"><strong>Reportes</strong> · @proyActivo</span></div>
-            <div class="tb-right"><div class="tb-proy">
-                    <button type="button" class="tb-chip" id="proyBtn" onclick="toggleDrop()" title="Cambiar proyecto">
-                        <span class="pulse"></span>@proyActivo<span class="tb-chip-caret">▾</span>
-                    </button>
-                    <div class="proy-drop" id="proyDrop">
-            @{ var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>; }
-            @if (proyectos != null) {
-                foreach (var p in proyectos) {
-                    <form action="/Dashboard/CambiarProyecto" method="post" style="margin:0">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="idProyecto" value="@p.Id"/>
-                        <input type="hidden" name="nombreProyecto" value="@p.Nombre"/>
-                        <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                    </form>
+
+    <div class="card">
+        <div class="card-head"><span class="card-title">🏷️ Destino de ventas</span></div>
+        @if (destinos.Count > 0) {
+            <div class="destino-list">
+                @{ int maxDest = destinos.Count > 0 ? (int)destinos[0].Total : 1; }
+                @foreach (var d in destinos) {
+                    var pct = maxDest > 0 ? (double)(int)d.Total / maxDest * 100 : 0;
+                    var colores = new[]{ "#0076e3","#1EA851","#FF9500","#5A5AC8" };
+                    var ci = destinos.IndexOf(d) % 4;
+                    <div class="destino-row">
+                        <div class="destino-lbl">@d.Destino</div>
+                        <div class="destino-bar-wrap"><div class="destino-bar" style="width:@pct%;background:@colores[ci]"></div></div>
+                        <div class="destino-cnt">@d.Total</div>
+                    </div>
                 }
+            </div>
+        } else {
+            <div class="empty">Sin datos de destino</div>
+        }
+    </div>
+</div>
+
+<!-- TIPOLOGÍAS -->
+<div class="card">
+    <div class="card-head">
+        <span class="card-title">📐 Ventas por tipología</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="tipoFiltros">
+            <span class="tipo-chip active" onclick="filtrarTipo('todos',this)">Todas</span>
+            @foreach (var t in tipologias) {
+                <span class="tipo-chip" onclick="filtrarTipo('@t.Tipo',this)">@t.Tipo <strong style="margin-left:4px">@t.Vendidos</strong></span>
             }
-            <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
-                    </div>
-                </div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
         </div>
-        <div class="view">
-
-            <!-- ══ INFORME DEL DÍA ══ -->
-            <div class="hoy-banner">
-                <div class="hoy-left">
-                    <h2>📅 Informe del día</h2>
-                    <p>@DateTime.Now.ToString("dddd, dd MMMM yyyy") · @proyActivo</p>
-                </div>
-                <div class="hoy-stats">
-                    <div class="hoy-stat"><div class="hoy-stat-num">@ventasHoy</div><div class="hoy-stat-lbl">Ventas hoy</div></div>
-                    <div class="hoy-stat"><div class="hoy-stat-num">$@string.Format("{0:N0}", valorHoy)</div><div class="hoy-stat-lbl">Valor vendido hoy</div></div>
-                    <div class="hoy-stat"><div class="hoy-stat-num">@vendidos</div><div class="hoy-stat-lbl">Total vendidos</div></div>
-                    <div class="hoy-stat"><div class="hoy-stat-num">@disponibles</div><div class="hoy-stat-lbl">Disponibles</div></div>
-                    <div class="hoy-stat"><div class="hoy-stat-num">@string.Format("{0:P0}", total > 0 ? (double)vendidos/total : 0)</div><div class="hoy-stat-lbl">% Avance</div></div>
-                </div>
-            </div>
-
-            <!-- ══ KPIs ══ -->
-            <div class="kpi-row">
-                <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-                <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-                <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
-                <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">🔒</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
-                <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">💰</div><span class="kpi-tag">Total</span></div><div class="kpi-num">$@string.Format("{0:N0}", valorTotal)</div><div class="kpi-lbl">Valor vendido</div></div>
-            </div>
-
-            <!-- ══ PROGRESO + DESTINOS ══ -->
-            <div class="dos-col">
-                <!-- Progreso del proyecto -->
-                <div class="card">
-                    <div class="card-head"><span class="card-title">📈 Progreso del proyecto</span></div>
-                    <div class="card-body">
-                        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:var(--rojo)">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
-                        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:#1EA851">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
-                        <div class="prog-row"><div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctR)%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div></div>
-                        <div class="prog-row"><div class="prog-meta"><span class="prog-name">En proceso</span><span class="prog-val" style="color:#5A5AC8">@enProceso / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctP)%;background:linear-gradient(90deg,#5A5AC8,#7878E0)"></div></div></div>
-                    </div>
-                </div>
-
-                <!-- Destinos -->
-                <div class="card">
-                    <div class="card-head"><span class="card-title">🏷️ Destino de ventas</span></div>
-                    @if (destinos.Count > 0) {
-                        <div class="destino-list">
-                            @{ int maxDest = destinos.Count > 0 ? (int)destinos[0].Total : 1; }
-                            @foreach (var d in destinos) {
-                                var pct = maxDest > 0 ? (double)(int)d.Total / maxDest * 100 : 0;
-                                var colores = new[]{ "#0076e3","#1EA851","#FF9500","#5A5AC8" };
-                                var ci = destinos.IndexOf(d) % 4;
-                                <div class="destino-row">
-                                    <div class="destino-lbl">@d.Destino</div>
-                                    <div class="destino-bar-wrap"><div class="destino-bar" style="width:@pct%;background:@colores[ci]"></div></div>
-                                    <div class="destino-cnt">@d.Total</div>
-                                </div>
-                            }
-                        </div>
-                    } else {
-                        <div class="empty">Sin datos de destino</div>
-                    }
-                </div>
-            </div>
-
-            <!-- ══ TIPOLOGÍAS ══ -->
-            <div class="card">
-                <div class="card-head">
-                    <span class="card-title">📐 Ventas por tipología</span>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;" id="tipoFiltros">
-                        <span class="tipo-chip active" onclick="filtrarTipo('todos',this)">Todas</span>
-                        @foreach (var t in tipologias) {
-                            <span class="tipo-chip" onclick="filtrarTipo('@t.Tipo',this)">@t.Tipo <strong style="margin-left:4px">@t.Vendidos</strong></span>
-                        }
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div style="overflow-x:auto">
-                        <table class="tbl" id="tblTipo">
-                            <thead><tr><th>Tipo</th><th>Total</th><th>Vendidos</th><th>Disponibles</th><th>Reservados</th><th>% Vendido</th></tr></thead>
-                            <tbody>
-                            @foreach (var t in tipologias) {
-                                double pctTipo = t.Total > 0 ? Math.Round((double)t.Vendidos / t.Total * 100, 1) : 0;
-                                <tr data-tipo="@t.Tipo">
-                                    <td style="font-weight:600">@t.Tipo</td>
-                                    <td>@t.Total</td>
-                                    <td style="color:var(--rojo);font-weight:600">@t.Vendidos</td>
-                                    <td style="color:#1EA851">@t.Disponibles</td>
-                                    <td style="color:#CC7700">@t.Reservados</td>
-                                    <td>
-                                        <div style="display:flex;align-items:center;gap:8px;">
-                                            <div style="flex:1;height:6px;background:var(--fill3);border-radius:20px;overflow:hidden;"><div style="width:@pctTipo%;height:100%;background:var(--rojo);border-radius:20px;"></div></div>
-                                            <span style="font-size:11px;font-weight:600;color:var(--rojo)">@pctTipo%</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ══ MAPA DE VENTAS ══ -->
-            <div class="card">
-                <div class="card-head">
-                    <span class="card-title">🗺️ Mapa de inmuebles</span>
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                        <div style="display:flex;gap:10px;font-size:11px;">
-                            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#1EA851;display:inline-block;"></span>Disponible</span>
-                            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--rojo);display:inline-block;"></span>Vendido</span>
-                            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#CC7700;display:inline-block;"></span>Reservado</span>
-                            <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#5A5AC8;display:inline-block;"></span>En proceso</span>
-                        </div>
-                        <a href="/Reportes/GenerarMapa" class="ios-btn azul">⬇ Excel</a>
-                        <a href="/Reportes/ReporteAsesores" class="ios-btn verde">⬇ Asesores</a>
-                        <a href="/Reportes/ReportePDF" class="ios-btn" style="background:var(--rojo)">⬇ PDF técnico</a>
-                    </div>
-                </div>
-                @if (mapa.Count > 0) {
-                    <div class="mapa-wrap">
-                        @foreach (var m in mapa) {
-                            var clsE = m.Estado == "DISPONIBLE" ? "D" : m.Estado == "VENDIDO" ? "V" : m.Estado == "RESERVADO" ? "R" : "P";
-                            var colE = m.Estado == "DISPONIBLE" ? "#1EA851" : m.Estado == "VENDIDO" ? "var(--rojo)" : m.Estado == "RESERVADO" ? "#CC7700" : "#5A5AC8";
-                            <div class="mapa-row">
-                                <div class="mapa-estado" style="background:@colE"></div>
-                                <div class="mapa-apto">@m.Apto</div>
-                                <div class="mapa-tipo">@m.Tipo</div>
-                                <div class="mapa-area">@m.Metros m²</div>
-                                <div class="mapa-torre">@m.Torre</div>
-                                <span class="mapa-bdg mapa-@clsE">@m.Estado</span>
+    </div>
+    <div class="card-body">
+        <div style="overflow-x:auto">
+            <table class="tbl" id="tblTipo">
+                <thead><tr><th>Tipo</th><th>Total</th><th>Vendidos</th><th>Disponibles</th><th>Reservados</th><th>% Vendido</th></tr></thead>
+                <tbody>
+                @foreach (var t in tipologias) {
+                    double pctTipo = t.Total > 0 ? Math.Round((double)t.Vendidos / t.Total * 100, 1) : 0;
+                    <tr data-tipo="@t.Tipo">
+                        <td style="font-weight:600">@t.Tipo</td>
+                        <td>@t.Total</td>
+                        <td style="color:var(--rojo);font-weight:600">@t.Vendidos</td>
+                        <td style="color:#1EA851">@t.Disponibles</td>
+                        <td style="color:#CC7700">@t.Reservados</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div style="flex:1;height:6px;background:var(--fill3);border-radius:20px;overflow:hidden;"><div style="width:@pctTipo%;height:100%;background:var(--rojo);border-radius:20px;"></div></div>
+                                <span style="font-size:11px;font-weight:600;color:var(--rojo)">@pctTipo%</span>
                             </div>
-                        }
-                    </div>
-                } else {
-                    <div class="empty">No hay inmuebles en este proyecto</div>
+                        </td>
+                    </tr>
                 }
-            </div>
-
-            <!-- ══ TABLA VENTAS POR ASESOR ══ -->
-            <div class="card">
-                <div class="card-head">
-                    <span class="card-title">📋 Detalle de ventas</span>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@ventas.Count ventas</span>
-                        <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar..." oninput="filtrar()"/></div>
-                    </div>
-                </div>
-                @if (ventas.Count > 0) {
-                    <div class="tbl-wrap">
-                        <table class="tbl" id="tablaVentas">
-                            <thead><tr><th>Asesor</th><th>Apto</th><th>Torre</th><th>Tipo</th><th>Área m²</th><th>Cliente</th><th>Destino</th><th>Lista</th><th>Precio venta</th><th>Fecha y hora</th></tr></thead>
-                            <tbody>
-                            @{
-                                string asesorActual = "";
-                                long totalAsesor = 0;
-                                int contAsesor = 0;
-                            }
-                            @foreach (var v in ventas) {
-                                if (v.Asesor != asesorActual) {
-                                    if (asesorActual != "") {
-                                        <tr class="asesor-sep">
-                                            <td colspan="8" style="text-align:right">Subtotal @asesorActual (@contAsesor ventas)</td>
-                                            <td style="color:var(--azul);font-weight:700">$@string.Format("{0:N0}", totalAsesor)</td>
-                                            <td></td>
-                                        </tr>
-                                    }
-                                    asesorActual = v.Asesor;
-                                    totalAsesor = 0;
-                                    contAsesor = 0;
-                                }
-                                totalAsesor += v.PrecioVenta;
-                                contAsesor++;
-                                <tr>
-                                    <td style="font-weight:600;color:var(--blue)">@v.Asesor</td>
-                                    <td style="font-weight:600">@v.Apto</td>
-                                    <td>@v.Torre</td>
-                                    <td>@v.Tipo</td>
-                                    <td style="color:var(--label2)">@v.Metros m²</td>
-                                    <td>@v.Cliente</td>
-                                    <td>
-                                        @{
-                                            var dest = v.Destino as string ?? "—";
-                                            var destIco = dest == "Vivienda" ? "🏠" :
-                                                          dest == "Inversión para reventa" ? "📈" :
-                                                          dest == "Inversión para arriendo" ? "🔑" :
-                                                          dest == "Cesión de derechos" ? "📋" : "—";
-                                            var destCol = dest == "Vivienda" ? "rgba(0,118,227,0.08);color:var(--blue)" :
-                                                          dest == "Inversión para reventa" ? "rgba(52,199,89,0.1);color:#1EA851" :
-                                                          dest == "Inversión para arriendo" ? "rgba(255,149,0,0.1);color:#CC7700" :
-                                                          dest == "Cesión de derechos" ? "rgba(90,90,200,0.1);color:#5A5AC8" :
-                                                          "rgba(120,120,128,0.08);color:var(--label3)";
-                                        }
-                                        <div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:@destCol;font-size:11px;font-weight:600;white-space:nowrap;">
-                                            <span>@destIco</span><span>@dest</span>
-                                        </div>
-                                    </td>
-                                    <td style="text-align:center">@v.Lista</td>
-                                    <td style="font-weight:600;color:var(--azul)">$@string.Format("{0:N0}", v.PrecioVenta)</td>
-                                    <td style="color:var(--label2);font-size:12px">@v.FechaVenta</td>
-                                </tr>
-                            }
-                            @if (asesorActual != "") {
-                                <tr class="asesor-sep">
-                                    <td colspan="8" style="text-align:right">Subtotal @asesorActual (@contAsesor ventas)</td>
-                                    <td style="color:var(--azul);font-weight:700">$@string.Format("{0:N0}", totalAsesor)</td>
-                                    <td></td>
-                                </tr>
-                            }
-                            </tbody>
-                        </table>
-                    </div>
-                } else {
-                    <div class="empty">No hay ventas registradas en @proyActivo</div>
-                }
-            </div>
-
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
-<div id="sbOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;backdrop-filter:blur(2px);"></div>
+
+<!-- MAPA DE VENTAS -->
+<div class="card">
+    <div class="card-head">
+        <span class="card-title">🗺️ Mapa de inmuebles</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="display:flex;gap:10px;font-size:11px;">
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#1EA851;display:inline-block;"></span>Disponible</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--rojo);display:inline-block;"></span>Vendido</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#CC7700;display:inline-block;"></span>Reservado</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#5A5AC8;display:inline-block;"></span>En proceso</span>
+            </div>
+            <a href="/Reportes/GenerarMapa" class="ios-btn azul">⬇ Excel</a>
+            <a href="/Reportes/ReporteAsesores" class="ios-btn verde">⬇ Asesores</a>
+            <a href="/Reportes/ReportePDF" class="ios-btn" style="background:var(--rojo)">⬇ PDF técnico</a>
+        </div>
+    </div>
+    @if (mapa.Count > 0) {
+        <div class="mapa-wrap">
+            @foreach (var m in mapa) {
+                var clsE = m.Estado == "DISPONIBLE" ? "D" : m.Estado == "VENDIDO" ? "V" : m.Estado == "RESERVADO" ? "R" : "P";
+                var colE = m.Estado == "DISPONIBLE" ? "#1EA851" : m.Estado == "VENDIDO" ? "var(--rojo)" : m.Estado == "RESERVADO" ? "#CC7700" : "#5A5AC8";
+                <div class="mapa-row">
+                    <div class="mapa-estado" style="background:@colE"></div>
+                    <div class="mapa-apto">@m.Apto</div>
+                    <div class="mapa-tipo">@m.Tipo</div>
+                    <div class="mapa-area">@m.Metros m²</div>
+                    <div class="mapa-torre">@m.Torre</div>
+                    <span class="mapa-bdg mapa-@clsE">@m.Estado</span>
+                </div>
+            }
+        </div>
+    } else {
+        <div class="empty">No hay inmuebles en este proyecto</div>
+    }
+</div>
+
+<!-- TABLA VENTAS POR ASESOR -->
+<div class="card">
+    <div class="card-head">
+        <span class="card-title">📋 Detalle de ventas</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@ventas.Count ventas</span>
+            <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar..." oninput="filtrar()"/></div>
+        </div>
+    </div>
+    @if (ventas.Count > 0) {
+        <div class="tbl-wrap">
+            <table class="tbl" id="tablaVentas">
+                <thead><tr><th>Asesor</th><th>Apto</th><th>Torre</th><th>Tipo</th><th>Área m²</th><th>Cliente</th><th>Destino</th><th>Lista</th><th>Precio venta</th><th>Fecha y hora</th></tr></thead>
+                <tbody>
+                @{
+                    string asesorActual = "";
+                    long totalAsesor = 0;
+                    int contAsesor = 0;
+                }
+                @foreach (var v in ventas) {
+                    if (v.Asesor != asesorActual) {
+                        if (asesorActual != "") {
+                            <tr class="asesor-sep">
+                                <td colspan="8" style="text-align:right">Subtotal @asesorActual (@contAsesor ventas)</td>
+                                <td style="color:var(--azul);font-weight:700">$@string.Format("{0:N0}", totalAsesor)</td>
+                                <td></td>
+                            </tr>
+                        }
+                        asesorActual = v.Asesor;
+                        totalAsesor = 0;
+                        contAsesor = 0;
+                    }
+                    totalAsesor += v.PrecioVenta;
+                    contAsesor++;
+                    <tr>
+                        <td style="font-weight:600;color:var(--blue)">@v.Asesor</td>
+                        <td style="font-weight:600">@v.Apto</td>
+                        <td>@v.Torre</td>
+                        <td>@v.Tipo</td>
+                        <td style="color:var(--label2)">@v.Metros m²</td>
+                        <td>@v.Cliente</td>
+                        <td>
+                            @{
+                                var dest = v.Destino as string ?? "—";
+                                var destIco = dest == "Vivienda" ? "🏠" :
+                                              dest == "Inversión para reventa" ? "📈" :
+                                              dest == "Inversión para arriendo" ? "🔑" :
+                                              dest == "Cesión de derechos" ? "📋" : "—";
+                                var destCol = dest == "Vivienda" ? "rgba(0,118,227,0.08);color:var(--blue)" :
+                                              dest == "Inversión para reventa" ? "rgba(52,199,89,0.1);color:#1EA851" :
+                                              dest == "Inversión para arriendo" ? "rgba(255,149,0,0.1);color:#CC7700" :
+                                              dest == "Cesión de derechos" ? "rgba(90,90,200,0.1);color:#5A5AC8" :
+                                              "rgba(120,120,128,0.08);color:var(--label3)";
+                            }
+                            <div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:@destCol;font-size:11px;font-weight:600;white-space:nowrap;">
+                                <span>@destIco</span><span>@dest</span>
+                            </div>
+                        </td>
+                        <td style="text-align:center">@v.Lista</td>
+                        <td style="font-weight:600;color:var(--azul)">$@string.Format("{0:N0}", v.PrecioVenta)</td>
+                        <td style="color:var(--label2);font-size:12px">@v.FechaVenta</td>
+                    </tr>
+                }
+                @if (asesorActual != "") {
+                    <tr class="asesor-sep">
+                        <td colspan="8" style="text-align:right">Subtotal @asesorActual (@contAsesor ventas)</td>
+                        <td style="color:var(--azul);font-weight:700">$@string.Format("{0:N0}", totalAsesor)</td>
+                        <td></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    } else {
+        <div class="empty">No hay ventas registradas en @proyActivo</div>
+    }
+</div>
+
+@section Scripts {
 <script>
-    function toggleSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(!sb)return;var o=sb.classList.toggle('open');if(ov)ov.style.display=o?'block':'none';}
-    function closeSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(sb)sb.classList.remove('open');if(ov)ov.style.display='none';}
     function filtrar(){
         const q=document.getElementById('buscar').value.toLowerCase();
         document.querySelectorAll('#tablaVentas tbody tr:not(.asesor-sep)').forEach(tr=>{
@@ -474,11 +336,5 @@
             tr.style.display=(tipo==='todos'||tr.dataset.tipo===tipo)?'':'none';
         });
     }
-    function toggleDrop(){document.getElementById('proyDrop').classList.toggle('open');}
-    document.addEventListener('click',e=>{
-        const b=document.getElementById('proyBtn'),d=document.getElementById('proyDrop');
-        if(b&&d&&!b.contains(e.target)&&!d.contains(e.target))d.classList.remove('open');
-    });
 </script>
-</body>
-</html>
+}

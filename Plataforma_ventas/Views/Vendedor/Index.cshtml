@@ -1,279 +1,128 @@
-﻿@{
-    Layout = null;
-    var nombre     = ViewBag.Nombre      as string ?? "";
-    var apellido   = ViewBag.Apellido    as string ?? "";
-    var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+@{
+    Layout = "~/Views/Shared/_VendedorLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Inicio";
+    ViewBag.ActiveNav = "vendedor-inicio";
+    ViewBag.TbBread   = "Inicio";
+
     int total      = ViewBag.Total       != null ? (int)ViewBag.Total       : 0;
     int disponibles= ViewBag.Disponibles != null ? (int)ViewBag.Disponibles : 0;
     int reservados = ViewBag.Reservados  != null ? (int)ViewBag.Reservados  : 0;
     int vendidos   = ViewBag.Vendidos    != null ? (int)ViewBag.Vendidos    : 0;
     int misVentas  = ViewBag.MisVentas   != null ? (int)ViewBag.MisVentas   : 0;
     int misClientes= ViewBag.MisClientes != null ? (int)ViewBag.MisClientes : 0;
-    var iniciales  = nombre.Length >= 1 ? (nombre.Substring(0,1) + (apellido.Length >= 1 ? apellido.Substring(0,1) : "")).ToUpper() : "V";
-    var proyectos   = ViewBag.Proyectos  as List<(int Id, string Nombre)> ?? new List<(int Id, string Nombre)>();
+    var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     bool sinProyecto = ViewBag.SinProyecto != null ? (bool)ViewBag.SinProyecto : false;
     var errorCodigo  = ViewBag.ErrorCodigo as string ?? "";
+    var nombre = ViewBag.Nombre as string ?? "";
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Mi Dashboard · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{--azul:#0076e3;--celeste:#00c9ff;--negro:#1e222b;--plata:#c3cfdb;--menta:#00d4a1;--mid:#0060bb;--blue:#0076e3;--rojo:#E63946;--verde:#34C759;--oro:#FF9500;--label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(60,60,67,0.3);--sep:rgba(60,60,67,0.12);--sep2:rgba(60,60,67,0.06);--fill2:rgba(120,120,128,0.12);--fill3:rgba(120,120,128,0.08);--glass:rgba(255,255,255,0.75);--gb:rgba(255,255,255,0.6);--sh:0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);--sh2:0 20px 60px rgba(0,0,0,0.10),0 4px 20px rgba(0,0,0,0.06);}
-        html,body{background:#EEF2F7;color:var(--label);}
-        *{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
-        body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,118,227,0.12) 0%,transparent 55%),radial-gradient(ellipse 60% 60% at 90% 10%,rgba(0,118,227,0.08) 0%,transparent 50%),#EEF2F7;pointer-events:none;}
-        .app{display:flex;min-height:100vh;position:relative;z-index:1;}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .welcome-banner{background:linear-gradient(135deg,var(--azul) 0%,var(--blue) 100%);border-radius:20px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.35s ease both;position:relative;overflow:hidden;}
+    .welcome-banner::before{content:'';position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.07);}
+    .welcome-banner::after{content:'';position:absolute;bottom:-40px;right:100px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
+    .wb-txt h2{font-size:20px;font-weight:700;color:white;letter-spacing:-0.5px;margin-bottom:4px;}
+    .wb-txt p{font-size:13px;color:rgba(255,255,255,0.7);}
+    .wb-ico{font-size:48px;position:relative;z-index:1;}
+    .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:16px;box-shadow:var(--sh);transition:transform 0.2s,box-shadow 0.2s;animation:fu 0.35s ease both;}
+    .kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.1s}.kpi:nth-child(3){animation-delay:.15s}.kpi:nth-child(4){animation-delay:.2s}
+    .kpi:hover{transform:translateY(-2px);}
+    .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+    .kpi-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+    .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k2 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k3 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-ico{background:rgba(230,57,70,0.1)}
+    .kpi-tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
+    .kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k2 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k3 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k4 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}
+    .kpi-num{font-size:32px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
+    .kpi.k1 .kpi-num{color:var(--azul)}.kpi.k2 .kpi-num{color:#1EA851}.kpi.k3 .kpi-num{color:#CC7700}.kpi.k4 .kpi-num{color:var(--rojo)}
+    .kpi-lbl{font-size:12px;color:var(--label2);}
+    .action-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .action-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:20px;box-shadow:var(--sh);animation:fu 0.35s ease 0.25s both;display:flex;flex-direction:column;gap:12px;}
+    .ac-head{display:flex;align-items:center;justify-content:space-between;}
+    .ac-title{font-size:15px;font-weight:600;color:var(--label);}
+    .ac-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:8px 14px;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,118,227,0.28);transition:all 0.2s;text-decoration:none;}
+    .ios-btn:hover{background:var(--mid);transform:scale(0.98);}
+    .ac-stat{font-size:36px;font-weight:200;letter-spacing:-2px;}
+    .ac-sub{font-size:12px;color:var(--label2);}
+    .sin-proy-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:40px 20px;gap:24px;animation:fu 0.4s ease both;}
+    .sin-proy-ico{width:80px;height:80px;border-radius:24px;background:linear-gradient(145deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 8px 24px rgba(0,96,187,0.25);}
+    .sin-proy-title{font-size:22px;font-weight:700;color:var(--azul);letter-spacing:-0.5px;text-align:center;}
+    .sin-proy-sub{font-size:14px;color:var(--label2);text-align:center;max-width:320px;line-height:1.5;}
+    .codigo-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:20px;padding:28px;width:100%;max-width:380px;box-shadow:var(--sh);}
+    .codigo-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label2);margin-bottom:6px;}
+    .codigo-input{width:100%;padding:12px 16px;background:var(--fill3);border:2px solid var(--sep);border-radius:12px;font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--azul);outline:none;transition:all 0.2s;text-align:center;}
+    .codigo-input:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
+    .codigo-input::placeholder{font-weight:400;letter-spacing:0;text-transform:none;color:var(--label3);}
+    .btn-codigo{width:100%;padding:13px;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,118,227,0.3);transition:all 0.2s;margin-top:12px;}
+    .btn-codigo:hover{background:linear-gradient(135deg,var(--azul),var(--mid));transform:translateY(-1px);}
+    .error-codigo{background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);border-radius:10px;padding:10px 14px;color:var(--rojo);font-size:13px;font-weight:500;margin-top:10px;text-align:center;}
+    @@media(max-width:1200px){.kpi-row{grid-template-columns:repeat(3,1fr)!important;}}
+    @@media(max-width:1024px){.kpi-row{grid-template-columns:repeat(2,1fr)!important;}.action-row{grid-template-columns:1fr!important;}}
+    @@media(max-width:700px){
+        .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
+        .action-row{grid-template-columns:1fr!important;}
+        .welcome-banner{flex-direction:column!important;gap:10px!important;}
+        .wb-ico{display:none!important;}
+    }
+</style>
+}
 
-        /* SIDEBAR */
-        .sidebar{width:230px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-right:1px solid var(--gb);display:flex;flex-direction:column;}
-        .sb-top{padding:20px 14px 0;}
-        .sb-icon{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,96,187,0.25);}
-        .sb-app{font-size:17px;font-weight:700;color:var(--label);letter-spacing:-0.4px;}
-        .sb-sub{font-size:11px;color:var(--label3);margin-top:1px;}
-
-        /* Card vendedor */
-        .sb-vendedor{margin:14px 10px 4px;background:linear-gradient(145deg,var(--azul),var(--blue));border-radius:16px;padding:14px;position:relative;overflow:hidden;}
-        .sb-vendedor::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08);}
-        .sb-vendedor::after{content:'';position:absolute;bottom:-30px;left:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
-        .sv-av{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;margin-bottom:8px;position:relative;z-index:1;}
-        .sv-nombre{font-size:14px;font-weight:700;color:white;letter-spacing:-0.3px;position:relative;z-index:1;}
-        .sv-rol{font-size:10px;color:rgba(255,255,255,0.65);font-weight:500;margin-top:1px;position:relative;z-index:1;}
-        .sv-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;position:relative;z-index:1;}
-        .sv-stat{background:rgba(255,255,255,0.12);border-radius:10px;padding:8px;text-align:center;}
-        .sv-num{font-size:18px;font-weight:300;color:white;letter-spacing:-0.5px;}
-        .sv-lbl{font-size:9px;color:rgba(255,255,255,0.6);font-weight:500;margin-top:1px;}
-
-
-        /* Dropdown proyectos vendedor */
-        .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;display:inline-block;}
-        @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
-
-        .sb-sec{padding:14px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);}
-        .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 6px;border-radius:11px;font-size:14px;color:var(--label2);text-decoration:none;transition:all 0.2s;}
-        .nav-item:hover{background:var(--fill3);color:var(--label);}
-        .nav-item.active{background:var(--blue);color:white;font-weight:600;box-shadow:0 4px 12px rgba(0,118,227,0.28);}
-        .nav-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--fill3);flex-shrink:0;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.2);}
-        .sb-footer{margin-top:auto;padding:10px 12px 20px;border-top:1px solid var(--sep2);display:flex;align-items:center;gap:8px;}
-        .sb-av2{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
-        .sb-logout{margin-left:auto;width:26px;height:26px;border-radius:7px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--label2);text-decoration:none;transition:background 0.15s;}
-        .sb-logout:hover{background:rgba(230,57,70,0.1);color:var(--rojo);}
-
-        /* MAIN */
-        .main{flex:1;display:flex;flex-direction:column;overflow:visible;}
-        .topbar{height:50px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-bottom:1px solid var(--sep);padding:0 18px;display:flex;align-items:center;justify-content:space-between;}
-        .tb-bread{font-size:13px;color:var(--label2);}.tb-bread strong{color:var(--label);font-weight:600;}
-        .tb-right{display:flex;align-items:center;gap:8px;}
-        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);}
-        .tb-ibtn{width:30px;height:30px;border-radius:9px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:var(--label);}
-        .view{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;}
-        .view::-webkit-scrollbar{width:0;}
-
-        /* Bienvenida */
-        .welcome-banner{background:linear-gradient(135deg,var(--azul) 0%,var(--blue) 100%);border-radius:20px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.35s ease both;position:relative;overflow:hidden;}
-        .welcome-banner::before{content:'';position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.07);}
-        .welcome-banner::after{content:'';position:absolute;bottom:-40px;right:100px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
-        .wb-txt h2{font-size:20px;font-weight:700;color:white;letter-spacing:-0.5px;margin-bottom:4px;}
-        .wb-txt p{font-size:13px;color:rgba(255,255,255,0.7);}
-        .wb-ico{font-size:48px;position:relative;z-index:1;}
-        @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
-        /* KPIs */
-        .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-        .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:16px;box-shadow:var(--sh);transition:transform 0.2s,box-shadow 0.2s;animation:fu 0.35s ease both;}
-        .kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.1s}.kpi:nth-child(3){animation-delay:.15s}.kpi:nth-child(4){animation-delay:.2s}
-        .kpi:hover{transform:translateY(-2px);box-shadow:var(--sh2);}
-        .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
-        .kpi-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
-        .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k2 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k3 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-ico{background:rgba(230,57,70,0.1)}
-        .kpi-tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
-        .kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k2 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k3 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k4 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}
-        .kpi-num{font-size:32px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
-        .kpi.k1 .kpi-num{color:var(--azul)}.kpi.k2 .kpi-num{color:#1EA851}.kpi.k3 .kpi-num{color:#CC7700}.kpi.k4 .kpi-num{color:var(--rojo)}
-        .kpi-lbl{font-size:12px;color:var(--label2);}
-
-        /* Cards acción */
-        .action-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-        .action-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:20px;box-shadow:var(--sh);animation:fu 0.35s ease 0.25s both;display:flex;flex-direction:column;gap:12px;}
-        .ac-head{display:flex;align-items:center;justify-content:space-between;}
-        .ac-title{font-size:15px;font-weight:600;color:var(--label);}
-        .ac-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
-        .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:8px 14px;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,118,227,0.28);transition:all 0.2s;text-decoration:none;}
-        .ios-btn:hover{background:var(--mid);transform:scale(0.98);}
-        .ac-stat{font-size:36px;font-weight:200;letter-spacing:-2px;}
-        .ac-sub{font-size:12px;color:var(--label2);}
-
-        /* ═══ RESPONSIVE ═══ */
-        html,body{overflow-x:hidden;}
-        .app{min-height:100vh;height:auto;}
-        .main{min-width:0;overflow:visible;}
-        .view{height:auto;}
-        .sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;}
-        .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border-radius:8px;background:var(--fill3);border:none;}
-        .hamburger span{display:block;width:18px;height:2px;background:var(--label);border-radius:2px;}
-        @@media(max-width:1200px){.sidebar{width:200px!important;}.kpi-row{grid-template-columns:repeat(3,1fr)!important;}}
-        @@media(max-width:1024px){.sidebar{width:180px!important;}.kpi-row{grid-template-columns:repeat(2,1fr)!important;}.action-row{grid-template-columns:1fr!important;}}
-        @@media(max-width:700px){
-            html,body{height:auto!important;overflow:auto!important;}
-            .app{flex-direction:column!important;height:auto!important;}
-            .sidebar{position:fixed!important;top:0!important;left:-270px!important;width:260px!important;height:100vh!important;z-index:100!important;overflow-y:auto!important;transition:left 0.3s!important;}
-            .sidebar.open{left:0!important;}
-            .main{width:100%!important;overflow:visible!important;}
-            .topbar{position:sticky!important;top:0!important;z-index:50!important;}
-            .hamburger{display:flex!important;}
-            .view{overflow-y:visible!important;padding:12px!important;height:auto!important;}
-            .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
-            .action-row{grid-template-columns:1fr!important;}
-            .tb-chip{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-            .tbl-wrap{overflow-x:auto!important;}
-            .tbl{min-width:500px!important;}
-            .filter-bar{flex-direction:column!important;align-items:flex-start!important;}
-            .welcome-banner{flex-direction:column!important;gap:10px!important;}
-            .wb-ico{display:none!important;}
-        }
-        /* Sin proyecto */
-        .sin-proy-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:40px 20px;gap:24px;animation:fu 0.4s ease both;}
-        .sin-proy-ico{width:80px;height:80px;border-radius:24px;background:linear-gradient(145deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 8px 24px rgba(0,96,187,0.25);}
-        .sin-proy-title{font-size:22px;font-weight:700;color:var(--azul);letter-spacing:-0.5px;text-align:center;}
-        .sin-proy-sub{font-size:14px;color:var(--label2);text-align:center;max-width:320px;line-height:1.5;}
-        .codigo-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:20px;padding:28px;width:100%;max-width:380px;box-shadow:var(--sh);}
-        .codigo-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label2);margin-bottom:6px;}
-        .codigo-input{width:100%;padding:12px 16px;background:var(--fill3);border:2px solid var(--sep);border-radius:12px;font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--azul);outline:none;transition:all 0.2s;text-align:center;}
-        .codigo-input:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
-        .codigo-input::placeholder{font-weight:400;letter-spacing:0;text-transform:none;color:var(--label3);}
-        .btn-codigo{width:100%;padding:13px;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,118,227,0.3);transition:all 0.2s;margin-top:12px;}
-        .btn-codigo:hover{background:linear-gradient(135deg,var(--azul),var(--mid));transform:translateY(-1px);}
-        .error-codigo{background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);border-radius:10px;padding:10px 14px;color:var(--rojo);font-size:13px;font-weight:500;margin-top:10px;text-align:center;}
-    
-        /* ── Sidebar blanco corporativo ── */
-        .sidebar{background:#fff!important;border-right:1px solid rgba(0,0,0,0.07)!important;backdrop-filter:none!important;box-shadow:2px 0 12px rgba(0,0,0,0.04)!important;}
-        .sb-logo-area{padding:16px 14px 12px;border-bottom:1px solid rgba(0,0,0,0.06);margin-bottom:4px;}
-        .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
-        .sb-app{color:#1e222b!important;font-weight:700!important;}
-        .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .sb-sec{color:rgba(30,34,43,0.38)!important;letter-spacing:0.08em!important;}
-        .nav-item{color:rgba(30,34,43,0.65)!important;}
-        .nav-item:hover{background:rgba(0,118,227,0.07)!important;color:#0076e3!important;}
-        .nav-item.active{background:#0076e3!important;color:#fff!important;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.22)!important;}
-        .nav-ico{background:rgba(30,34,43,0.06)!important;color:inherit!important;}
-        .sb-footer{border-top-color:rgba(0,0,0,0.07)!important;}
-        .sb-logout{background:rgba(30,34,43,0.05)!important;color:rgba(30,34,43,0.45)!important;}
-        .sb-logout:hover{background:rgba(230,57,70,0.08)!important;color:#E63946!important;}
-        .nav-item{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 12px!important;margin:1px 6px!important;border-radius:11px!important;font-size:14px!important;min-height:40px!important;text-decoration:none!important;transition:all 0.18s!important;}
-        .nav-ico{width:26px!important;height:26px!important;border-radius:8px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;flex-shrink:0!important;}
-        .sb-sec{padding:14px 18px 4px!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;}
-    </style>
-</head>
-<body>
-<div class="app">
-    <div class="sidebar" id="sidebar">
-        <div class="sb-logo-area">
-            <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
+<div class="view-inner" style="@(sinProyecto ? "display:flex;justify-content:center" : "")">
+@if (sinProyecto) {
+    <div class="sin-proy-wrap">
+        <div class="sin-proy-ico">🏗</div>
+        <div>
+            <div class="sin-proy-title">Sin proyecto asignado</div>
+            <div class="sin-proy-sub">Ingresa el código de acceso que te dio tu administrador para unirte a un proyecto.</div>
         </div>
-
-        <div class="sb-vendedor">
-            <div class="sv-av">@iniciales</div>
-            <div class="sv-nombre">@nombre @apellido</div>
-            <div class="sv-rol">Vendedor</div>
-            <div class="sv-stats">
-                <div class="sv-stat"><div class="sv-num">@misVentas</div><div class="sv-lbl">Mis ventas</div></div>
-                <div class="sv-stat"><div class="sv-num">@misClientes</div><div class="sv-lbl">Clientes</div></div>
-            </div>
-        </div>
-
-
-        <div class="sb-sec">Mi espacio</div>
-        <a class="nav-item active" href="/Vendedor"><div class="nav-ico">⊞</div>Inicio</a>
-        <a class="nav-item" href="/Vendedor/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
-        <a class="nav-item" href="/Vendedor/MisVentas"><div class="nav-ico">💲</div>Mis ventas</a>
-        <a class="nav-item " href="/Vendedor/MisReservas"><div class="nav-ico">🔒</div>Mis reservas</a>
-        <a class="nav-item" href="/Vendedor/Perfil"><div class="nav-ico">👤</div>Mi perfil</a>
-
-        <div class="sb-footer">
-            <div class="sb-av2">@iniciales</div>
-            <div><div style="font-size:12px;font-weight:600">@nombre</div><div style="font-size:10px;color:var(--label3)">Vendedor</div></div>
-            <a class="sb-logout" href="/Account/Logout">↩</a>
+        <div class="codigo-card">
+            <form action="/Vendedor/AsignarProyecto" method="post">
+                @Html.AntiForgeryToken()
+                <div class="codigo-lbl">Código de acceso</div>
+                <input type="text" name="codigo" class="codigo-input" placeholder="Ej: PRIM-X7K2" maxlength="20" autocomplete="off" autofocus/>
+                @if (!string.IsNullOrEmpty(errorCodigo)) {
+                    <div class="error-codigo">❌ @errorCodigo</div>
+                }
+                <button type="submit" class="btn-codigo">Unirme al proyecto →</button>
+            </form>
         </div>
     </div>
-
-    <div class="main">
-        <div class="topbar">
-            <div style="display:flex;align-items:center;gap:10px;"><button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button><span class="tb-bread"><strong>Mi Dashboard</strong></span></div>
-            <div class="tb-right">
-                <div class="tb-chip"><span class="pulse"></span>@proyActivo</div>
-                <a class="tb-ibtn" href="/Account/Logout">↩</a>
-            </div>
+} else {
+    <div class="welcome-banner">
+        <div class="wb-txt">
+            <h2>¡Hola, @nombre! 👋</h2>
+            <p>Proyecto activo: <strong style="color:white">@proyActivo</strong> · @disponibles inmuebles disponibles</p>
         </div>
+        <div class="wb-ico">🏗</div>
+    </div>
 
-        <div class="view" style="@(sinProyecto ? "justify-content:center" : "")">
-            @if (sinProyecto) {
-                <div class="sin-proy-wrap">
-                    <div class="sin-proy-ico">🏗</div>
-                    <div>
-                        <div class="sin-proy-title">Sin proyecto asignado</div>
-                        <div class="sin-proy-sub">Ingresa el código de acceso que te dio tu administrador para unirte a un proyecto.</div>
-                    </div>
-                    <div class="codigo-card">
-                        <form action="/Vendedor/AsignarProyecto" method="post">
-                            @Html.AntiForgeryToken()
-                            <div class="codigo-lbl">Código de acceso</div>
-                            <input type="text" name="codigo" class="codigo-input" placeholder="Ej: PRIM-X7K2" maxlength="20" autocomplete="off" autofocus/>
-                            @if (!string.IsNullOrEmpty(errorCodigo)) {
-                                <div class="error-codigo">❌ @errorCodigo</div>
-                            }
-                            <button type="submit" class="btn-codigo">Unirme al proyecto →</button>
-                        </form>
-                    </div>
-                </div>
-            } else {
-            <div class="welcome-banner">
-                <div class="wb-txt">
-                    <h2>¡Hola, @nombre! 👋</h2>
-                    <p>Proyecto activo: <strong style="color:white">@proyActivo</strong> · @disponibles inmuebles disponibles</p>
-                </div>
-                <div class="wb-ico">🏗</div>
-            </div>
+    <div class="kpi-row">
+        <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles proyecto</div></div>
+        <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">Libre</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+        <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">💲</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
+        <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">👤</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
+    </div>
 
-            <div class="kpi-row">
-                <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles proyecto</div></div>
-                <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">Libre</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-                <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">💲</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
-                <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">👤</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
+    <div class="action-row">
+        <div class="action-card">
+            <div class="ac-head">
+                <span class="ac-title">Inmuebles disponibles</span>
+                <div class="ac-ico" style="background:rgba(52,199,89,0.1)">🏢</div>
             </div>
-
-            <div class="action-row">
-                <div class="action-card">
-                    <div class="ac-head">
-                        <span class="ac-title">Inmuebles disponibles</span>
-                        <div class="ac-ico" style="background:rgba(52,199,89,0.1)">🏢</div>
-                    </div>
-                    <div class="ac-stat" style="color:#1EA851">@disponibles</div>
-                    <div class="ac-sub">inmuebles listos para vender en @proyActivo</div>
-                    <a href="/Vendedor/Inmuebles" class="ios-btn">Ver inmuebles →</a>
-                </div>
-                <div class="action-card">
-                    <div class="ac-head">
-                        <span class="ac-title">Mis ventas</span>
-                        <div class="ac-ico" style="background:rgba(0,118,227,0.1)">💲</div>
-                    </div>
-                    <div class="ac-stat" style="color:var(--blue)">@misVentas</div>
-                    <div class="ac-sub">ventas registradas por ti en este proyecto</div>
-                    <a href="/Vendedor/MisVentas" class="ios-btn">Ver mis ventas →</a>
-                </div>
+            <div class="ac-stat" style="color:#1EA851">@disponibles</div>
+            <div class="ac-sub">inmuebles listos para vender en @proyActivo</div>
+            <a href="/Vendedor/Inmuebles" class="ios-btn">Ver inmuebles →</a>
+        </div>
+        <div class="action-card">
+            <div class="ac-head">
+                <span class="ac-title">Mis ventas</span>
+                <div class="ac-ico" style="background:rgba(0,118,227,0.1)">💲</div>
             </div>
-            }
+            <div class="ac-stat" style="color:var(--blue)">@misVentas</div>
+            <div class="ac-sub">ventas registradas por ti en este proyecto</div>
+            <a href="/Vendedor/MisVentas" class="ios-btn">Ver mis ventas →</a>
         </div>
     </div>
+}
 </div>
-<script>
-    function toggleSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(!sb)return;var o=sb.classList.toggle('open');if(ov)ov.style.display=o?'block':'none';}
-    function closeSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(sb)sb.classList.remove('open');if(ov)ov.style.display='none';}
-</script>
-<div id="sbOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;backdrop-filter:blur(2px);"></div>
-</body>
-</html>

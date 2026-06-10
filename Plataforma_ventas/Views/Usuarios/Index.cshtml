@@ -1,417 +1,269 @@
 @{
-    Layout = null;
-    var nombre      = ViewBag.Nombre   as string ?? "Admin";
-    var apellido    = ViewBag.Apellido as string ?? "";
-    var proyActivo  = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Usuarios";
+    ViewBag.ActiveNav = "usuarios";
+    ViewBag.TbBread   = "Usuarios";
+
     var usuarios    = ViewBag.Usuarios as List<dynamic> ?? new List<dynamic>();
     var proyectos   = ViewBag.Proyectos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
     int total       = ViewBag.TotalUsuarios   != null ? (int)ViewBag.TotalUsuarios   : 0;
     int admins      = ViewBag.TotalAdmins     != null ? (int)ViewBag.TotalAdmins     : 0;
     int vendedores  = ViewBag.TotalVendedores != null ? (int)ViewBag.TotalVendedores : 0;
     int totalProy   = ViewBag.TotalProyectos  != null ? (int)ViewBag.TotalProyectos  : 0;
-    var iniciales   = ((nombre.Length >= 1 ? nombre[..1] : "") + (apellido.Length >= 1 ? apellido[..1] : "")).ToUpper();
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-    <title>Usuarios · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{--azul:#0076e3;--celeste:#00c9ff;--negro:#1e222b;--plata:#c3cfdb;--menta:#00d4a1;--mid:#0060bb;--blue:#0076e3;--rojo:#E63946;--verde:#34C759;--oro:#FF9500;--label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(60,60,67,0.3);--sep:rgba(60,60,67,0.12);--sep2:rgba(60,60,67,0.06);--fill2:rgba(120,120,128,0.12);--fill3:rgba(120,120,128,0.08);--glass:rgba(255,255,255,0.75);--gb:rgba(255,255,255,0.6);--sh:0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);}
-        html,body{background:#EEF2F7;color:var(--label);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
-        body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,118,227,0.12) 0%,transparent 55%),#EEF2F7;pointer-events:none;}
-        .app{display:flex;min-height:100vh;position:relative;z-index:1;}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .kpi{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:16px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.04);animation:fu 0.3s ease both;}
+    .kpi:nth-child(1){animation-delay:.04s}.kpi:nth-child(2){animation-delay:.08s}
+    .kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.16s}
+    .kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .kpi-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+    .kpi-tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;letter-spacing:0.03em;}
+    .kpi-num{font-size:34px;font-weight:200;letter-spacing:-1.5px;line-height:1;margin-bottom:2px;}
+    .kpi-lbl{font-size:12px;color:var(--label2);}
+    .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,118,227,0.08);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
+    .kpi.k2 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k2 .kpi-tag{background:rgba(230,57,70,0.08);color:var(--rojo)}.kpi.k2 .kpi-num{color:var(--rojo)}
+    .kpi.k3 .kpi-ico{background:rgba(0,212,161,0.12)}.kpi.k3 .kpi-tag{background:rgba(0,212,161,0.10);color:#00a07a}.kpi.k3 .kpi-num{color:#00a07a}
+    .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.08);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
+    .content-grid{display:grid;grid-template-columns:1fr 320px;gap:16px;flex:1;min-height:0;}
+    .card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu 0.3s ease 0.18s both;display:flex;flex-direction:column;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.06);flex-shrink:0;gap:10px;flex-wrap:wrap;}
+    .card-title{font-size:15px;font-weight:700;color:var(--label);}
+    .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .filter-bar input,.filter-bar select{padding:6px 11px;background:var(--fill3);border:1px solid var(--sep);border-radius:9px;font-size:12px;color:var(--label);outline:none;transition:border-color 0.2s;}
+    .filter-bar input:focus,.filter-bar select:focus{border-color:var(--blue);}
+    .filter-bar input{width:180px;}
+    .tbl-wrap{overflow-y:auto;flex:1;overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;}
+    .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.97);}
+    .tbl th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid rgba(0,0,0,0.06);white-space:nowrap;}
+    .tbl td{padding:11px 14px;font-size:13px;color:var(--label);border-bottom:1px solid rgba(0,0,0,0.04);vertical-align:middle;}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tbody tr:hover td{background:rgba(0,118,227,0.03);}
+    .av-usr{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
+    .user-info{display:flex;align-items:center;gap:10px;}
+    .user-name{font-weight:600;font-size:13px;}
+    .user-sub{font-size:11px;color:var(--label2);}
+    .bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+    .bdg.A{background:rgba(0,118,227,0.1);color:var(--blue)}
+    .bdg.V{background:rgba(0,212,161,0.12);color:#00a07a}
+    .proy-bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(255,149,0,0.08);color:#9a5c00;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .btn-sm{border:none;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
+    .btn-edit{background:rgba(0,118,227,0.1);color:var(--blue);}
+    .btn-edit:hover{background:rgba(0,118,227,0.2);}
+    .btn-del{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .btn-del:hover{background:rgba(230,57,70,0.2);}
+    .btn-pwd{background:rgba(255,149,0,0.1);color:#CC7700;}
+    .btn-pwd:hover{background:rgba(255,149,0,0.2);}
+    .actions-cell{display:flex;gap:5px;align-items:center;}
+    .form-card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu 0.3s ease 0.22s both;display:flex;flex-direction:column;}
+    .form-body{padding:16px;overflow-y:auto;flex:1;}
+    .form-body::-webkit-scrollbar{width:0;}
+    .field{margin-bottom:12px;}
+    .field label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);margin-bottom:5px;}
+    .field input,.field select{width:100%;padding:9px 12px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);outline:none;transition:all 0.2s;}
+    .field input:focus,.field select:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .ios-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--blue);color:white;border:none;padding:10px 16px;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,118,227,0.3);transition:all 0.2s;width:100%;margin-top:4px;}
+    .ios-btn:hover{background:var(--mid);transform:translateY(-1px);}
+    .form-divider{border:none;border-top:1px solid rgba(0,0,0,0.06);margin:14px 0;}
+    .rol-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .rol-opt{position:relative;}
+    .rol-opt input[type=radio]{position:absolute;opacity:0;width:0;height:0;}
+    .rol-opt label{display:flex;align-items:center;gap:8px;padding:9px 12px;border:2px solid var(--sep);border-radius:11px;cursor:pointer;font-size:12px;font-weight:600;color:var(--label2);transition:all 0.2s;}
+    .rol-opt input:checked + label{border-color:var(--blue);background:rgba(0,118,227,0.06);color:var(--blue);}
+    .alerta-exito{background:rgba(0,212,161,0.1);border:1px solid rgba(0,212,161,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:#00896b;}
+    .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
+    .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.28);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;}
+    .modal-bg.open{display:flex;}
+    .modal{background:white;border-radius:20px;padding:26px;width:100%;max-width:480px;box-shadow:0 24px 72px rgba(0,0,0,0.18);}
+    .modal-title{font-size:17px;font-weight:700;color:var(--label);margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.06);}
+    .btn-ghost{background:var(--fill3);color:var(--label);border:1px solid var(--sep);padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;}
+    .btn-primary{background:var(--blue);color:white;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px rgba(0,118,227,0.28);}
+    .modal-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);margin:14px 0 8px;}
+    @@media(max-width:1300px){.kpi-row{grid-template-columns:repeat(2,1fr)!important;}}
+    @@media(max-width:1100px){.content-grid{grid-template-columns:1fr!important;}}
+    @@media(max-width:700px){
+        .kpi-row{grid-template-columns:1fr 1fr!important;}
+        .tbl th:nth-child(4),.tbl td:nth-child(4){display:none!important;}
+        .modal{margin:16px!important;max-width:calc(100% - 32px)!important;}
+        .modal-grid{grid-template-columns:1fr!important;}
+    }
+</style>
+}
 
-        /* ── Sidebar base ── */
-        .sidebar{width:230px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-right:1px solid var(--gb);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
-        .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;}
-        @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
-        .proy-drop{display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;z-index:120;background:white;border:1px solid var(--sep);border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
-        .proy-drop.open{display:block;}
-        .proy-drop-item{width:100%;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--sep2);text-align:left;font-size:13px;font-weight:500;cursor:pointer;color:var(--label);display:flex;align-items:center;gap:8px;transition:background 0.15s;}
-        .proy-drop-item:hover{background:var(--fill3);}
-        .proy-drop-link{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;background:rgba(0,118,227,0.04);}
-        .sb-sec{padding:16px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);}
-        .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 6px;border-radius:11px;font-size:14px;color:var(--label2);text-decoration:none;transition:all 0.2s;}
-        .nav-item:hover{background:var(--fill3);color:var(--label);}
-        .nav-item.active{background:var(--blue);color:white;font-weight:600;box-shadow:0 4px 12px rgba(0,118,227,0.28);}
-        .nav-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--fill3);flex-shrink:0;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.2);}
-        .sb-footer{margin-top:auto;padding:10px 12px 20px;border-top:1px solid var(--sep2);display:flex;align-items:center;gap:8px;}
-        .sb-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
-        .sb-logout{margin-left:auto;width:26px;height:26px;border-radius:7px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--label2);text-decoration:none;}
-        .sb-logout:hover{background:rgba(230,57,70,0.1);color:var(--rojo);}
+@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
+@if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
 
-        /* ── Main layout ── */
-        .main{flex:1;display:flex;flex-direction:column;min-width:0;}
-        .topbar{height:50px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-bottom:1px solid var(--sep);padding:0 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;}
-        .tb-left{display:flex;align-items:center;gap:10px;}
-        .tb-bread{font-size:13px;color:var(--label2);}.tb-bread strong{color:var(--label);font-weight:600;}
-        .tb-right{display:flex;align-items:center;gap:8px;}
-        .tb-proy{position:relative;}
-        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;font-family:inherit;}
-        .tb-chip-caret{font-size:9px;margin-left:5px;opacity:.7;}
-        .tb-ibtn{width:30px;height:30px;border-radius:9px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:var(--label);}
+<!-- KPIs -->
+<div class="kpi-row">
+    <div class="kpi k1">
+        <div class="kpi-top"><div class="kpi-ico">👥</div><span class="kpi-tag">Total</span></div>
+        <div class="kpi-num">@total</div><div class="kpi-lbl">Usuarios registrados</div>
+    </div>
+    <div class="kpi k2">
+        <div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">Admins</span></div>
+        <div class="kpi-num">@admins</div><div class="kpi-lbl">Administradores</div>
+    </div>
+    <div class="kpi k3">
+        <div class="kpi-top"><div class="kpi-ico">💼</div><span class="kpi-tag">Asesores</span></div>
+        <div class="kpi-num">@vendedores</div><div class="kpi-lbl">Vendedores activos</div>
+    </div>
+    <div class="kpi k4">
+        <div class="kpi-top"><div class="kpi-ico">🏗</div><span class="kpi-tag">Proyectos</span></div>
+        <div class="kpi-num">@totalProy</div><div class="kpi-lbl">Proyectos activos</div>
+    </div>
+</div>
 
-        /* ── View ── */
-        .view{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
-        .view::-webkit-scrollbar{width:0;}
-        @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+<!-- Tabla + Formulario -->
+<div class="content-grid">
 
-        /* ── KPIs ── */
-        .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-        .kpi{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:16px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.04);animation:fu 0.3s ease both;}
-        .kpi:nth-child(1){animation-delay:.04s}.kpi:nth-child(2){animation-delay:.08s}
-        .kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.16s}
-        .kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-        .kpi-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
-        .kpi-tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;letter-spacing:0.03em;}
-        .kpi-num{font-size:34px;font-weight:200;letter-spacing:-1.5px;line-height:1;margin-bottom:2px;}
-        .kpi-lbl{font-size:12px;color:var(--label2);}
-        .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,118,227,0.08);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
-        .kpi.k2 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k2 .kpi-tag{background:rgba(230,57,70,0.08);color:var(--rojo)}.kpi.k2 .kpi-num{color:var(--rojo)}
-        .kpi.k3 .kpi-ico{background:rgba(0,212,161,0.12)}.kpi.k3 .kpi-tag{background:rgba(0,212,161,0.10);color:#00a07a}.kpi.k3 .kpi-num{color:#00a07a}
-        .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.08);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
-
-        /* ── Main content grid ── */
-        .content-grid{display:grid;grid-template-columns:1fr 320px;gap:16px;flex:1;min-height:0;}
-
-        /* ── Table card ── */
-        .card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu 0.3s ease 0.18s both;display:flex;flex-direction:column;}
-        .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.06);flex-shrink:0;gap:10px;flex-wrap:wrap;}
-        .card-title{font-size:15px;font-weight:700;color:var(--label);}
-        .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-        .filter-bar input,.filter-bar select{padding:6px 11px;background:var(--fill3);border:1px solid var(--sep);border-radius:9px;font-size:12px;color:var(--label);outline:none;transition:border-color 0.2s;}
-        .filter-bar input:focus,.filter-bar select:focus{border-color:var(--blue);}
-        .filter-bar input{width:180px;}
-        .tbl-wrap{overflow-y:auto;flex:1;overflow-x:auto;}
-        .tbl{width:100%;border-collapse:collapse;}
-        .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.97);}
-        .tbl th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid rgba(0,0,0,0.06);white-space:nowrap;}
-        .tbl td{padding:11px 14px;font-size:13px;color:var(--label);border-bottom:1px solid rgba(0,0,0,0.04);vertical-align:middle;}
-        .tbl tr:last-child td{border-bottom:none;}
-        .tbl tbody tr:hover td{background:rgba(0,118,227,0.03);}
-        .av-usr{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
-        .user-info{display:flex;align-items:center;gap:10px;}
-        .user-name{font-weight:600;font-size:13px;}
-        .user-sub{font-size:11px;color:var(--label2);}
-        .bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
-        .bdg.A{background:rgba(0,118,227,0.1);color:var(--blue)}
-        .bdg.V{background:rgba(0,212,161,0.12);color:#00a07a}
-        .proy-bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(255,149,0,0.08);color:#9a5c00;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .btn-sm{border:none;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
-        .btn-edit{background:rgba(0,118,227,0.1);color:var(--blue);}
-        .btn-edit:hover{background:rgba(0,118,227,0.2);}
-        .btn-del{background:rgba(230,57,70,0.1);color:var(--rojo);}
-        .btn-del:hover{background:rgba(230,57,70,0.2);}
-        .btn-pwd{background:rgba(255,149,0,0.1);color:#CC7700;}
-        .btn-pwd:hover{background:rgba(255,149,0,0.2);}
-        .actions-cell{display:flex;gap:5px;align-items:center;}
-
-        /* ── Form card ── */
-        .form-card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu 0.3s ease 0.22s both;display:flex;flex-direction:column;}
-        .form-body{padding:16px;overflow-y:auto;flex:1;}
-        .form-body::-webkit-scrollbar{width:0;}
-        .field{margin-bottom:12px;}
-        .field label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);margin-bottom:5px;}
-        .field input,.field select{width:100%;padding:9px 12px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);outline:none;transition:all 0.2s;}
-        .field input:focus,.field select:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
-        .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-        .ios-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--blue);color:white;border:none;padding:10px 16px;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,118,227,0.3);transition:all 0.2s;width:100%;margin-top:4px;}
-        .ios-btn:hover{background:var(--mid);transform:translateY(-1px);}
-        .form-divider{border:none;border-top:1px solid rgba(0,0,0,0.06);margin:14px 0;}
-        .rol-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-        .rol-opt{position:relative;}
-        .rol-opt input[type=radio]{position:absolute;opacity:0;width:0;height:0;}
-        .rol-opt label{display:flex;align-items:center;gap:8px;padding:9px 12px;border:2px solid var(--sep);border-radius:11px;cursor:pointer;font-size:12px;font-weight:600;color:var(--label2);transition:all 0.2s;}
-        .rol-opt input:checked + label{border-color:var(--blue);background:rgba(0,118,227,0.06);color:var(--blue);}
-
-        /* ── Alerts ── */
-        .alerta-exito{background:rgba(0,212,161,0.1);border:1px solid rgba(0,212,161,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:#00896b;}
-        .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
-
-        /* ── Modal ── */
-        .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.28);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;}
-        .modal-bg.open{display:flex;}
-        .modal{background:white;border-radius:20px;padding:26px;width:100%;max-width:480px;box-shadow:0 24px 72px rgba(0,0,0,0.18);}
-        .modal-title{font-size:17px;font-weight:700;color:var(--label);margin-bottom:18px;display:flex;align-items:center;gap:8px;}
-        .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-        .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.06);}
-        .btn-ghost{background:var(--fill3);color:var(--label);border:1px solid var(--sep);padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;}
-        .btn-primary{background:var(--blue);color:white;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px rgba(0,118,227,0.28);}
-        .modal-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);margin:14px 0 8px;}
-
-        /* ── Responsive ── */
-        .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border-radius:8px;background:var(--fill3);border:none;}
-        .hamburger span{display:block;width:18px;height:2px;background:var(--label);border-radius:2px;}
-        @@media(max-width:1300px){.kpi-row{grid-template-columns:repeat(2,1fr)!important;}}
-        @@media(max-width:1100px){.content-grid{grid-template-columns:1fr!important;}}
-        @@media(max-width:900px){.sidebar{width:185px!important;}}
-        @@media(max-width:700px){
-            html,body{height:auto!important;overflow:auto!important;}
-            .app{flex-direction:column!important;}
-            .sidebar{position:fixed!important;top:0!important;left:-270px!important;width:260px!important;height:100vh!important;z-index:100!important;overflow-y:auto!important;transition:left 0.3s!important;}
-            .sidebar.open{left:0!important;}
-            .main{width:100%!important;}
-            .topbar{position:sticky!important;top:0!important;z-index:50!important;}
-            .hamburger{display:flex!important;}
-            .view{padding:12px!important;}
-            .kpi-row{grid-template-columns:1fr 1fr!important;}
-            .tb-chip{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-            .tbl th:nth-child(4),.tbl td:nth-child(4){display:none!important;}
-            .modal{margin:16px!important;max-width:calc(100% - 32px)!important;}
-            .modal-grid{grid-template-columns:1fr!important;}
-        }
-
-        /* ── Sidebar blanco corporativo ── */
-        .sidebar{background:#fff!important;border-right:1px solid rgba(0,0,0,0.07)!important;backdrop-filter:none!important;box-shadow:2px 0 12px rgba(0,0,0,0.04)!important;}
-        .sb-logo-area{padding:16px 14px 12px;border-bottom:1px solid rgba(0,0,0,0.06);margin-bottom:4px;}
-        .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
-        .sb-app{color:#1e222b!important;font-weight:700!important;}
-        .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .proy-drop{background:#fff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 8px 24px rgba(0,0,0,0.1)!important;}
-        .proy-drop-item{color:#1e222b!important;}
-        .proy-drop-item:hover{background:rgba(0,118,227,0.06)!important;color:#0076e3!important;}
-        .proy-drop-link{color:#0076e3!important;background:rgba(0,118,227,0.04)!important;}
-        .sb-sec{color:rgba(30,34,43,0.38)!important;letter-spacing:0.08em!important;}
-        .nav-item{color:rgba(30,34,43,0.65)!important;}
-        .nav-item:hover{background:rgba(0,118,227,0.07)!important;color:#0076e3!important;}
-        .nav-item.active{background:#0076e3!important;color:#fff!important;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.22)!important;}
-        .nav-ico{background:rgba(30,34,43,0.06)!important;color:inherit!important;}
-        .sb-footer{border-top-color:rgba(0,0,0,0.07)!important;}
-        .sb-logout{background:rgba(30,34,43,0.05)!important;color:rgba(30,34,43,0.45)!important;}
-        .sb-logout:hover{background:rgba(230,57,70,0.08)!important;color:#E63946!important;}
-        .nav-item{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 12px!important;margin:1px 6px!important;border-radius:11px!important;font-size:14px!important;min-height:40px!important;text-decoration:none!important;transition:all 0.18s!important;}
-        .nav-ico{width:26px!important;height:26px!important;border-radius:8px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;flex-shrink:0!important;}
-        .sb-sec{padding:14px 18px 4px!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;}
-    </style>
-</head>
-<body>
-<div id="sbOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;backdrop-filter:blur(2px);"></div>
-<div class="app">
-    <div class="sidebar" id="sidebar">
-        <div class="sb-logo-area">
-            <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
+    <!-- Tabla de usuarios -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">Usuarios del sistema</span>
+            <div class="filter-bar">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar nombre o usuario…" oninput="filtrarTabla()"/>
+                <select id="filterProy" onchange="filtrarTabla()">
+                    <option value="">Todos los proyectos</option>
+                    @foreach (var p in proyectos) {
+                        <option value="@p.Nombre">@p.Nombre</option>
+                    }
+                    <option value="—">Sin proyecto</option>
+                </select>
+                <select id="filterRol" onchange="filtrarTabla()">
+                    <option value="">Todos los roles</option>
+                    <option value="Administrador">Administrador</option>
+                    <option value="Vendedor">Vendedor</option>
+                </select>
+            </div>
         </div>
-        <div class="sb-sec">Principal</div>
-        <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-        <a class="nav-item" href="/Inmuebles"><div class="nav-ico">🏢</div>Proyectos</a>
-        <a class="nav-item" href="/Inmuebles/Reservas"><div class="nav-ico">🔒</div>Reservas</a>
-        <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
-        <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
-        <div class="sb-sec">General</div>
-        <a class="nav-item" href="/Reportes"><div class="nav-ico">📊</div>Reportes</a>
-        <a class="nav-item" href="/Carga/Index"><div class="nav-ico">📂</div>Cargar Excel</a>
-        <a class="nav-item active" href="/Usuarios"><div class="nav-ico">👥</div>Usuarios</a>
-        <div class="sb-footer">
-            <div class="sb-av">@iniciales</div>
-            <div><div style="font-size:12px;font-weight:600">@nombre @apellido</div><div style="font-size:10px;color:var(--label3)">Administrador</div></div>
-            <a class="sb-logout" href="/Account/Logout">↩</a>
+        <div class="tbl-wrap">
+            <table class="tbl" id="tablaUsuarios">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Contacto</th>
+                        <th>Proyecto asignado</th>
+                        <th>Rol</th>
+                        <th style="text-align:center">Ventas</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var u in usuarios) {
+                    string uNom = u.Nombre as string ?? "";
+                    string uApe = u.Apellido as string ?? "";
+                    var ini = ((uNom.Length > 0 ? uNom.Substring(0,1) : "") + (uApe.Length > 0 ? uApe.Substring(0,1) : "")).ToUpper();
+                    <tr data-nombre="@u.Nombre @u.Apellido" data-usuario="@u.Usuario" data-proy="@u.NombreProyecto" data-rol="@u.Rol">
+                        <td>
+                            <div class="user-info">
+                                <div class="av-usr">@ini</div>
+                                <div>
+                                    <div class="user-name">@u.Nombre @u.Apellido</div>
+                                    <div class="user-sub">@@u.Usuario</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size:12px;color:var(--label2)">@u.Correo</div>
+                            @if (!string.IsNullOrEmpty(u.Celular as string)) {
+                                <div style="font-size:11px;color:var(--label3)">📱 @u.Celular</div>
+                            }
+                        </td>
+                        <td>
+                            @if (u.NombreProyecto != "—") {
+                                <span class="proy-bdg">🏗 @u.NombreProyecto</span>
+                            } else {
+                                <span style="font-size:12px;color:var(--label3)">—</span>
+                            }
+                        </td>
+                        <td><span class="bdg @(u.Rol == "Administrador" ? "A" : "V")">@u.Rol</span></td>
+                        <td style="text-align:center;font-size:15px;font-weight:600;color:var(--blue)">@u.TotalVentas</td>
+                        <td>
+                            <div class="actions-cell">
+                                <button class="btn-sm btn-edit"
+                                    onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Documento','@u.Celular','@u.Correo','@u.Rol',@u.IdProyecto)">
+                                    ✏️ Editar
+                                </button>
+                                <button class="btn-sm btn-pwd" onclick="abrirPassword(@u.Id)">🔑</button>
+                                <form action="/Usuarios/Eliminar" method="post" style="display:inline;margin:0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="idUsuario" value="@u.Id"/>
+                                    <button type="submit" class="btn-sm btn-del"
+                                        onclick="return confirm('¿Eliminar a @u.Nombre @u.Apellido? Esta acción no se puede deshacer.')">🗑</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            @if (!usuarios.Any()) {
+                <div style="padding:40px;text-align:center;color:var(--label2);font-size:14px">
+                    No hay usuarios registrados aún.
+                </div>
+            }
         </div>
     </div>
 
-    <div class="main">
-        <div class="topbar">
-            <div class="tb-left">
-                <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
-                <span class="tb-bread"><a href="/Dashboard" style="color:var(--label2);text-decoration:none">Inicio</a> › <strong>Usuarios</strong></span>
-            </div>
-            <div class="tb-right">
-                <div class="tb-proy">
-                    <button type="button" class="tb-chip" id="proyBtn" onclick="toggleDrop()" title="Cambiar proyecto">
-                        <span class="pulse"></span>@proyActivo<span class="tb-chip-caret">▾</span>
-                    </button>
-                    <div class="proy-drop" id="proyDrop">
-            @foreach (var p in proyectos) {
-                <form action="/Inmuebles/SeleccionarProyecto" method="post" style="margin:0">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="idProyecto" value="@p.Id"/>
-                    <input type="hidden" name="nombreProyecto" value="@p.Nombre"/>
-                    <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                </form>
-            }
-            <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
-                    </div>
-                </div>
-                <a class="tb-ibtn" href="/Account/Logout" title="Cerrar sesión">↩</a>
-            </div>
-        </div>
+    <!-- Formulario nuevo usuario -->
+    <div class="form-card">
+        <div class="card-head"><span class="card-title">➕ Nuevo usuario</span></div>
+        <div class="form-body">
+            <form action="/Usuarios/Crear" method="post">
+                @Html.AntiForgeryToken()
 
-        <div class="view">
-            @if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
-            @if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
+                <div class="modal-section">Datos personales</div>
+                <div class="field-row">
+                    <div class="field"><label>Nombre</label><input type="text" name="nombre" placeholder="Nombre" required/></div>
+                    <div class="field"><label>Apellido</label><input type="text" name="apellido" placeholder="Apellido" required/></div>
+                </div>
+                <div class="field-row">
+                    <div class="field"><label>Documento</label><input type="text" name="documento" placeholder="CC / NIT"/></div>
+                    <div class="field"><label>Celular</label><input type="text" name="celular" placeholder="Celular"/></div>
+                </div>
+                <div class="field"><label>Correo electrónico</label><input type="email" name="correo" placeholder="correo@email.com"/></div>
 
-            <!-- KPIs -->
-            <div class="kpi-row">
-                <div class="kpi k1">
-                    <div class="kpi-top"><div class="kpi-ico">👥</div><span class="kpi-tag">Total</span></div>
-                    <div class="kpi-num">@total</div><div class="kpi-lbl">Usuarios registrados</div>
-                </div>
-                <div class="kpi k2">
-                    <div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">Admins</span></div>
-                    <div class="kpi-num">@admins</div><div class="kpi-lbl">Administradores</div>
-                </div>
-                <div class="kpi k3">
-                    <div class="kpi-top"><div class="kpi-ico">💼</div><span class="kpi-tag">Asesores</span></div>
-                    <div class="kpi-num">@vendedores</div><div class="kpi-lbl">Vendedores activos</div>
-                </div>
-                <div class="kpi k4">
-                    <div class="kpi-top"><div class="kpi-ico">🏗</div><span class="kpi-tag">Proyectos</span></div>
-                    <div class="kpi-num">@totalProy</div><div class="kpi-lbl">Proyectos activos</div>
-                </div>
-            </div>
+                <hr class="form-divider"/>
+                <div class="modal-section">Acceso al sistema</div>
+                <div class="field"><label>Nombre de usuario</label><input type="text" name="usuario" placeholder="Ej: jgomez" required/></div>
+                <div class="field"><label>Contraseña</label><input type="password" name="contrasena" placeholder="Contraseña" required/></div>
 
-            <!-- Tabla + Formulario -->
-            <div class="content-grid">
-
-                <!-- Tabla de usuarios -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="card-title">Usuarios del sistema</span>
-                        <div class="filter-bar">
-                            <input type="text" id="searchInput" placeholder="🔍 Buscar nombre o usuario…" oninput="filtrarTabla()"/>
-                            <select id="filterProy" onchange="filtrarTabla()">
-                                <option value="">Todos los proyectos</option>
-                                @foreach (var p in proyectos) {
-                                    <option value="@p.Nombre">@p.Nombre</option>
-                                }
-                                <option value="—">Sin proyecto</option>
-                            </select>
-                            <select id="filterRol" onchange="filtrarTabla()">
-                                <option value="">Todos los roles</option>
-                                <option value="Administrador">Administrador</option>
-                                <option value="Vendedor">Vendedor</option>
-                            </select>
+                <div class="field">
+                    <label>Rol</label>
+                    <div class="rol-selector">
+                        <div class="rol-opt">
+                            <input type="radio" name="rol" id="rolVendedor" value="Vendedor" checked/>
+                            <label for="rolVendedor">💼 Vendedor</label>
+                        </div>
+                        <div class="rol-opt">
+                            <input type="radio" name="rol" id="rolAdmin" value="Administrador"/>
+                            <label for="rolAdmin">🔑 Administrador</label>
                         </div>
                     </div>
-                    <div class="tbl-wrap">
-                        <table class="tbl" id="tablaUsuarios">
-                            <thead>
-                                <tr>
-                                    <th>Usuario</th>
-                                    <th>Contacto</th>
-                                    <th>Proyecto asignado</th>
-                                    <th>Rol</th>
-                                    <th style="text-align:center">Ventas</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            @foreach (var u in usuarios) {
-                                string uNom = u.Nombre as string ?? "";
-                                string uApe = u.Apellido as string ?? "";
-                                var ini = ((uNom.Length > 0 ? uNom.Substring(0,1) : "") + (uApe.Length > 0 ? uApe.Substring(0,1) : "")).ToUpper();
-                                <tr data-nombre="@u.Nombre @u.Apellido" data-usuario="@u.Usuario" data-proy="@u.NombreProyecto" data-rol="@u.Rol">
-                                    <td>
-                                        <div class="user-info">
-                                            <div class="av-usr">@ini</div>
-                                            <div>
-                                                <div class="user-name">@u.Nombre @u.Apellido</div>
-                                                <div class="user-sub">@@u.Usuario</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style="font-size:12px;color:var(--label2)">@u.Correo</div>
-                                        @if (!string.IsNullOrEmpty(u.Celular as string)) {
-                                            <div style="font-size:11px;color:var(--label3)">📱 @u.Celular</div>
-                                        }
-                                    </td>
-                                    <td>
-                                        @if (u.NombreProyecto != "—") {
-                                            <span class="proy-bdg">🏗 @u.NombreProyecto</span>
-                                        } else {
-                                            <span style="font-size:12px;color:var(--label3)">—</span>
-                                        }
-                                    </td>
-                                    <td><span class="bdg @(u.Rol == "Administrador" ? "A" : "V")">@u.Rol</span></td>
-                                    <td style="text-align:center;font-size:15px;font-weight:600;color:var(--blue)">@u.TotalVentas</td>
-                                    <td>
-                                        <div class="actions-cell">
-                                            <button class="btn-sm btn-edit"
-                                                onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Documento','@u.Celular','@u.Correo','@u.Rol',@u.IdProyecto)">
-                                                ✏️ Editar
-                                            </button>
-                                            <button class="btn-sm btn-pwd" onclick="abrirPassword(@u.Id)">🔑</button>
-                                            <form action="/Usuarios/Eliminar" method="post" style="display:inline;margin:0">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="idUsuario" value="@u.Id"/>
-                                                <button type="submit" class="btn-sm btn-del"
-                                                    onclick="return confirm('¿Eliminar a @u.Nombre @u.Apellido? Esta acción no se puede deshacer.')">🗑</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                            </tbody>
-                        </table>
-                        @if (!usuarios.Any()) {
-                            <div style="padding:40px;text-align:center;color:var(--label2);font-size:14px">
-                                No hay usuarios registrados aún.
-                            </div>
+                </div>
+
+                <div class="field" id="campoProyecto">
+                    <label>Proyecto asignado</label>
+                    <select name="idProyecto" id="selectProyectoCrear">
+                        <option value="0">— Sin proyecto —</option>
+                        @foreach (var p in proyectos) {
+                            <option value="@p.Id">@p.Nombre</option>
                         }
-                    </div>
+                    </select>
                 </div>
 
-                <!-- Formulario nuevo usuario -->
-                <div class="form-card">
-                    <div class="card-head"><span class="card-title">➕ Nuevo usuario</span></div>
-                    <div class="form-body">
-                        <form action="/Usuarios/Crear" method="post">
-                            @Html.AntiForgeryToken()
+                <button type="submit" class="ios-btn">Crear usuario</button>
+            </form>
+        </div>
+    </div>
 
-                            <div class="modal-section">Datos personales</div>
-                            <div class="field-row">
-                                <div class="field"><label>Nombre</label><input type="text" name="nombre" placeholder="Nombre" required/></div>
-                                <div class="field"><label>Apellido</label><input type="text" name="apellido" placeholder="Apellido" required/></div>
-                            </div>
-                            <div class="field-row">
-                                <div class="field"><label>Documento</label><input type="text" name="documento" placeholder="CC / NIT"/></div>
-                                <div class="field"><label>Celular</label><input type="text" name="celular" placeholder="Celular"/></div>
-                            </div>
-                            <div class="field"><label>Correo electrónico</label><input type="email" name="correo" placeholder="correo@email.com"/></div>
-
-                            <hr class="form-divider"/>
-                            <div class="modal-section">Acceso al sistema</div>
-                            <div class="field"><label>Nombre de usuario</label><input type="text" name="usuario" placeholder="Ej: jgomez" required/></div>
-                            <div class="field"><label>Contraseña</label><input type="password" name="contrasena" placeholder="Contraseña" required/></div>
-
-                            <div class="field">
-                                <label>Rol</label>
-                                <div class="rol-selector">
-                                    <div class="rol-opt">
-                                        <input type="radio" name="rol" id="rolVendedor" value="Vendedor" checked/>
-                                        <label for="rolVendedor">💼 Vendedor</label>
-                                    </div>
-                                    <div class="rol-opt">
-                                        <input type="radio" name="rol" id="rolAdmin" value="Administrador"/>
-                                        <label for="rolAdmin">🔑 Administrador</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="field" id="campoProyecto">
-                                <label>Proyecto asignado</label>
-                                <select name="idProyecto" id="selectProyectoCrear">
-                                    <option value="0">— Sin proyecto —</option>
-                                    @foreach (var p in proyectos) {
-                                        <option value="@p.Id">@p.Nombre</option>
-                                    }
-                                </select>
-                            </div>
-
-                            <button type="submit" class="ios-btn">Crear usuario</button>
-                        </form>
-                    </div>
-                </div>
-
-            </div><!-- /content-grid -->
-        </div><!-- /view -->
-    </div><!-- /main -->
-</div><!-- /app -->
+</div><!-- /content-grid -->
 
 <!-- Modal editar -->
 <div class="modal-bg" id="modalEditar">
@@ -471,23 +323,8 @@
     </div>
 </div>
 
+@section Scripts {
 <script>
-    function toggleSidebar(){
-        var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');
-        var o=sb.classList.toggle('open');
-        if(ov)ov.style.display=o?'block':'none';
-    }
-    function closeSidebar(){
-        var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');
-        if(sb)sb.classList.remove('open');
-        if(ov)ov.style.display='none';
-    }
-    function toggleDrop(){document.getElementById('proyDrop').classList.toggle('open');}
-    document.addEventListener('click',e=>{
-        var b=document.getElementById('proyBtn'),d=document.getElementById('proyDrop');
-        if(b&&d&&!b.contains(e.target)&&!d.contains(e.target))d.classList.remove('open');
-    });
-
     function abrirEditar(id,nombre,apellido,documento,celular,correo,rol,idProy){
         document.getElementById('editId').value       = id;
         document.getElementById('editNombre').value   = nombre;
@@ -514,7 +351,6 @@
         m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
     });
 
-    // Filtro de tabla en tiempo real
     function filtrarTabla(){
         var buscar = document.getElementById('searchInput').value.toLowerCase();
         var proy   = document.getElementById('filterProy').value.toLowerCase();
@@ -532,5 +368,4 @@
         });
     }
 </script>
-</body>
-</html>
+}
