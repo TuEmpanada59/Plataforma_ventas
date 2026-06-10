@@ -53,6 +53,8 @@ Plataforma_ventas/            (proyecto, dentro de la raíz del repo)
 ### Acceso a datos
 - ADO.NET directo con **consultas parametrizadas siempre** (`@param` + `AddWithValue` / `Add`), nunca concatenar strings SQL.
 - **Siempre async**: `OpenAsync`, `ExecuteReaderAsync`, `ExecuteNonQueryAsync`, `ExecuteScalarAsync` con `await`. No usar las versiones síncronas.
+- **Cuidado con `using var reader` (declaración sin llaves)**: mantiene el `DataReader` abierto hasta el final del método; ejecutar otro comando sobre la misma conexión con un reader abierto lanza `InvalidOperationException` sin MARS. La cadena de conexión lleva `MultipleActiveResultSets=True` como red de seguridad, pero la convención es: **agregados (`COUNT`/`SUM`) y scalars primero, readers después**, o usar bloques `using (...) { }` que cierren el reader antes del siguiente comando.
+- Conversión de scalars: preferir `Convert.ToInt64(...)`/`Convert.ToInt32(...)` sobre casts directos `(long)`/`(int)` — el unboxing lanza `InvalidCastException` si el tipo SQL subyacente no coincide exactamente.
 - Listados grandes: paginación con `OFFSET ... FETCH NEXT` (`page`/`pageSize`, 25 por defecto) y componente `.paginator`.
 
 ### Cambios de estado de inmuebles (crítico)

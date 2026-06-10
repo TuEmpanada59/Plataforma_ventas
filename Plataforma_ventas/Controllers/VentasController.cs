@@ -67,6 +67,15 @@ namespace Plataforma_ventas.Controllers
             ViewBag.TotalPages = totalPages;
             ViewBag.Total = total;
 
+            // Sum the full project total (all pages). NOTE: this scalar query MUST run
+            // before the paginated reader below is opened — a `using var` reader stays
+            // open until the end of the method, and executing another command on the
+            // same connection while a DataReader is open throws InvalidOperationException.
+            var cmdSum = new SqlCommand(
+                "SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@proy", con);
+            cmdSum.Parameters.AddWithValue("@proy", idProy);
+            ViewBag.TotalValor = Convert.ToInt64(await cmdSum.ExecuteScalarAsync());
+
             // Paginated query — sales ordered newest first
             var ventas = new List<dynamic>();
             var cmd = new SqlCommand(@"
@@ -113,12 +122,6 @@ namespace Plataforma_ventas.Controllers
 
             ViewBag.Ventas = ventas;
             ViewBag.TotalVentas = ventas.Count;
-
-            // Sum the full project total separately (not just this page)
-            var cmdSum = new SqlCommand(
-                "SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@proy", con);
-            cmdSum.Parameters.AddWithValue("@proy", idProy);
-            ViewBag.TotalValor = (long)(await cmdSum.ExecuteScalarAsync())!;
 
             return View();
         }
