@@ -1,9 +1,14 @@
-﻿@{
-    Layout = null;
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Continuar venta";
+    ViewBag.ActiveNav = "ventas";
+    ViewBag.TbBread   = "Continuar venta";
+
     var nombre = ViewBag.Nombre as string ?? "";
     var apellido = ViewBag.Apellido as string ?? "";
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
+    ViewBag.Iniciales = iniciales;
     int idInmueble = ViewBag.IdInmueble != null ? (int)ViewBag.IdInmueble : 0;
     string apto = ViewBag.Apto as string ?? "";
     string metros = ViewBag.Metros as string ?? "";
@@ -14,902 +19,178 @@
     var clientes = ViewBag.Clientes as List<dynamic> ?? new List<dynamic>();
     var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>Continuar venta · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-            *, *::before, *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-
-            :root {
-                --azul: #0076e3; --celeste: #00c9ff; --negro: #1e222b; --plata: #c3cfdb; --menta: #00d4a1;
-                --mid: #0060bb;
-                --blue: #0076e3;
-                --rojo: #E63946;
-                --verde: #34C759;
-                --oro: #FF9500;
-                --label: rgba(0,0,0,0.85);
-                --label2: rgba(60,60,67,0.6);
-                --label3: rgba(60,60,67,0.3);
-                --sep: rgba(60,60,67,0.12);
-                --sep2: rgba(60,60,67,0.06);
-                --fill3: rgba(120,120,128,0.08);
-                --glass: rgba(255,255,255,0.75);
-                --gb: rgba(255,255,255,0.6);
-                --sh: 0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);
-            }
-
-            html, body {
-                background: #EEF2F7;
-                color: var(--label);
-                overflow-x: hidden;
-            }
-
-            * {
-                font-family: 'Inter',system-ui,sans-serif;
-                -webkit-font-smoothing: antialiased;
-            }
-
-            body::before {
-                content: '';
-                position: fixed;
-                inset: 0;
-                z-index: 0;
-                background: radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,118,227,0.12) 0%,transparent 55%),#EEF2F7;
-                pointer-events: none;
-            }
-
-            .app {
-                display: flex;
-                min-height: 100vh;
-                position: relative;
-                z-index: 1;
-            }
-
-            .sidebar {
-                width: 230px;
-                flex-shrink: 0;
-                background: var(--glass);
-                backdrop-filter: blur(40px) saturate(180%);
-                border-right: 1px solid var(--gb);
-                display: flex;
-                flex-direction: column;
-                position: sticky;
-                top: 0;
-                height: 100vh;
-                overflow-y: auto;
-            }
-
-            .sb-app {
-                font-size: 17px;
-                font-weight: 700;
-                color: var(--label);
-                letter-spacing: -0.4px;
-            }
-
-            .sb-sub {
-                font-size: 11px;
-                color: var(--label3);
-                margin-top: 1px;
-            }
-
-                margin: 14px 10px 0;
-                background: rgba(0,118,227,0.08);
-                border: 1px solid rgba(0,118,227,0.18);
-                border-radius: 14px;
-                padding: 10px 12px;
-                cursor: pointer;
-            }
-
-                font-size: 9px;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                color: var(--label3);
-                font-weight: 600;
-                margin-bottom: 2px;
-            }
-
-                font-size: 14px;
-                font-weight: 700;
-                color: var(--azul);
-            }
-
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                margin-top: 3px;
-                font-size: 11px;
-                color: var(--label2);
-            }
-
-            .pulse {
-                width: 5px;
-                height: 5px;
-                border-radius: 50%;
-                background: #34C759;
-                flex-shrink: 0;
-                animation: pring 2.5s ease infinite;
-                display: inline-block;
-            }
-
-            @@keyframes pring {
-                0% {
-                    box-shadow: 0 0 0 0 rgba(52,199,89,.4)
-                }
-
-                70% {
-                    box-shadow: 0 0 0 5px rgba(52,199,89,0)
-                }
-
-                100% {
-                    box-shadow: 0 0 0 0 rgba(52,199,89,0)
-                }
-            }
-
-            .proy-drop {
-                display: none;
-                position: absolute;
-                top: calc(100% + 8px);
-                right: 0;
-                min-width: 240px;
-                z-index: 120;
-                background: white;
-                border: 1px solid var(--sep);
-                border-radius: 14px;
-                overflow: hidden;
-                box-shadow: var(--sh);
-            }
-
-                .proy-drop.open {
-                    display: block;
-                }
-
-            .proy-drop-item {
-                width: 100%;
-                padding: 10px 14px;
-                background: none;
-                border: none;
-                border-bottom: 1px solid var(--sep2);
-                text-align: left;
-                font-size: 13px;
-                font-weight: 500;
-                cursor: pointer;
-                color: var(--label);
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-                .proy-drop-item:hover {
-                    background: var(--fill3);
-                }
-
-            .proy-drop-link {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 10px 14px;
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--blue);
-                text-decoration: none;
-                background: rgba(0,118,227,0.04);
-            }
-
-            .sb-sec {
-                padding: 14px 16px 4px;
-                font-size: 10px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.07em;
-                color: var(--label3);
-            }
-
-            .nav-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 9px 12px;
-                margin: 1px 6px;
-                border-radius: 11px;
-                font-size: 14px;
-                color: var(--label2);
-                text-decoration: none;
-                transition: all 0.2s;
-            }
-
-                .nav-item:hover {
-                    background: var(--fill3);
-                    color: var(--label);
-                }
-
-                .nav-item.active {
-                    background: var(--blue);
-                    color: white;
-                    font-weight: 600;
-                    box-shadow: 0 4px 12px rgba(0,118,227,0.28);
-                }
-
-            .nav-ico {
-                width: 26px;
-                height: 26px;
-                border-radius: 7px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 13px;
-                background: var(--fill3);
-                flex-shrink: 0;
-            }
-
-            .nav-item.active .nav-ico {
-                background: rgba(255,255,255,0.2);
-            }
-
-            .sb-footer {
-                margin-top: auto;
-                padding: 10px 12px 20px;
-                border-top: 1px solid var(--sep2);
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .sb-av {
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                background: linear-gradient(135deg,var(--azul),var(--celeste));
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 11px;
-                font-weight: 700;
-                color: white;
-            }
-
-            .sb-logout {
-                margin-left: auto;
-                width: 26px;
-                height: 26px;
-                border-radius: 7px;
-                background: var(--fill3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 13px;
-                color: var(--label2);
-                text-decoration: none;
-            }
-
-                .sb-logout:hover {
-                    background: rgba(230,57,70,0.1);
-                    color: var(--rojo);
-                }
-
-            .main {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                min-width: 0;
-            }
-
-            .topbar {
-                height: 50px;
-                flex-shrink: 0;
-                background: var(--glass);
-                backdrop-filter: blur(40px) saturate(180%);
-                border-bottom: 1px solid var(--sep);
-                padding: 0 18px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                position: sticky;
-                top: 0;
-                z-index: 50;
-            }
-
-            .tb-bread {
-                font-size: 13px;
-                color: var(--label2);
-            }
-
-                .tb-bread strong {
-                    color: var(--label);
-                    font-weight: 600;
-                }
-
-                .tb-bread a {
-                    color: var(--label2);
-                    text-decoration: none;
-                }
-
-            .tb-right {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .tb-proy { position: relative; }
-            .tb-chip {
-                display: flex;
-                align-items: center;
-                gap: 5px;
-                background: var(--fill3);
-                border: 1px solid var(--sep);
-                padding: 4px 10px;
-                border-radius: 20px;
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--blue);
-                cursor: pointer;
-                font-family: inherit;
-            }
-            .tb-chip-caret { font-size: 9px; margin-left: 5px; opacity: .7; }
-
-            .tb-ibtn {
-                width: 30px;
-                height: 30px;
-                border-radius: 9px;
-                background: var(--fill3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 14px;
-                text-decoration: none;
-                color: var(--label);
-            }
-
-            .view {
-                flex: 1;
-                padding: 18px;
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-            }
-
-            @@keyframes fu {
-                from {
-                    opacity: 0;
-                    transform: translateY(10px)
-                }
-
-                to {
-                    opacity: 1;
-                    transform: translateY(0)
-                }
-            }
-
-            .inm-card {
-                background: linear-gradient(135deg,var(--azul),var(--blue));
-                border-radius: 18px;
-                padding: 18px 22px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                box-shadow: 0 8px 24px rgba(0,118,227,0.25);
-                animation: fu 0.3s ease both;
-                flex-wrap: wrap;
-                gap: 12px;
-            }
-
-            .inm-info h2 {
-                font-size: 22px;
-                font-weight: 300;
-                color: white;
-                letter-spacing: -1px;
-            }
-
-            .inm-info p {
-                font-size: 13px;
-                color: rgba(255,255,255,0.7);
-                margin-top: 3px;
-            }
-
-            .inm-datos {
-                display: flex;
-                gap: 16px;
-            }
-
-            .inm-dato {
-                text-align: center;
-            }
-
-            .inm-dato-val {
-                font-size: 15px;
-                font-weight: 600;
-                color: white;
-            }
-
-            .inm-dato-lbl {
-                font-size: 10px;
-                color: rgba(255,255,255,0.6);
-            }
-            /* Precio bloqueado */
-            .precio-lock-card {
-                background: linear-gradient(135deg,rgba(52,199,89,0.08),rgba(30,168,81,0.05));
-                border: 2px solid rgba(52,199,89,0.3);
-                border-radius: 14px;
-                padding: 16px 20px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                flex-wrap: wrap;
-                gap: 12px;
-                animation: fu 0.3s ease both;
-            }
-
-            .pl-left {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-
-            .pl-badge {
-                width: 48px;
-                height: 48px;
-                border-radius: 12px;
-                background: linear-gradient(135deg,#1EA851,#34C759);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 22px;
-                flex-shrink: 0;
-            }
-
-            .pl-info-lbl {
-                font-size: 11px;
-                text-transform: uppercase;
-                letter-spacing: 0.06em;
-                color: #1EA851;
-                font-weight: 600;
-                margin-bottom: 2px;
-            }
-
-            .pl-info-val {
-                font-size: 15px;
-                font-weight: 700;
-                color: var(--azul);
-            }
-
-            .pl-info-sub {
-                font-size: 11px;
-                color: var(--label2);
-                margin-top: 2px;
-            }
-
-            .pl-precio-lbl {
-                font-size: 10px;
-                color: var(--label3);
-                font-weight: 600;
-                text-transform: uppercase;
-                margin-bottom: 2px;
-                text-align: right;
-            }
-
-            .pl-precio-val {
-                font-size: 26px;
-                font-weight: 300;
-                color: #1EA851;
-                letter-spacing: -1px;
-            }
-
-            .form-card {
-                background: var(--glass);
-                backdrop-filter: blur(20px) saturate(180%);
-                border: 1px solid var(--gb);
-                border-radius: 18px;
-                overflow: hidden;
-                box-shadow: var(--sh);
-                animation: fu 0.3s ease 0.1s both;
-                margin-bottom: 14px;
-            }
-
-            .form-card-head {
-                padding: 14px 18px;
-                border-bottom: 1px solid var(--sep2);
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-
-            .form-card-title {
-                font-size: 15px;
-                font-weight: 600;
-                color: var(--label);
-            }
-
-            .form-body {
-                padding: 18px;
-            }
-
-            .destino-grid {
-                display: grid;
-                grid-template-columns: repeat(2,1fr);
-                gap: 10px;
-            }
-
-            .destino-opt {
-                border: 2px solid var(--sep);
-                border-radius: 12px;
-                padding: 12px 14px;
-                cursor: pointer;
-                transition: all 0.2s;
-                background: white;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-
-                .destino-opt:hover {
-                    border-color: var(--blue);
-                    background: rgba(0,118,227,0.03);
-                }
-
-                .destino-opt.sel {
-                    border-color: var(--blue);
-                    background: rgba(0,118,227,0.07);
-                }
-
-            .destino-ico {
-                font-size: 20px;
-                flex-shrink: 0;
-            }
-
-            .destino-txt {
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--label);
-            }
-
-            .destino-sub {
-                font-size: 11px;
-                color: var(--label3);
-                margin-top: 1px;
-            }
-
-            .tab-row {
-                display: flex;
-                background: var(--fill3);
-                border-radius: 11px;
-                padding: 3px;
-                gap: 2px;
-                margin-bottom: 16px;
-            }
-
-            .tab-btn {
-                flex: 1;
-                padding: 8px;
-                border-radius: 8px;
-                border: none;
-                background: none;
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--label2);
-                cursor: pointer;
-                transition: all 0.2s;
-            }
-
-                .tab-btn.active {
-                    background: white;
-                    color: var(--label);
-                    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-                }
-
-            .tab-pane {
-                display: none;
-            }
-
-                .tab-pane.active {
-                    display: block;
-                }
-
-            .form-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 12px;
-            }
-
-            .field {
-                display: flex;
-                flex-direction: column;
-                gap: 5px;
-            }
-
-                .field.full {
-                    grid-column: 1/-1;
-                }
-
-                .field label {
-                    font-size: 11px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.06em;
-                    color: var(--label3);
-                }
-
-                .field input, .field select {
-                    padding: 9px 12px;
-                    background: var(--fill3);
-                    border: 1px solid var(--sep);
-                    border-radius: 10px;
-                    font-size: 14px;
-                    color: var(--label);
-                    outline: none;
-                    transition: all 0.2s;
-                }
-
-                    .field input:focus, .field select:focus {
-                        background: white;
-                        border-color: var(--blue);
-                        box-shadow: 0 0 0 3px rgba(0,118,227,0.1);
-                    }
-
-            .btn-row {
-                display: flex;
-                gap: 10px;
-                justify-content: flex-end;
-            }
-
-            .ios-btn {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                background: var(--blue);
-                color: white;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 11px;
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                box-shadow: 0 4px 12px rgba(0,118,227,0.28);
-                transition: all 0.2s;
-                text-decoration: none;
-            }
-
-                .ios-btn:hover {
-                    background: var(--mid);
-                }
-
-                .ios-btn.ghost {
-                    background: var(--fill3);
-                    color: var(--label);
-                    box-shadow: none;
-                    border: 1px solid var(--sep);
-                }
-
-                    .ios-btn.ghost:hover {
-                        background: rgba(120,120,128,0.14);
-                    }
-
-            @@media(max-width:700px) {
-                .app {
-                    flex-direction: column;
-                }
-
-                .sidebar {
-                    display: none;
-                }
-
-                .destino-grid {
-                    grid-template-columns: 1fr !important;
-                }
-
-                .form-grid {
-                    grid-template-columns: 1fr !important;
-                }
-        }
-        /* ── Sidebar blanco corporativo ── */
-        .sidebar{background:#fff!important;border-right:1px solid rgba(0,0,0,0.07)!important;backdrop-filter:none!important;box-shadow:2px 0 12px rgba(0,0,0,0.04)!important;}
-        .sb-logo-area{padding:16px 14px 12px;border-bottom:1px solid rgba(0,0,0,0.06);margin-bottom:4px;}
-        .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
-        .sb-app{color:#1e222b!important;font-weight:700!important;}
-        .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .proy-drop{background:#fff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 8px 24px rgba(0,0,0,0.1)!important;}
-        .proy-drop-item{color:#1e222b!important;}
-        .proy-drop-item:hover{background:rgba(0,118,227,0.06)!important;color:#0076e3!important;}
-        .proy-drop-link{color:#0076e3!important;background:rgba(0,118,227,0.04)!important;}
-        .sb-sec{color:rgba(30,34,43,0.38)!important;letter-spacing:0.08em!important;}
-        .nav-item{color:rgba(30,34,43,0.65)!important;}
-        .nav-item:hover{background:rgba(0,118,227,0.07)!important;color:#0076e3!important;}
-        .nav-item.active{background:#0076e3!important;color:#fff!important;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.22)!important;}
-        .nav-ico{background:rgba(30,34,43,0.06)!important;color:inherit!important;}
-        .sb-footer{border-top-color:rgba(0,0,0,0.07)!important;}
-        .sb-logout{background:rgba(30,34,43,0.05)!important;color:rgba(30,34,43,0.45)!important;}
-        .sb-logout:hover{background:rgba(230,57,70,0.08)!important;color:#E63946!important;}
-        .nav-item{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 12px!important;margin:1px 6px!important;border-radius:11px!important;font-size:14px!important;min-height:40px!important;text-decoration:none!important;transition:all 0.18s!important;}
-        .nav-ico{width:26px!important;height:26px!important;border-radius:8px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;flex-shrink:0!important;}
-        .sb-sec{padding:14px 18px 4px!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;}
-    </style>
-    </head>
-    <body>
-        <div class="app">
-            <div class="sidebar">
-        <div class="sb-logo-area">
-            <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
-        </div>
-                <div class="sb-sec">Principal</div>
-                <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-                <a class="nav-item" href="/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
-                <a class="nav-item active" href="/Inmuebles/Reservas"><div class="nav-ico">🔒</div>Reservas</a>
-                <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
-                <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
-                <div class="sb-sec">General</div>
-                <a class="nav-item" href="/Reportes"><div class="nav-ico">📊</div>Reportes</a>
-                <a class="nav-item" href="/Carga/Index"><div class="nav-ico">📂</div>Cargar Excel</a>
-                <a class="nav-item" href="/Usuarios"><div class="nav-ico">👥</div>Usuarios</a>
-                <div class="sb-footer">
-                    <div class="sb-av">@iniciales</div>
-                    <div><div style="font-size:12px;font-weight:600">@nombre @apellido</div><div style="font-size:10px;color:var(--label3)">Administrador</div></div>
-                    <a class="sb-logout" href="/Account/Logout">↩</a>
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .inm-card{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.3s ease both;flex-wrap:wrap;gap:12px;}
+    .inm-info h2{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;}
+    .inm-info p{font-size:13px;color:rgba(255,255,255,0.7);margin-top:3px;}
+    .inm-datos{display:flex;gap:16px;}
+    .inm-dato{text-align:center;}
+    .inm-dato-val{font-size:15px;font-weight:600;color:white;}
+    .inm-dato-lbl{font-size:10px;color:rgba(255,255,255,0.6);}
+    .precio-lock-card{background:linear-gradient(135deg,rgba(52,199,89,0.08),rgba(30,168,81,0.05));border:2px solid rgba(52,199,89,0.3);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;animation:fu 0.3s ease both;}
+    .pl-left{display:flex;align-items:center;gap:12px;}
+    .pl-badge{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#1EA851,#34C759);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+    .pl-info-lbl{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#1EA851;font-weight:600;margin-bottom:2px;}
+    .pl-info-val{font-size:15px;font-weight:700;color:var(--azul);}
+    .pl-info-sub{font-size:11px;color:var(--label2);margin-top:2px;}
+    .pl-precio-lbl{font-size:10px;color:var(--label3);font-weight:600;text-transform:uppercase;margin-bottom:2px;text-align:right;}
+    .pl-precio-val{font-size:26px;font-weight:300;color:#1EA851;letter-spacing:-1px;}
+    .form-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.3s ease 0.1s both;margin-bottom:14px;}
+    .form-card-head{padding:14px 18px;border-bottom:1px solid var(--sep2);display:flex;align-items:center;gap:10px;}
+    .form-card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .form-body{padding:18px;}
+    .destino-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+    .destino-opt{border:2px solid var(--sep);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all 0.2s;background:white;display:flex;align-items:center;gap:10px;}
+    .destino-opt:hover{border-color:var(--blue);background:rgba(0,118,227,0.03);}
+    .destino-opt.sel{border-color:var(--blue);background:rgba(0,118,227,0.07);}
+    .destino-ico{font-size:20px;flex-shrink:0;}
+    .destino-txt{font-size:13px;font-weight:600;color:var(--label);}
+    .destino-sub{font-size:11px;color:var(--label3);margin-top:1px;}
+    .tab-row{display:flex;background:var(--fill3);border-radius:11px;padding:3px;gap:2px;margin-bottom:16px;}
+    .tab-btn{flex:1;padding:8px;border-radius:8px;border:none;background:none;font-size:13px;font-weight:600;color:var(--label2);cursor:pointer;transition:all 0.2s;}
+    .tab-btn.active{background:white;color:var(--label);box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+    .tab-pane{display:none;}
+    .tab-pane.active{display:block;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field.full{grid-column:1/-1;}
+    .field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);}
+    .field input,.field select{padding:9px 12px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:14px;color:var(--label);outline:none;transition:all 0.2s;}
+    .field input:focus,.field select:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:10px 20px;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,118,227,0.28);transition:all 0.2s;text-decoration:none;}
+    .ios-btn:hover{background:var(--mid);}
+    .ios-btn.ghost{background:var(--fill3);color:var(--label);box-shadow:none;border:1px solid var(--sep);}
+    .ios-btn.ghost:hover{background:rgba(120,120,128,0.14);}
+    @@media(max-width:700px){.destino-grid{grid-template-columns:1fr!important;}.form-grid{grid-template-columns:1fr!important;}}
+</style>
+}
+
+<!-- Info inmueble -->
+<div class="inm-card">
+    <div class="inm-info">
+        <h2>Apto @apto</h2>
+        <p>Torre @torre &middot; @tipo &middot; @metros m&sup2; &middot; Reservado por &#128100; @vendedor</p>
+    </div>
+    <div class="inm-datos">
+        <div class="inm-dato"><div class="inm-dato-val">@torre</div><div class="inm-dato-lbl">Torre</div></div>
+        <div class="inm-dato"><div class="inm-dato-val">@metros m&sup2;</div><div class="inm-dato-lbl">&#193;rea</div></div>
+        <div class="inm-dato"><div class="inm-dato-val">@tipo</div><div class="inm-dato-lbl">Tipo</div></div>
+    </div>
+</div>
+
+<form action="/Inmuebles/ConfirmarVentaReserva" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="idInmueble" value="@idInmueble" />
+    <input type="hidden" name="precioVenta" value="@precioReserva" />
+    <input type="hidden" name="tipoCliente" id="tipoCliente" value="existente" />
+    <input type="hidden" name="destino" id="destinoInput" value="Vivienda" />
+
+    <!-- Precio bloqueado -->
+    <div class="form-card">
+        <div class="form-card-head"><span style="font-size:18px">&#128274;</span><span class="form-card-title">Precio bloqueado al reservar</span></div>
+        <div class="form-body">
+            <div class="precio-lock-card">
+                <div class="pl-left">
+                    <div class="pl-badge">&#128274;</div>
+                    <div>
+                        <div class="pl-info-lbl">Precio garantizado</div>
+                        <div class="pl-info-val">Este precio fue comprometido con el cliente</div>
+                        <div class="pl-info-sub">No puede modificarse — fue bloqueado al momento de la reserva</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="pl-precio-lbl">Precio final</div>
+                    <div class="pl-precio-val">$@precioReserva.ToString("N0")</div>
                 </div>
             </div>
-            <div class="main">
-                <div class="topbar">
-                    <span class="tb-bread">
-                        <a href="/Inmuebles/Reservas">Reservas</a> › <strong>Continuar venta · Apto @apto</strong>
-                    </span>
-                    <div class="tb-right"><div class="tb-proy">
-                    <button type="button" class="tb-chip" id="proyBtn" onclick="toggleDrop()" title="Cambiar proyecto">
-                        <span class="pulse"></span>@proyActivo<span class="tb-chip-caret">▾</span>
-                    </button>
-                    <div class="proy-drop" id="proyDrop">
-                    @if (proyectos.Count > 0)
-                    {
-                        foreach (var p in proyectos)
+        </div>
+    </div>
+
+    <!-- Destino -->
+    <div class="form-card">
+        <div class="form-card-head"><span style="font-size:18px">&#127991;</span><span class="form-card-title">Destino del inmueble</span></div>
+        <div class="form-body">
+            <div class="destino-grid">
+                <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
+                    <span class="destino-ico">&#127968;</span>
+                    <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
+                </div>
+                <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
+                    <span class="destino-ico">&#128200;</span>
+                    <div><div class="destino-txt">Inversi&#243;n para reventa</div><div class="destino-sub">Plusval&#237;a a futuro</div></div>
+                </div>
+                <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
+                    <span class="destino-ico">&#128273;</span>
+                    <div><div class="destino-txt">Inversi&#243;n para arriendo</div><div class="destino-sub">Renta mensual</div></div>
+                </div>
+                <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
+                    <span class="destino-ico">&#128203;</span>
+                    <div><div class="destino-txt">Cesi&#243;n de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cliente -->
+    <div class="form-card">
+        <div class="form-card-head"><span style="font-size:18px">&#128100;</span><span class="form-card-title">Cliente</span></div>
+        <div class="form-body">
+            <div class="tab-row">
+                <button type="button" class="tab-btn active"
+                        onclick="document.getElementById('tipoCliente').value='existente';setTab('existente',this)">
+                    Cliente existente
+                </button>
+                <button type="button" class="tab-btn"
+                        onclick="document.getElementById('tipoCliente').value='nuevo';setTab('nuevo',this)">
+                    Nuevo cliente
+                </button>
+            </div>
+            <div class="tab-pane active" id="tab-existente">
+                <div class="field">
+                    <label>Seleccionar cliente</label>
+                    <select name="idClienteExistente">
+                        <option value="0">&#8212; Selecciona un cliente &#8212;</option>
+                        @foreach (var c in clientes)
                         {
-                            <form action="/Inmuebles/SeleccionarProyecto" method="post" style="margin:0">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="idProyecto" value="@p.Id" />
-                                <input type="hidden" name="nombreProyecto" value="@p.Nombre" />
-                                <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                            </form>
+                            <option value="@c.Id">@c.Nombre &#8212; @c.Documento</option>
                         }
-                    }
-                    <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
-                    </div>
-                </div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
+                    </select>
                 </div>
-                <div class="view">
-                    <!-- Info inmueble -->
-                    <div class="inm-card">
-                        <div class="inm-info">
-                            <h2>Apto @apto</h2>
-                            <p>Torre @torre · @tipo · @metros m² · Reservado por 👤 @vendedor</p>
-                        </div>
-                        <div class="inm-datos">
-                            <div class="inm-dato"><div class="inm-dato-val">@torre</div><div class="inm-dato-lbl">Torre</div></div>
-                            <div class="inm-dato"><div class="inm-dato-val">@metros m²</div><div class="inm-dato-lbl">Área</div></div>
-                            <div class="inm-dato"><div class="inm-dato-val">@tipo</div><div class="inm-dato-lbl">Tipo</div></div>
-                        </div>
-                    </div>
-
-                    <form action="/Inmuebles/ConfirmarVentaReserva" method="post">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="idInmueble" value="@idInmueble" />
-                        <input type="hidden" name="precioVenta" value="@precioReserva" />
-                        <input type="hidden" name="tipoCliente" id="tipoCliente" value="existente" />
-                        <input type="hidden" name="destino" id="destinoInput" value="Vivienda" />
-
-                        <!-- Precio bloqueado -->
-                        <div class="form-card">
-                            <div class="form-card-head"><span style="font-size:18px">🔒</span><span class="form-card-title">Precio bloqueado al reservar</span></div>
-                            <div class="form-body">
-                                <div class="precio-lock-card">
-                                    <div class="pl-left">
-                                        <div class="pl-badge">🔒</div>
-                                        <div>
-                                            <div class="pl-info-lbl">Precio garantizado</div>
-                                            <div class="pl-info-val">Este precio fue comprometido con el cliente</div>
-                                            <div class="pl-info-sub">No puede modificarse — fue bloqueado al momento de la reserva</div>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="pl-precio-lbl">Precio final</div>
-                                        <div class="pl-precio-val">$@precioReserva.ToString("N0")</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Destino -->
-                        <div class="form-card">
-                            <div class="form-card-head"><span style="font-size:18px">🏷️</span><span class="form-card-title">Destino del inmueble</span></div>
-                            <div class="form-body">
-                                <div class="destino-grid">
-                                    <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
-                                        <span class="destino-ico">🏠</span>
-                                        <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
-                                    </div>
-                                    <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
-                                        <span class="destino-ico">📈</span>
-                                        <div><div class="destino-txt">Inversión para reventa</div><div class="destino-sub">Plusvalía a futuro</div></div>
-                                    </div>
-                                    <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
-                                        <span class="destino-ico">🔑</span>
-                                        <div><div class="destino-txt">Inversión para arriendo</div><div class="destino-sub">Renta mensual</div></div>
-                                    </div>
-                                    <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
-                                        <span class="destino-ico">📋</span>
-                                        <div><div class="destino-txt">Cesión de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Cliente -->
-                        <div class="form-card">
-                            <div class="form-card-head"><span style="font-size:18px">👤</span><span class="form-card-title">Cliente</span></div>
-                            <div class="form-body">
-                                <div class="tab-row">
-                                    <button type="button" class="tab-btn active"
-                                            onclick="document.getElementById('tipoCliente').value='existente';setTab('existente',this)">
-                                        Cliente existente
-                                    </button>
-                                    <button type="button" class="tab-btn"
-                                            onclick="document.getElementById('tipoCliente').value='nuevo';setTab('nuevo',this)">
-                                        Nuevo cliente
-                                    </button>
-                                </div>
-                                <div class="tab-pane active" id="tab-existente">
-                                    <div class="field">
-                                        <label>Seleccionar cliente</label>
-                                        <select name="idClienteExistente">
-                                            <option value="0">— Selecciona un cliente —</option>
-                                            @foreach (var c in clientes)
-                                            {
-                                                <option value="@c.Id">@c.Nombre — @c.Documento</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="tab-pane" id="tab-nuevo">
-                                    <div class="form-grid">
-                                        <div class="field"><label>Nombre</label><input type="text" name="clienteNombre" placeholder="Nombre" /></div>
-                                        <div class="field"><label>Apellido</label><input type="text" name="clienteApellido" placeholder="Apellido" /></div>
-                                        <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT" /></div>
-                                        <div class="field"><label>Celular</label><input type="text" name="clienteCelular" placeholder="Celular" /></div>
-                                        <div class="field full"><label>Correo</label><input type="email" name="clienteCorreo" placeholder="correo@email.com" /></div>
-                                        <div class="field full"><label>Dirección</label><input type="text" name="clienteDireccion" placeholder="Dirección de residencia" /></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="btn-row">
-                            <a href="/Inmuebles/Reservas" class="ios-btn ghost">← Volver</a>
-                            <button type="submit" class="ios-btn">✓ Confirmar venta</button>
-                        </div>
-                    </form>
+            </div>
+            <div class="tab-pane" id="tab-nuevo">
+                <div class="form-grid">
+                    <div class="field"><label>Nombre</label><input type="text" name="clienteNombre" placeholder="Nombre" /></div>
+                    <div class="field"><label>Apellido</label><input type="text" name="clienteApellido" placeholder="Apellido" /></div>
+                    <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT" /></div>
+                    <div class="field"><label>Celular</label><input type="text" name="clienteCelular" placeholder="Celular" /></div>
+                    <div class="field full"><label>Correo</label><input type="email" name="clienteCorreo" placeholder="correo@email.com" /></div>
+                    <div class="field full"><label>Direcci&#243;n</label><input type="text" name="clienteDireccion" placeholder="Direcci&#243;n de residencia" /></div>
                 </div>
             </div>
         </div>
-        <script>
-                function selDestino(val,el){
-                    document.getElementById('destinoInput').value=val;
-                    document.querySelectorAll('.destino-opt').forEach(x=>x.classList.remove('sel'));
-                    el.classList.add('sel');
-                }
-                function setTab(tab,btn){
-                    document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
-                    document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
-                    btn.classList.add('active');
-                    document.getElementById('tab-'+tab).classList.add('active');
-                }
-                function toggleDrop(){document.getElementById('proyDrop').classList.toggle('open');}
-                document.addEventListener('click',function(e){
-                    var b=document.getElementById('proyBtn'),d=document.getElementById('proyDrop');
-                    if(b&&d&&!b.contains(e.target)&&!d.contains(e.target))d.classList.remove('open');
-                });
-        </script>
-    </body>
-</html>
+    </div>
+
+    <div class="btn-row">
+        <a href="/Inmuebles/Reservas" class="ios-btn ghost">&#8592; Volver</a>
+        <button type="submit" class="ios-btn">&#10003; Confirmar venta</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    function selDestino(val,el){
+        document.getElementById('destinoInput').value=val;
+        document.querySelectorAll('.destino-opt').forEach(x=>x.classList.remove('sel'));
+        el.classList.add('sel');
+    }
+    function setTab(tab,btn){
+        document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-'+tab).classList.add('active');
+    }
+</script>
+}

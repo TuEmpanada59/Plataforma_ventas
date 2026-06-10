@@ -1,5 +1,9 @@
-﻿@{
-    Layout = null;
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Proyectos";
+    ViewBag.ActiveNav = "inmuebles";
+    ViewBag.TbBread   = "Proyectos";
+
     var nombre = ViewBag.Nombre as string ?? "Admin";
     var apellido = ViewBag.Apellido as string ?? "";
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
@@ -21,6 +25,7 @@
     var aptsXArea = ViewBag.AptsXArea as Dictionary<string, int> ?? new Dictionary<string, int>();
     var proyHermanos = ViewBag.ProyectosHermanos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
+    ViewBag.Iniciales = iniciales;
     dynamic grupoActual = null;
     int laEstaArea = la;
     if (!string.IsNullOrEmpty(areaActual))
@@ -35,1666 +40,415 @@
         laEstaArea = listasXArea.ContainsKey(areaActual) ? listasXArea[areaActual] : la;
     }
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>Inmuebles · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-            *, *::before, *::after {
-                box-sizing: border-box;
-                margin: 0;
-                padding: 0;
-            }
-
-            :root {
-                --azul: #0076e3; --celeste: #00c9ff; --negro: #1e222b; --plata: #c3cfdb; --menta: #00d4a1;
-                --mid: #0060bb;
-                --blue: #0076e3;
-                --rojo: #E63946;
-                --verde: #34C759;
-                --oro: #FF9500;
-                --label: rgba(0,0,0,0.85);
-                --label2: rgba(60,60,67,0.6);
-                --label3: rgba(60,60,67,0.3);
-                --sep: rgba(60,60,67,0.12);
-                --sep2: rgba(60,60,67,0.06);
-                --fill2: rgba(120,120,128,0.12);
-                --fill3: rgba(120,120,128,0.08);
-                --glass: rgba(255,255,255,0.75);
-                --gb: rgba(255,255,255,0.6);
-                --sh: 0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);
-                --sh2: 0 20px 60px rgba(0,0,0,0.10),0 4px 20px rgba(0,0,0,0.06);
-            }
-
-            html, body {
-                background: #EEF2F7;
-                color: var(--label);
-                overflow-x: hidden;
-            }
-
-            * {
-                font-family: 'Inter',system-ui,sans-serif;
-                -webkit-font-smoothing: antialiased;
-            }
-
-            body::before {
-                content: '';
-                position: fixed;
-                inset: 0;
-                z-index: 0;
-                background: radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,118,227,0.12) 0%,transparent 55%),#EEF2F7;
-                pointer-events: none;
-            }
-
-            .app {
-                display: flex;
-                min-height: 100vh;
-                position: relative;
-                z-index: 1;
-            }
-
-            .sidebar {
-                width: 230px;
-                flex-shrink: 0;
-                background: var(--glass);
-                backdrop-filter: blur(40px) saturate(180%);
-                border-right: 1px solid var(--gb);
-                display: flex;
-                flex-direction: column;
-                position: sticky;
-                top: 0;
-                height: 100vh;
-                overflow-y: auto;
-            }
-
-            .sb-app {
-                font-size: 17px;
-                font-weight: 700;
-                color: var(--label);
-                letter-spacing: -0.4px;
-            }
-
-            .sb-sub {
-                font-size: 11px;
-                color: var(--label3);
-                margin-top: 1px;
-            }
-
-                margin: 14px 10px 0;
-                background: rgba(0,118,227,0.08);
-                border: 1px solid rgba(0,118,227,0.18);
-                border-radius: 14px;
-                padding: 10px 12px;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-
-                    background: rgba(0,118,227,0.13);
-                }
-
-                font-size: 9px;
-                text-transform: uppercase;
-                letter-spacing: 0.1em;
-                color: var(--label3);
-                font-weight: 600;
-                margin-bottom: 2px;
-            }
-
-                font-size: 14px;
-                font-weight: 700;
-                color: var(--azul);
-            }
-
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                margin-top: 3px;
-                font-size: 11px;
-                color: var(--label2);
-            }
-
-            .pulse {
-                width: 5px;
-                height: 5px;
-                border-radius: 50%;
-                background: #34C759;
-                flex-shrink: 0;
-                animation: pring 2.5s ease infinite;
-                display: inline-block;
-            }
-
-            @@keyframes pring {
-                0% {
-                    box-shadow: 0 0 0 0 rgba(52,199,89,.4)
-                }
-
-                70% {
-                    box-shadow: 0 0 0 5px rgba(52,199,89,0)
-                }
-
-                100% {
-                    box-shadow: 0 0 0 0 rgba(52,199,89,0)
-                }
-            }
-
-            .proy-drop {
-                display: none;
-                position: absolute;
-                top: calc(100% + 8px);
-                right: 0;
-                min-width: 240px;
-                z-index: 120;
-                background: white;
-                border: 1px solid var(--sep);
-                border-radius: 14px;
-                overflow: hidden;
-                box-shadow: var(--sh);
-            }
-
-                .proy-drop.open {
-                    display: block;
-                }
-
-            .proy-drop-item {
-                width: 100%;
-                padding: 10px 14px;
-                background: none;
-                border: none;
-                border-bottom: 1px solid var(--sep2);
-                text-align: left;
-                font-size: 13px;
-                font-weight: 500;
-                cursor: pointer;
-                color: var(--label);
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: background 0.15s;
-            }
-
-                .proy-drop-item:hover {
-                    background: var(--fill3);
-                }
-
-            .proy-drop-link {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                padding: 10px 14px;
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--blue);
-                text-decoration: none;
-                background: rgba(0,118,227,0.04);
-            }
-
-            .sb-sec {
-                padding: 16px 16px 4px;
-                font-size: 10px;
-                font-weight: 600;
-                text-transform: uppercase;
-                letter-spacing: 0.07em;
-                color: var(--label3);
-            }
-
-            .nav-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 9px 12px;
-                margin: 1px 6px;
-                border-radius: 11px;
-                font-size: 14px;
-                color: var(--label2);
-                text-decoration: none;
-                transition: all 0.2s;
-            }
-
-                .nav-item:hover {
-                    background: var(--fill3);
-                    color: var(--label);
-                }
-
-                .nav-item.active {
-                    background: var(--blue);
-                    color: white;
-                    font-weight: 600;
-                    box-shadow: 0 4px 12px rgba(0,118,227,0.28);
-                }
-
-            .nav-ico {
-                width: 26px;
-                height: 26px;
-                border-radius: 7px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 13px;
-                background: var(--fill3);
-                flex-shrink: 0;
-            }
-
-            .nav-item.active .nav-ico {
-                background: rgba(255,255,255,0.2);
-            }
-
-            .sb-footer {
-                margin-top: auto;
-                padding: 10px 12px 20px;
-                border-top: 1px solid var(--sep2);
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .sb-av {
-                width: 30px;
-                height: 30px;
-                border-radius: 50%;
-                background: linear-gradient(135deg,var(--azul),var(--celeste));
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 11px;
-                font-weight: 700;
-                color: white;
-            }
-
-            .sb-logout {
-                margin-left: auto;
-                width: 26px;
-                height: 26px;
-                border-radius: 7px;
-                background: var(--fill3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 13px;
-                color: var(--label2);
-                text-decoration: none;
-            }
-
-                .sb-logout:hover {
-                    background: rgba(230,57,70,0.1);
-                    color: var(--rojo);
-                }
-
-            .main {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                min-width: 0;
-            }
-
-            .topbar {
-                height: 50px;
-                flex-shrink: 0;
-                background: var(--glass);
-                backdrop-filter: blur(40px) saturate(180%);
-                border-bottom: 1px solid var(--sep);
-                padding: 0 18px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                position: sticky;
-                top: 0;
-                z-index: 50;
-            }
-
-            .tb-bread {
-                font-size: 13px;
-                color: var(--label2);
-            }
-
-                .tb-bread strong {
-                    color: var(--label);
-                    font-weight: 600;
-                }
-
-                .tb-bread a {
-                    color: var(--blue);
-                    text-decoration: none;
-                    font-weight: 500;
-                }
-
-                .tb-bread a:hover {
-                    text-decoration: underline;
-                }
-
-            .tb-right {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .tb-proy { position: relative; }
-            .tb-chip {
-                display: flex;
-                align-items: center;
-                gap: 5px;
-                background: var(--fill3);
-                border: 1px solid var(--sep);
-                padding: 4px 10px;
-                border-radius: 20px;
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--blue);
-                cursor: pointer;
-                font-family: inherit;
-            }
-            .tb-chip-caret { font-size: 9px; margin-left: 5px; opacity: .7; }
-
-            .tb-ibtn {
-                width: 30px;
-                height: 30px;
-                border-radius: 9px;
-                background: var(--fill3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 14px;
-                text-decoration: none;
-                color: var(--label);
-            }
-
-            .view {
-                flex: 1;
-                padding: 18px;
-                display: flex;
-                flex-direction: column;
-                gap: 14px;
-            }
-
-            @@keyframes fu {
-                from {
-                    opacity: 0;
-                    transform: translateY(10px)
-                }
-
-                to {
-                    opacity: 1;
-                    transform: translateY(0)
-                }
-            }
-
-            .resumen-banner {
-                background: linear-gradient(135deg,var(--azul),var(--blue));
-                border-radius: 18px;
-                padding: 16px 22px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                box-shadow: 0 8px 24px rgba(0,118,227,0.25);
-                animation: fu 0.3s ease both;
-                flex-wrap: wrap;
-                gap: 12px;
-            }
-
-            .rb-title {
-                font-size: 18px;
-                font-weight: 700;
-                color: white;
-                letter-spacing: -0.5px;
-            }
-
-            .rb-sub {
-                font-size: 12px;
-                color: rgba(255,255,255,0.7);
-                margin-top: 2px;
-            }
-
-            .rb-stats {
-                display: flex;
-                gap: 20px;
-                flex-wrap: wrap;
-            }
-
-            .rb-stat {
-                text-align: center;
-            }
-
-            .rb-stat-num {
-                font-size: 20px;
-                font-weight: 300;
-                color: white;
-                letter-spacing: -1px;
-            }
-
-            .rb-stat-lbl {
-                font-size: 10px;
-                color: rgba(255,255,255,0.6);
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
-
-            .rb-lista {
-                background: rgba(255,255,255,0.15);
-                border: 1px solid rgba(255,255,255,0.25);
-                border-radius: 10px;
-                padding: 8px 14px;
-                text-align: center;
-            }
-
-            .rb-lista-num {
-                font-size: 22px;
-                font-weight: 700;
-                color: white;
-            }
-
-            .rb-lista-lbl {
-                font-size: 10px;
-                color: rgba(255,255,255,0.7);
-            }
-
-            .rb-proxima {
-                font-size: 11px;
-                color: rgba(255,255,255,0.6);
-                margin-top: 2px;
-            }
-
-            .torre-banner {
-                background: linear-gradient(135deg,var(--azul),var(--blue));
-                border-radius: 14px;
-                padding: 12px 18px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                box-shadow: 0 4px 16px rgba(0,118,227,0.2);
-            }
-
-            .torre-banner-left {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-
-            .torre-banner-btn {
-                background: rgba(255,255,255,0.15);
-                border: 1px solid rgba(255,255,255,0.3);
-                color: white;
-                padding: 6px 14px;
-                border-radius: 9px;
-                font-size: 12px;
-                font-weight: 600;
-                cursor: pointer;
-                text-decoration: none;
-            }
-
-            .torre-select-screen {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 24px;
-                padding: 48px 0;
-                animation: fu 0.4s ease both;
-            }
-
-            .torres-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
-                gap: 14px;
-                width: 100%;
-                max-width: 700px;
-            }
-
-            .torre-card {
-                background: var(--glass);
-                border: 2px solid var(--gb);
-                border-radius: 20px;
-                padding: 24px 20px;
-                text-align: center;
-                cursor: pointer;
-                transition: all 0.2s;
-                box-shadow: var(--sh);
-                text-decoration: none;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-            }
-
-                .torre-card:hover {
-                    border-color: var(--blue);
-                    transform: translateY(-3px);
-                    box-shadow: var(--sh2);
-                }
-
-            .areas-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
-                gap: 14px;
-                animation: fu 0.35s ease both;
-            }
-
-            .area-card {
-                background: var(--glass);
-                backdrop-filter: blur(20px) saturate(180%);
-                border: 2px solid var(--gb);
-                border-radius: 20px;
-                padding: 20px;
-                transition: all 0.2s;
-                box-shadow: var(--sh);
-                display: block;
-            }
-
-                .area-card:hover {
-                    border-color: var(--blue);
-                    box-shadow: var(--sh2);
-                }
-
-            .area-card-link {
-                display: block;
-                cursor: pointer;
-                text-decoration: none;
-            }
-
-                .area-card-link:hover .area-metros {
-                    color: var(--blue);
-                }
-
-            .area-top {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 12px;
-            }
-
-            .area-metros {
-                font-size: 22px;
-                font-weight: 700;
-                color: var(--azul);
-                letter-spacing: -0.5px;
-                transition: color 0.2s;
-            }
-
-            .area-tipo-ext {
-                background: rgba(255,149,0,0.12);
-                color: #CC7700;
-                font-size: 11px;
-                font-weight: 700;
-                padding: 3px 9px;
-                border-radius: 20px;
-            }
-
-            .area-tipo-int {
-                background: rgba(0,118,227,0.1);
-                color: var(--blue);
-                font-size: 11px;
-                font-weight: 700;
-                padding: 3px 9px;
-                border-radius: 20px;
-            }
-
-            .area-precio {
-                font-size: 17px;
-                font-weight: 600;
-                color: var(--azul);
-                margin-bottom: 10px;
-            }
-
-            .area-precio-lbl {
-                font-size: 10px;
-                color: var(--label3);
-                font-weight: 600;
-                text-transform: uppercase;
-                margin-bottom: 2px;
-            }
-
-            .area-listas {
-                display: flex;
-                gap: 6px;
-                flex-wrap: wrap;
-                margin-bottom: 12px;
-            }
-
-            .area-lista-chip {
-                font-size: 10px;
-                font-weight: 600;
-                padding: 3px 9px;
-                border-radius: 10px;
-                background: var(--fill3);
-                color: var(--label2);
-                border: none;
-                cursor: pointer;
-                transition: all 0.2s;
-            }
-
-                .area-lista-chip:hover {
-                    background: var(--fill2);
-                    color: var(--label);
-                }
-
-                .area-lista-chip.activa {
-                    background: linear-gradient(135deg,var(--azul),var(--celeste));
-                    color: white;
-                    box-shadow: 0 2px 8px rgba(0,96,187,0.25);
-                }
-
-            .prog-wrap {
-                margin-bottom: 6px;
-            }
-
-            .prog-bar {
-                height: 6px;
-                border-radius: 10px;
-                background: var(--fill2);
-                overflow: hidden;
-            }
-
-            .prog-fill {
-                height: 100%;
-                border-radius: 10px;
-                background: linear-gradient(90deg,var(--verde),#1EA851);
-                transition: width 0.4s ease;
-            }
-
-                .prog-fill.naranja {
-                    background: linear-gradient(90deg,var(--oro),#CC7700);
-                }
-
-                .prog-fill.rojo {
-                    background: linear-gradient(90deg,var(--rojo),#B02030);
-                }
-
-            .prog-lbl {
-                display: flex;
-                justify-content: space-between;
-                font-size: 11px;
-                color: var(--label2);
-                margin-top: 3px;
-            }
-
-            .card {
-                background: var(--glass);
-                backdrop-filter: blur(20px) saturate(180%);
-                border: 1px solid var(--gb);
-                border-radius: 18px;
-                overflow: hidden;
-                box-shadow: var(--sh);
-                animation: fu 0.35s ease 0.1s both;
-            }
-
-            .card-head {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 12px 16px;
-                border-bottom: 1px solid var(--sep2);
-                flex-wrap: wrap;
-                gap: 8px;
-            }
-
-            .card-title {
-                font-size: 15px;
-                font-weight: 600;
-                color: var(--label);
-            }
-
-            .tbl-wrap {
-                overflow-x: auto;
-            }
-
-            .tbl {
-                width: 100%;
-                border-collapse: collapse;
-            }
-
-                .tbl thead {
-                    position: sticky;
-                    top: 0;
-                    z-index: 2;
-                    background: rgba(255,255,255,0.95);
-                    backdrop-filter: blur(10px);
-                }
-
-                .tbl th {
-                    font-size: 11px;
-                    font-weight: 600;
-                    text-transform: uppercase;
-                    letter-spacing: 0.06em;
-                    color: var(--label3);
-                    padding: 10px 16px;
-                    text-align: left;
-                    border-bottom: 1px solid var(--sep2);
-                }
-
-                .tbl td {
-                    padding: 11px 16px;
-                    font-size: 13px;
-                    color: var(--label);
-                    border-bottom: 1px solid var(--sep2);
-                }
-
-                .tbl tr:last-child td {
-                    border-bottom: none;
-                }
-
-                .tbl tr:hover td {
-                    background: var(--fill3);
-                }
-
-            .bdg {
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                padding: 3px 9px;
-                border-radius: 20px;
-                font-size: 11px;
-                font-weight: 600;
-            }
-
-                .bdg::before {
-                    content: '';
-                    width: 5px;
-                    height: 5px;
-                    border-radius: 50%;
-                    flex-shrink: 0;
-                }
-
-                .bdg.D {
-                    background: rgba(52,199,89,0.12);
-                    color: #1EA851
-                }
-
-                    .bdg.D::before {
-                        background: #34C759
-                    }
-
-                .bdg.V {
-                    background: rgba(230,57,70,0.12);
-                    color: var(--rojo)
-                }
-
-                    .bdg.V::before {
-                        background: var(--rojo)
-                    }
-
-                .bdg.R {
-                    background: rgba(255,149,0,0.12);
-                    color: #CC7700
-                }
-
-                    .bdg.R::before {
-                        background: var(--oro)
-                    }
-
-                .bdg.EP {
-                    background: rgba(90,90,200,0.12);
-                    color: #5A5AC8
-                }
-
-                    .bdg.EP::before {
-                        background: #5A5AC8
-                    }
-
-            .filter-bar {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                flex-wrap: wrap;
-            }
-
-            .search-wrap {
-                position: relative;
-                max-width: 220px;
-            }
-
-                .search-wrap input {
-                    width: 100%;
-                    padding: 7px 12px 7px 30px;
-                    background: var(--fill3);
-                    border: 1px solid var(--sep);
-                    border-radius: 10px;
-                    font-size: 13px;
-                    color: var(--label);
-                    outline: none;
-                    transition: all 0.2s;
-                }
-
-                    .search-wrap input:focus {
-                        background: white;
-                        border-color: var(--blue);
-                    }
-
-            .search-ico {
-                position: absolute;
-                left: 9px;
-                top: 50%;
-                transform: translateY(-50%);
-                font-size: 12px;
-                color: var(--label3);
-                pointer-events: none;
-            }
-
-            .seg {
-                display: flex;
-                background: var(--fill3);
-                border-radius: 10px;
-                padding: 3px;
-                gap: 2px;
-            }
-
-            .seg-btn {
-                padding: 5px 10px;
-                border-radius: 7px;
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--label2);
-                cursor: pointer;
-                border: none;
-                background: none;
-                transition: all 0.2s;
-            }
-
-                .seg-btn.active {
-                    background: white;
-                    color: var(--label);
-                    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-                }
-
-            .btn-accion {
-                border: none;
-                padding: 5px 10px;
-                border-radius: 8px;
-                font-size: 12px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s;
-                margin-right: 3px;
-            }
-
-            .btn-vender {
-                background: rgba(0,118,227,0.1);
-                color: var(--blue);
-            }
-
-                .btn-vender:hover {
-                    background: rgba(0,118,227,0.2);
-                }
-
-            .btn-reservar {
-                background: rgba(255,149,0,0.12);
-                color: #CC7700;
-            }
-
-                .btn-reservar:hover {
-                    background: rgba(255,149,0,0.22);
-                }
-
-            .btn-liberar {
-                background: rgba(230,57,70,0.1);
-                color: var(--rojo);
-            }
-
-                .btn-liberar:hover {
-                    background: rgba(230,57,70,0.2);
-                }
-
-            .alerta-exito {
-                background: rgba(52,199,89,0.1);
-                border: 1px solid rgba(52,199,89,0.3);
-                border-radius: 12px;
-                padding: 10px 16px;
-                font-size: 13px;
-                font-weight: 600;
-                color: #1EA851;
-            }
-
-            .alerta-error {
-                background: rgba(230,57,70,0.1);
-                border: 1px solid rgba(230,57,70,0.3);
-                border-radius: 12px;
-                padding: 10px 16px;
-                font-size: 13px;
-                font-weight: 600;
-                color: var(--rojo);
-            }
-
-            .area-volver {
-                display: inline-flex;
-                align-items: center;
-                gap: 6px;
-                background: var(--fill3);
-                border: 1px solid var(--sep);
-                color: var(--label);
-                padding: 7px 14px;
-                border-radius: 10px;
-                font-size: 13px;
-                font-weight: 600;
-                text-decoration: none;
-                transition: background 0.2s;
-            }
-
-                .area-volver:hover {
-                    background: var(--fill2);
-                }
-
-            .empty {
-                padding: 48px;
-                text-align: center;
-            }
-
-            .empty-ico {
-                font-size: 40px;
-                opacity: 0.4;
-                margin-bottom: 8px;
-            }
-
-            .empty-txt {
-                font-size: 15px;
-                font-weight: 600;
-                color: var(--label2);
-            }
-
-            .hamburger {
-                display: none;
-                flex-direction: column;
-                gap: 5px;
-                cursor: pointer;
-                padding: 6px;
-                border-radius: 8px;
-                background: var(--fill3);
-                border: none;
-            }
-
-                .hamburger span {
-                    display: block;
-                    width: 18px;
-                    height: 2px;
-                    background: var(--label);
-                    border-radius: 2px;
-                }
-            /* Modal */
-            .modal-overlay {
-                display: none;
-                position: fixed;
-                inset: 0;
-                background: rgba(0,0,0,0.55);
-                z-index: 300;
-                backdrop-filter: blur(4px);
-                align-items: center;
-                justify-content: center;
-            }
-
-                .modal-overlay.open {
-                    display: flex;
-                }
-
-            .modal-box {
-                background: white;
-                border-radius: 20px;
-                padding: 28px;
-                width: 100%;
-                max-width: 400px;
-                margin: 16px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-                animation: fu 0.25s ease both;
-            }
-
-            .modal-title {
-                font-size: 17px;
-                font-weight: 700;
-                color: var(--azul);
-                margin-bottom: 4px;
-            }
-
-            .modal-sub {
-                font-size: 13px;
-                color: var(--label2);
-                margin-bottom: 20px;
-            }
-
-            .modal-field {
-                margin-bottom: 14px;
-            }
-
-                .modal-field label {
-                    display: block;
-                    font-size: 11px;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    letter-spacing: 0.06em;
-                    color: var(--label2);
-                    margin-bottom: 5px;
-                }
-
-                .modal-field select, .modal-field input[type=number] {
-                    width: 100%;
-                    padding: 10px 14px;
-                    background: var(--fill3);
-                    border: 1px solid var(--sep);
-                    border-radius: 10px;
-                    font-size: 14px;
-                    color: var(--label);
-                    outline: none;
-                }
-
-                    .modal-field select:focus, .modal-field input:focus {
-                        border-color: var(--blue);
-                        background: white;
-                    }
-
-            .modal-btns {
-                display: flex;
-                gap: 8px;
-                justify-content: flex-end;
-                margin-top: 20px;
-            }
-
-            .btn-modal-cancel {
-                padding: 9px 18px;
-                border-radius: 10px;
-                border: 1px solid var(--sep);
-                background: var(--fill3);
-                font-size: 13px;
-                font-weight: 600;
-                cursor: pointer;
-                color: var(--label);
-            }
-
-            .btn-modal-save {
-                padding: 9px 18px;
-                border-radius: 10px;
-                border: none;
-                background: var(--blue);
-                color: white;
-                font-size: 13px;
-                font-weight: 600;
-                cursor: pointer;
-            }
-            /* Botones tarjeta */
-            .btn-editar-precio {
-                width: 100%;
-                margin-top: 8px;
-                padding: 7px 10px;
-                background: rgba(0,118,227,0.08);
-                border: 1px solid rgba(0,118,227,0.2);
-                color: var(--blue);
-                border-radius: 9px;
-                font-size: 12px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-
-                .btn-editar-precio:hover {
-                    background: rgba(0,118,227,0.16);
-                }
-            /* Auto por área */
-            .auto-area-box {
-                margin-top: 8px;
-                padding: 10px;
-                background: rgba(52,199,89,0.06);
-                border: 1px solid rgba(52,199,89,0.2);
-                border-radius: 10px;
-            }
-
-            .auto-area-lbl {
-                font-size: 10px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.06em;
-                color: #1EA851;
-                margin-bottom: 6px;
-                display: block;
-            }
-
-            .auto-area-row {
-                display: flex;
-                gap: 6px;
-                align-items: center;
-            }
-
-            .auto-area-input {
-                flex: 1;
-                min-width: 0;
-                padding: 6px 10px;
-                border-radius: 8px;
-                border: 1px solid rgba(52,199,89,0.3);
-                background: white;
-                font-size: 13px;
-                color: var(--label);
-                outline: none;
-            }
-
-                .auto-area-input:focus {
-                    border-color: #34C759;
-                }
-
-            .auto-area-btn {
-                padding: 6px 12px;
-                border-radius: 8px;
-                border: none;
-                background: #34C759;
-                color: white;
-                font-size: 12px;
-                font-weight: 600;
-                cursor: pointer;
-                white-space: nowrap;
-            }
-
-                .auto-area-btn:hover {
-                    background: #1EA851;
-                }
-
-            .auto-area-off {
-                padding: 6px 10px;
-                border-radius: 8px;
-                border: none;
-                background: rgba(230,57,70,0.08);
-                color: var(--rojo);
-                font-size: 12px;
-                font-weight: 600;
-                cursor: pointer;
-                white-space: nowrap;
-            }
-
-                .auto-area-off:hover {
-                    background: rgba(230,57,70,0.16);
-                }
-
-            .auto-area-status {
-                font-size: 11px;
-                color: #1EA851;
-                margin-top: 5px;
-                font-weight: 600;
-            }
-
-            @@media(max-width:1200px) {
-                .sidebar {
-                    width: 185px !important;
-                }
-
-                .areas-grid {
-                    grid-template-columns: repeat(3,1fr) !important;
-                }
-            }
-
-            @@media(max-width:1024px) {
-                .areas-grid {
-                    grid-template-columns: repeat(2,1fr) !important;
-                }
-            }
-
-            @@media(max-width:700px) {
-                html, body {
-                    height: auto !important;
-                    overflow: auto !important;
-                }
-
-                .app {
-                    flex-direction: column !important;
-                }
-
-                .sidebar {
-                    position: fixed !important;
-                    top: 0 !important;
-                    left: -270px !important;
-                    width: 260px !important;
-                    height: 100vh !important;
-                    z-index: 100 !important;
-                    overflow-y: auto !important;
-                    transition: left 0.3s !important;
-                }
-
-                    .sidebar.open {
-                        left: 0 !important;
-                    }
-
-                .main {
-                    width: 100% !important;
-                }
-
-                .hamburger {
-                    display: flex !important;
-                }
-
-                .tb-chip {
-                    max-width: 130px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                }
-
-                .areas-grid {
-                    grid-template-columns: 1fr 1fr !important;
-                }
-
-                .tbl {
-                    min-width: 600px !important;
-                }
-
-                .resumen-banner {
-                    flex-direction: column !important;
-                    gap: 10px !important;
-                }
-
-                .rb-stats {
-                    justify-content: center !important;
-                }
-            }
-    
-        /* ── Sidebar blanco corporativo ── */
-        .sidebar{background:#fff!important;border-right:1px solid rgba(0,0,0,0.07)!important;backdrop-filter:none!important;box-shadow:2px 0 12px rgba(0,0,0,0.04)!important;}
-        .sb-logo-area{padding:16px 14px 12px;border-bottom:1px solid rgba(0,0,0,0.06);margin-bottom:4px;}
-        .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
-        .sb-app{color:#1e222b!important;font-weight:700!important;}
-        .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .proy-drop{background:#fff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 8px 24px rgba(0,0,0,0.1)!important;}
-        .proy-drop-item{color:#1e222b!important;}
-        .proy-drop-item:hover{background:rgba(0,118,227,0.06)!important;color:#0076e3!important;}
-        .proy-drop-link{color:#0076e3!important;background:rgba(0,118,227,0.04)!important;}
-        .sb-sec{color:rgba(30,34,43,0.38)!important;letter-spacing:0.08em!important;}
-        .nav-item{color:rgba(30,34,43,0.65)!important;}
-        .nav-item:hover{background:rgba(0,118,227,0.07)!important;color:#0076e3!important;}
-        .nav-item.active{background:#0076e3!important;color:#fff!important;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.22)!important;}
-        .nav-ico{background:rgba(30,34,43,0.06)!important;color:inherit!important;}
-        .sb-footer{border-top-color:rgba(0,0,0,0.07)!important;}
-        .sb-logout{background:rgba(30,34,43,0.05)!important;color:rgba(30,34,43,0.45)!important;}
-        .sb-logout:hover{background:rgba(230,57,70,0.08)!important;color:#E63946!important;}
-        .nav-item{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 12px!important;margin:1px 6px!important;border-radius:11px!important;font-size:14px!important;min-height:40px!important;text-decoration:none!important;transition:all 0.18s!important;}
-        .nav-ico{width:26px!important;height:26px!important;border-radius:8px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;flex-shrink:0!important;}
-        .sb-sec{padding:14px 18px 4px!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;}
-    </style>
-</head>
-<body>
-    <div class="app">
-        <div class="sidebar" id="sidebar">
-        <div class="sb-logo-area">
-            <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .resumen-banner{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:18px;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.3s ease both;flex-wrap:wrap;gap:12px;}
+    .rb-title{font-size:18px;font-weight:700;color:white;letter-spacing:-0.5px;}
+    .rb-sub{font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px;}
+    .rb-stats{display:flex;gap:20px;flex-wrap:wrap;}
+    .rb-stat{text-align:center;}
+    .rb-stat-num{font-size:20px;font-weight:300;color:white;letter-spacing:-1px;}
+    .rb-stat-lbl{font-size:10px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.05em;}
+    .rb-lista{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);border-radius:10px;padding:8px 14px;text-align:center;}
+    .rb-lista-num{font-size:22px;font-weight:700;color:white;}
+    .rb-lista-lbl{font-size:10px;color:rgba(255,255,255,0.7);}
+    .rb-proxima{font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;}
+    .torre-banner{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:14px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 16px rgba(0,118,227,0.2);}
+    .torre-banner-left{display:flex;align-items:center;gap:12px;}
+    .torre-banner-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;}
+    .torre-select-screen{display:flex;flex-direction:column;align-items:center;gap:24px;padding:48px 0;animation:fu 0.4s ease both;}
+    .torres-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;width:100%;max-width:700px;}
+    .torre-card{background:var(--glass);border:2px solid var(--gb);border-radius:20px;padding:24px 20px;text-align:center;cursor:pointer;transition:all 0.2s;box-shadow:var(--sh);text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:10px;}
+    .torre-card:hover{border-color:var(--blue);transform:translateY(-3px);box-shadow:var(--sh2);}
+    .areas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;animation:fu 0.35s ease both;}
+    .area-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:2px solid var(--gb);border-radius:20px;padding:20px;transition:all 0.2s;box-shadow:var(--sh);display:block;}
+    .area-card:hover{border-color:var(--blue);box-shadow:var(--sh2);}
+    .area-card-link{display:block;cursor:pointer;text-decoration:none;}
+    .area-card-link:hover .area-metros{color:var(--blue);}
+    .area-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+    .area-metros{font-size:22px;font-weight:700;color:var(--azul);letter-spacing:-0.5px;transition:color 0.2s;}
+    .area-tipo-ext{background:rgba(255,149,0,0.12);color:#CC7700;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+    .area-tipo-int{background:rgba(0,118,227,0.1);color:var(--blue);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+    .area-precio{font-size:17px;font-weight:600;color:var(--azul);margin-bottom:10px;}
+    .area-precio-lbl{font-size:10px;color:var(--label3);font-weight:600;text-transform:uppercase;margin-bottom:2px;}
+    .area-listas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+    .area-lista-chip{font-size:10px;font-weight:600;padding:3px 9px;border-radius:10px;background:var(--fill3);color:var(--label2);border:none;cursor:pointer;transition:all 0.2s;}
+    .area-lista-chip:hover{background:var(--fill2);color:var(--label);}
+    .area-lista-chip.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
+    .prog-wrap{margin-bottom:6px;}
+    .prog-bar{height:6px;border-radius:10px;background:var(--fill2);overflow:hidden;}
+    .prog-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--verde),#1EA851);transition:width 0.4s ease;}
+    .prog-fill.naranja{background:linear-gradient(90deg,var(--oro),#CC7700);}
+    .prog-fill.rojo{background:linear-gradient(90deg,var(--rojo),#B02030);}
+    .prog-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--label2);margin-top:3px;}
+    .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.1s both;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
+    .card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;}
+    .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);}
+    .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:10px 16px;text-align:left;border-bottom:1px solid var(--sep2);}
+    .tbl td{padding:11px 16px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+    .bdg::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+    .bdg.D{background:rgba(52,199,89,0.12);color:#1EA851}.bdg.D::before{background:#34C759}
+    .bdg.V{background:rgba(230,57,70,0.12);color:var(--rojo)}.bdg.V::before{background:var(--rojo)}
+    .bdg.R{background:rgba(255,149,0,0.12);color:#CC7700}.bdg.R::before{background:var(--oro)}
+    .bdg.EP{background:rgba(90,90,200,0.12);color:#5A5AC8}.bdg.EP::before{background:#5A5AC8}
+    .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .search-wrap{position:relative;max-width:220px;}
+    .search-wrap input{width:100%;padding:7px 12px 7px 30px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);outline:none;transition:all 0.2s;}
+    .search-wrap input:focus{background:white;border-color:var(--blue);}
+    .search-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--label3);pointer-events:none;}
+    .seg{display:flex;background:var(--fill3);border-radius:10px;padding:3px;gap:2px;}
+    .seg-btn{padding:5px 10px;border-radius:7px;font-size:12px;font-weight:600;color:var(--label2);cursor:pointer;border:none;background:none;transition:all 0.2s;}
+    .seg-btn.active{background:white;color:var(--label);box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+    .btn-accion{border:none;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;margin-right:3px;}
+    .btn-vender{background:rgba(0,118,227,0.1);color:var(--blue);}
+    .btn-vender:hover{background:rgba(0,118,227,0.2);}
+    .btn-reservar{background:rgba(255,149,0,0.12);color:#CC7700;}
+    .btn-reservar:hover{background:rgba(255,149,0,0.22);}
+    .btn-liberar{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .btn-liberar:hover{background:rgba(230,57,70,0.2);}
+    .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851;}
+    .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
+    .area-volver{display:inline-flex;align-items:center;gap:6px;background:var(--fill3);border:1px solid var(--sep);color:var(--label);padding:7px 14px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;transition:background 0.2s;}
+    .area-volver:hover{background:var(--fill2);}
+    .empty{padding:48px;text-align:center;}
+    .empty-ico{font-size:40px;opacity:0.4;margin-bottom:8px;}
+    .empty-txt{font-size:15px;font-weight:600;color:var(--label2);}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:300;backdrop-filter:blur(4px);align-items:center;justify-content:center;}
+    .modal-overlay.open{display:flex;}
+    .modal-box{background:white;border-radius:20px;padding:28px;width:100%;max-width:400px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,0.2);animation:fu 0.25s ease both;}
+    .modal-title{font-size:17px;font-weight:700;color:var(--azul);margin-bottom:4px;}
+    .modal-sub{font-size:13px;color:var(--label2);margin-bottom:20px;}
+    .modal-field{margin-bottom:14px;}
+    .modal-field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label2);margin-bottom:5px;}
+    .modal-field select,.modal-field input[type=number]{width:100%;padding:10px 14px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:14px;color:var(--label);outline:none;}
+    .modal-field select:focus,.modal-field input:focus{border-color:var(--blue);background:white;}
+    .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+    .btn-modal-cancel{padding:9px 18px;border-radius:10px;border:1px solid var(--sep);background:var(--fill3);font-size:13px;font-weight:600;cursor:pointer;color:var(--label);}
+    .btn-modal-save{padding:9px 18px;border-radius:10px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;cursor:pointer;}
+    .btn-editar-precio{width:100%;margin-top:8px;padding:7px 10px;background:rgba(0,118,227,0.08);border:1px solid rgba(0,118,227,0.2);color:var(--blue);border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.2s;}
+    .btn-editar-precio:hover{background:rgba(0,118,227,0.16);}
+    .auto-area-box{margin-top:8px;padding:10px;background:rgba(52,199,89,0.06);border:1px solid rgba(52,199,89,0.2);border-radius:10px;}
+    .auto-area-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1EA851;margin-bottom:6px;display:block;}
+    .auto-area-row{display:flex;gap:6px;align-items:center;}
+    .auto-area-input{flex:1;min-width:0;padding:6px 10px;border-radius:8px;border:1px solid rgba(52,199,89,0.3);background:white;font-size:13px;color:var(--label);outline:none;}
+    .auto-area-input:focus{border-color:#34C759;}
+    .auto-area-btn{padding:6px 12px;border-radius:8px;border:none;background:#34C759;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+    .auto-area-btn:hover{background:#1EA851;}
+    .auto-area-off{padding:6px 10px;border-radius:8px;border:none;background:rgba(230,57,70,0.08);color:var(--rojo);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+    .auto-area-off:hover{background:rgba(230,57,70,0.16);}
+    .auto-area-status{font-size:11px;color:#1EA851;margin-top:5px;font-weight:600;}
+    @@media(max-width:1200px){.areas-grid{grid-template-columns:repeat(3,1fr)!important;}}
+    @@media(max-width:1024px){.areas-grid{grid-template-columns:repeat(2,1fr)!important;}}
+    @@media(max-width:700px){
+        .areas-grid{grid-template-columns:1fr 1fr!important;}
+        .tbl{min-width:600px!important;}
+        .resumen-banner{flex-direction:column!important;gap:10px!important;}
+        .rb-stats{justify-content:center!important;}
+    }
+</style>
+}
+
+@if (TempData["Exito"] != null) { <div class="alerta-exito">&#10003; @TempData["Exito"]</div> }
+@if (TempData["Error"] != null) { <div class="alerta-error">&#10007; @TempData["Error"]</div> }
+
+@if (string.IsNullOrEmpty(torreActual) && torres.Count > 1)
+{
+    <div class="torre-select-screen">
+        <div style="text-align:center">
+            <div style="font-size:22px;font-weight:700;color:var(--azul)">Selecciona una torre</div>
+            <div style="font-size:14px;color:var(--label2);margin-top:6px">Proyecto @proyActivo tiene varias torres</div>
         </div>
-            <div class="sb-sec">Principal</div>
-            <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-            <a class="nav-item active" href="/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
-            <a class="nav-item" href="/Inmuebles/Reservas"><div class="nav-ico">🔒</div>Reservas</a>
-            <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
-            <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
-            <div class="sb-sec">General</div>
-            <a class="nav-item" href="/Reportes"><div class="nav-ico">📊</div>Reportes</a>
-            <a class="nav-item" href="/Carga/Index"><div class="nav-ico">📂</div>Cargar Excel</a>
-            <a class="nav-item" href="/Usuarios"><div class="nav-ico">👥</div>Usuarios</a>
-            <div class="sb-footer">
-                <div class="sb-av">@iniciales</div>
-                <div><div style="font-size:12px;font-weight:600">@nombre @apellido</div><div style="font-size:10px;color:var(--label3)">Administrador</div></div>
-                <a class="sb-logout" href="/Account/Logout">↩</a>
+        <div class="torres-grid">
+            @foreach (var p in proyHermanos)
+            {
+                <a href="/Inmuebles?torre=@Uri.EscapeDataString(p.Nombre)" class="torre-card">
+                    <div style="font-size:36px">&#127970;</div>
+                    <div style="font-size:16px;font-weight:700;color:var(--azul)">@p.Nombre</div>
+                </a>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="resumen-banner">
+        <div>
+            <div class="rb-title">@proyActivo</div>
+            <div class="rb-sub">@total inmuebles en total</div>
+        </div>
+        <div class="rb-stats">
+            <div class="rb-stat"><div class="rb-stat-num">@disponibles</div><div class="rb-stat-lbl">Disponibles</div></div>
+            <div class="rb-stat"><div class="rb-stat-num" style="color:var(--rojo)">@vendidos</div><div class="rb-stat-lbl">Vendidos</div></div>
+            <div class="rb-stat"><div class="rb-stat-num" style="color:#5A5AC8">@enProceso</div><div class="rb-stat-lbl">En proceso</div></div>
+            <div class="rb-stat"><div class="rb-stat-num" style="color:#CC7700">@reservados</div><div class="rb-stat-lbl">Reservados</div></div>
+        </div>
+        <div>
+            <div class="rb-lista">
+                <div class="rb-lista-num">@la</div>
+                <div class="rb-lista-lbl">Lista activa</div>
             </div>
+            @if (aptsPorLista > 0) { <div class="rb-proxima">Próxima en @proximaLista ventas</div> }
         </div>
-        <div class="main">
-            <div class="topbar">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
-                    <span class="tb-bread">
-                        <a href="/Inmuebles">Proyectos</a>
-                        <span style="margin:0 4px;color:var(--label3)">›</span>
-                        <strong>@proyActivo</strong>
-                        @if (!string.IsNullOrEmpty(areaActual))
-                        {
-                            <span> · @areaActual m²</span>
-                        }
-                    </span>
+    </div>
+    @if (!string.IsNullOrEmpty(torreActual) && torres.Count > 1)
+    {
+        <div class="torre-banner">
+            <div class="torre-banner-left">
+                <div style="font-size:22px">&#127970;</div>
+                <div>
+                    <div style="font-size:15px;font-weight:700;color:white">@torreActual</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,0.7)">Torre activa</div>
                 </div>
-                <div class="tb-right"><div class="tb-proy">
-                    <button type="button" class="tb-chip" id="proyBtn" onclick="toggleDrop()" title="Cambiar proyecto">
-                        <span class="pulse"></span>@proyActivo<span class="tb-chip-caret">▾</span>
+            </div>
+            <a href="/Inmuebles" class="torre-banner-btn">&#8617; Cambiar torre</a>
+        </div>
+    }
+    @if (string.IsNullOrEmpty(areaActual))
+    {
+        <div style="font-size:15px;font-weight:600;color:var(--label);margin-bottom:-4px">Selecciona un área para ver los inmuebles</div>
+        <div class="areas-grid">
+            @foreach (var g in grupos)
+            {
+                var porcVend = g.Total > 0 ? (int)Math.Round((double)g.Vendidos / g.Total * 100) : 0;
+                var fillCls = porcVend >= 80 ? "rojo" : porcVend >= 50 ? "naranja" : "";
+                var tipoLabel = g.Tipo?.ToString() ?? "";
+                var tipoClass = tipoLabel == "EXT" ? "area-tipo-ext" : "area-tipo-int";
+                var metrosStr = g.Metros.ToString();
+                var laArea = listasXArea.ContainsKey(metrosStr) ? listasXArea[metrosStr] : la;
+                var aptsArea = aptsXArea.ContainsKey(metrosStr) ? aptsXArea[metrosStr] : 0;
+                long p1 = (long)g.PrecioL1; long p2 = (long)g.PrecioL2; long p3 = (long)g.PrecioL3;
+                long p4 = (long)g.PrecioL4; long p5 = (long)g.PrecioL5;
+                long precActArea = laArea == 1 ? p1 : laArea == 2 ? p2 : laArea == 3 ? p3 : laArea == 4 ? p4 : p5;
+                if (precActArea == 0) precActArea = (long)g.PrecioActivo;
+                <div class="area-card">
+                    <div class="area-card-link" onclick="window.location='/Inmuebles?area=@Uri.EscapeDataString(metrosStr)'">
+                        <div class="area-top">
+                            <div class="area-metros">@g.Metros <span style="font-size:13px;font-weight:400;color:var(--label2)">m²</span></div>
+                            <span class="@tipoClass">@tipoLabel</span>
+                        </div>
+                        <div class="area-precio-lbl">Precio lista @laArea</div>
+                        <div class="area-precio">$@string.Format("{0:N0}", precActArea)</div>
+                        <div class="area-listas">
+                            @for (int ln = 1; ln <= 5; ln++)
+                            {
+                                long pl = ln == 1 ? p1 : ln == 2 ? p2 : ln == 3 ? p3 : ln == 4 ? p4 : p5;
+                                if (pl > 0)
+                                {
+                                    var chipCls = ln == laArea ? "area-lista-chip activa" : "area-lista-chip";
+                                    <form action="/Inmuebles/CambiarListaArea" method="post" style="display:inline;margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="metros" value="@metrosStr"/>
+                                        <input type="hidden" name="listaActual" value="@ln"/>
+                                        <button type="submit" class="@chipCls"
+                                                onclick="event.stopPropagation()@(ln == laArea ? ";return false;" : "")"
+                                                title="@(ln == laArea ? "Lista activa" : "Activar Lista " + ln)">
+                                            L@(ln): $@string.Format("{0:N0}", pl)
+                                        </button>
+                                    </form>
+                                }
+                            }
+                        </div>
+                        <div class="prog-wrap">
+                            <div class="prog-bar"><div class="prog-fill @fillCls" style="width:@(porcVend)%"></div></div>
+                            <div class="prog-lbl">
+                                <span>@g.Disponibles disp · @g.Vendidos vend</span>
+                                <span>@(porcVend)%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-editar-precio" onclick="abrirModal('@metrosStr',@p1,@p2,@p3,@p4,@p5,@laArea)">
+                        &#9998; Editar precio de lista
                     </button>
-                    <div class="proy-drop" id="proyDrop">
-                @{
-                    var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;
-                }
-                @if (proyectos != null)
-                {
-                    foreach (var p in proyectos)
-                    {
-                        <form action="/Inmuebles/SeleccionarProyecto" method="post" style="margin:0">
+                    <div class="auto-area-box" onclick="event.stopPropagation()">
+                        <span class="auto-area-lbl">&#9889; Subida automática</span>
+                        <form action="/Inmuebles/ConfigurarAutoArea" method="post">
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="idProyecto" value="@p.Id" />
-                            <input type="hidden" name="nombreProyecto" value="@p.Nombre" />
-                            <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
+                            <input type="hidden" name="metros" value="@metrosStr"/>
+                            <div class="auto-area-row">
+                                <input type="number" name="aptsPorLista" class="auto-area-input" min="0"
+                                       value="@(aptsArea > 0 ? aptsArea.ToString() : "")" placeholder="Ej: 5"/>
+                                <button type="submit" class="auto-area-btn">&#10003;</button>
+                                @if (aptsArea > 0)
+                                {
+                                    <form action="/Inmuebles/ConfigurarAutoArea" method="post" style="margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="metros" value="@metrosStr"/>
+                                        <input type="hidden" name="aptsPorLista" value="0"/>
+                                        <button type="submit" class="auto-area-off" title="Desactivar">&#10005;</button>
+                                    </form>
+                                }
+                            </div>
                         </form>
-                    }
-                }
-                <a href="/Inmuebles" class="proy-drop-link">← Ver todos los proyectos</a>
-                <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
+                        @if (aptsArea > 0)
+                        {
+                            <div class="auto-area-status">&#10003; Sube cada @aptsArea vendidos · Lista @laArea activa</div>
+                        }
                     </div>
-                </div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <a href="/Inmuebles" class="area-volver">&#8592; Todas las áreas</a>
+            <span style="font-size:15px;font-weight:600;color:var(--label)">@areaActual m² · @inmuebles.Count inmuebles</span>
+        </div>
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">Lista de inmuebles · @areaActual m² · Lista @laEstaArea</span>
+                <div class="filter-bar">
+                    <div class="search-wrap"><span class="search-ico">&#128269;</span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
+                    <div class="seg">
+                        <button class="seg-btn active" onclick="setFiltro('todos',this)">Todos</button>
+                        <button class="seg-btn" onclick="setFiltro('DISPONIBLE',this)">Disponibles</button>
+                        <button class="seg-btn" onclick="setFiltro('RESERVADO',this)">Reservados</button>
+                        <button class="seg-btn" onclick="setFiltro('EN PROCESO',this)">En proceso</button>
+                        <button class="seg-btn" onclick="setFiltro('VENDIDO',this)">Vendidos</button>
+                    </div>
+                </div>
             </div>
-            <div class="view">
-                @if (TempData["Exito"] != null)
-                {
-                    <div class="alerta-exito">✅ @TempData["Exito"]</div>
-                }
-                @if (TempData["Error"] != null)
-                {
-                    <div class="alerta-error">❌ @TempData["Error"]</div>
-                }
-                @if (string.IsNullOrEmpty(torreActual) && torres.Count > 1)
-                {
-                    <div class="torre-select-screen">
-                        <div style="text-align:center">
-                            <div style="font-size:22px;font-weight:700;color:var(--azul)">🏗 Selecciona una torre</div>
-                            <div style="font-size:14px;color:var(--label2);margin-top:6px">Proyecto @proyActivo tiene varias torres</div>
-                        </div>
-                        <div class="torres-grid">
-                            @foreach (var p in proyHermanos)
+            @if (inmuebles.Count > 0)
+            {
+                <div class="tbl-wrap">
+                    <table class="tbl" id="tablaInmuebles">
+                        <thead>
+                            <tr>
+                                <th>Apto</th><th>Tipo</th><th>Piso</th><th>Metros</th>
+                                <th>Precio Lista @laEstaArea</th><th>Torre</th><th>Estado</th><th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var i in inmuebles)
                             {
-                                <a href="/Inmuebles?torre=@Uri.EscapeDataString(p.Nombre)" class="torre-card">
-                                    <div style="font-size:36px">🏢</div>
-                                    <div style="font-size:16px;font-weight:700;color:var(--azul)">@p.Nombre</div>
-                                </a>
-                            }
-                        </div>
-                    </div>
-                }
-                else
-                {
-                    <div class="resumen-banner">
-                        <div>
-                            <div class="rb-title">@proyActivo</div>
-                            <div class="rb-sub">@total inmuebles en total</div>
-                        </div>
-                        <div class="rb-stats">
-                            <div class="rb-stat"><div class="rb-stat-num">@disponibles</div><div class="rb-stat-lbl">Disponibles</div></div>
-                            <div class="rb-stat"><div class="rb-stat-num" style="color:var(--rojo)">@vendidos</div><div class="rb-stat-lbl">Vendidos</div></div>
-                            <div class="rb-stat"><div class="rb-stat-num" style="color:#5A5AC8">@enProceso</div><div class="rb-stat-lbl">En proceso</div></div>
-                            <div class="rb-stat"><div class="rb-stat-num" style="color:#CC7700">@reservados</div><div class="rb-stat-lbl">Reservados</div></div>
-                        </div>
-                        <div>
-                            <div class="rb-lista">
-                                <div class="rb-lista-num">@la</div>
-                                <div class="rb-lista-lbl">Lista activa</div>
-                            </div>
-                            @if (aptsPorLista > 0)
-                            {
-                                <div class="rb-proxima">Próxima en @proximaLista ventas</div>
-                            }
-                        </div>
-                    </div>
-                    @if (!string.IsNullOrEmpty(torreActual) && torres.Count > 1)
-                    {
-                        <div class="torre-banner">
-                            <div class="torre-banner-left">
-                                <div style="font-size:22px">🏢</div>
-                                <div>
-                                    <div style="font-size:15px;font-weight:700;color:white">@torreActual</div>
-                                    <div style="font-size:11px;color:rgba(255,255,255,0.7)">Torre activa</div>
-                                </div>
-                            </div>
-                            <a href="/Inmuebles" class="torre-banner-btn">↩ Cambiar torre</a>
-                        </div>
-                    }
-                    @if (string.IsNullOrEmpty(areaActual))
-                    {
-                        <div style="font-size:15px;font-weight:600;color:var(--label);margin-bottom:-4px">Selecciona un área para ver los inmuebles</div>
-                        <div class="areas-grid">
-                            @foreach (var g in grupos)
-                            {
-                                var porcVend = g.Total > 0 ? (int)Math.Round((double)g.Vendidos / g.Total * 100) : 0;
-                                var fillCls = porcVend >= 80 ? "rojo" : porcVend >= 50 ? "naranja" : "";
-                                var tipoLabel = g.Tipo?.ToString() ?? "";
-                                var tipoClass = tipoLabel == "EXT" ? "area-tipo-ext" : "area-tipo-int";
-                                var metrosStr = g.Metros.ToString();
-                                var laArea = listasXArea.ContainsKey(metrosStr) ? listasXArea[metrosStr] : la;
-                                var aptsArea = aptsXArea.ContainsKey(metrosStr) ? aptsXArea[metrosStr] : 0;
-                                long p1 = (long)g.PrecioL1; long p2 = (long)g.PrecioL2; long p3 = (long)g.PrecioL3;
-                                long p4 = (long)g.PrecioL4; long p5 = (long)g.PrecioL5;
-                                long precActArea = laArea == 1 ? p1 : laArea == 2 ? p2 : laArea == 3 ? p3 : laArea == 4 ? p4 : p5;
-                                if (precActArea == 0) precActArea = (long)g.PrecioActivo;
-                                <div class="area-card">
-                                    <div class="area-card-link" onclick="window.location='/Inmuebles?area=@Uri.EscapeDataString(metrosStr)'">
-                                        <div class="area-top">
-                                            <div class="area-metros">@g.Metros <span style="font-size:13px;font-weight:400;color:var(--label2)">m²</span></div>
-                                            <span class="@tipoClass">@tipoLabel</span>
-                                        </div>
-                                        <div class="area-precio-lbl">Precio lista @laArea</div>
-                                        <div class="area-precio">$@string.Format("{0:N0}", precActArea)</div>
-                                        <div class="area-listas">
-                                            @for (int ln = 1; ln <= 5; ln++)
-                                            {
-                                                long pl = ln == 1 ? p1 : ln == 2 ? p2 : ln == 3 ? p3 : ln == 4 ? p4 : p5;
-                                                if (pl > 0)
-                                                {
-                                                    var chipCls = ln == laArea ? "area-lista-chip activa" : "area-lista-chip";
-                                                    <form action="/Inmuebles/CambiarListaArea" method="post" style="display:inline;margin:0">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="metros" value="@metrosStr" />
-                                                        <input type="hidden" name="listaActual" value="@ln" />
-                                                        <button type="submit" class="@chipCls"
-                                                                onclick="event.stopPropagation()@(ln == laArea ? ";return false;" : "")"
-                                                                title="@(ln == laArea ? "Lista activa" : "Activar Lista " + ln)">
-                                                            L@(ln): $@string.Format("{0:N0}", pl)
-                                                        </button>
-                                                    </form>
-                                                }
-                                            }
-                                        </div>
-                                        <div class="prog-wrap">
-                                            <div class="prog-bar"><div class="prog-fill @fillCls" style="width:@(porcVend)%"></div></div>
-                                            <div class="prog-lbl">
-                                                <span>@g.Disponibles disp · @g.Vendidos vend</span>
-                                                <span>@(porcVend)%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button type="button" class="btn-editar-precio"
-                                            onclick="abrirModal('@metrosStr',@p1,@p2,@p3,@p4,@p5,@laArea)">
-                                        ✏️ Editar precio de lista
-                                    </button>
-                                    <div class="auto-area-box" onclick="event.stopPropagation()">
-                                        <span class="auto-area-lbl">⚡ Subida automática</span>
-                                        <form action="/Inmuebles/ConfigurarAutoArea" method="post">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="metros" value="@metrosStr" />
-                                            <div class="auto-area-row">
-                                                <input type="number" name="aptsPorLista" class="auto-area-input" min="0"
-                                                       value="@(aptsArea > 0 ? aptsArea.ToString() : "")"
-                                                       placeholder="Ej: 5" />
-                                                <button type="submit" class="auto-area-btn">✓</button>
-                                                @if (aptsArea > 0)
-                                                {
-                                                    <form action="/Inmuebles/ConfigurarAutoArea" method="post" style="margin:0">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="metros" value="@metrosStr" />
-                                                        <input type="hidden" name="aptsPorLista" value="0" />
-                                                        <button type="submit" class="auto-area-off" title="Desactivar">✕</button>
-                                                    </form>
-                                                }
-                                            </div>
-                                        </form>
-                                        @if (aptsArea > 0)
-                                        {
-                                            <div class="auto-area-status">✅ Sube cada @aptsArea vendidos · Lista @laArea activa</div>
+                                var cls = i.Estado == "DISPONIBLE" ? "D" : i.Estado == "VENDIDO" ? "V" : i.Estado == "EN PROCESO" ? "EP" : "R";
+                                var precioLista = laEstaArea == 1 ? i.Lista1 : laEstaArea == 2 ? i.Lista2 : laEstaArea == 3 ? i.Lista3 : laEstaArea == 4 ? i.Lista4 : i.Lista5;
+                                var plLimpio = (precioLista?.ToString() ?? "0").Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
+                                <tr data-estado="@i.Estado">
+                                    <td style="font-weight:600">@i.Apto</td>
+                                    <td>
+                                        @if (i.Tipo == "EXT") {
+                                            <span style="background:rgba(255,149,0,0.12);color:#CC7700;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">EXT</span>
+                                        } else if (i.Tipo == "INT") {
+                                            <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">INT</span>
+                                        } else { <span>@i.Tipo</span> }
+                                    </td>
+                                    <td>@i.Piso</td>
+                                    <td>@i.Metros m²</td>
+                                    <td style="font-weight:500;color:var(--azul)">$@(string.Format("{0:N0}", long.TryParse(plLimpio, out long lp) ? lp : 0))</td>
+                                    <td>@i.Torre</td>
+                                    <td>
+                                        <span class="bdg @cls">@i.Estado</span>
+                                        @if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso > 0) {
+                                            var nomVend = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Vendedor";
+                                            <br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">@nomVend</span>
                                         }
-                                    </div>
-                                </div>
+                                    </td>
+                                    <td>
+                                        @if (i.Estado == "DISPONIBLE") {
+                                            <form action="/Inmuebles/TomarInmueble" method="post" style="display:inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="idInmueble" value="@i.Id"/>
+                                                <button type="submit" class="btn-accion btn-vender">Vender</button>
+                                            </form>
+                                            <form action="/Inmuebles/ReservarInmueble" method="post" style="display:inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="idInmueble" value="@i.Id"/>
+                                                <button type="submit" class="btn-accion btn-reservar" onclick="return confirm('¿Reservar este inmueble?')">Reservar</button>
+                                            </form>
+                                        } else if (i.Estado == "RESERVADO") {
+                                            <form action="/Inmuebles/LiberarReserva" method="post" style="display:inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="idInmueble" value="@i.Id"/>
+                                                <button type="submit" class="btn-accion btn-liberar" onclick="return confirm('¿Liberar esta reserva?')">Liberar</button>
+                                            </form>
+                                        } else if (i.Estado == "EN PROCESO") {
+                                            <form action="/Inmuebles/CancelarProceso" method="post" style="display:inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="idInmueble" value="@i.Id"/>
+                                                <button type="submit" class="btn-accion btn-liberar" onclick="return confirm('¿Cancelar este proceso?')">Cancelar</button>
+                                            </form>
+                                        } else {
+                                            <span style="color:var(--label3);font-size:12px">—</span>
+                                        }
+                                    </td>
+                                </tr>
                             }
-                        </div>
-                    }
-                    else
-                    {
-                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                            <a href="/Inmuebles" class="area-volver">← Todas las áreas</a>
-                            <span style="font-size:15px;font-weight:600;color:var(--label)">@areaActual m² · @inmuebles.Count inmuebles</span>
-                        </div>
-                        <div class="card">
-                            <div class="card-head">
-                                <span class="card-title">Lista de inmuebles · @areaActual m² · Lista @laEstaArea</span>
-                                <div class="filter-bar">
-                                    <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()" /></div>
-                                    <div class="seg">
-                                        <button class="seg-btn active" onclick="setFiltro('todos',this)">Todos</button>
-                                        <button class="seg-btn" onclick="setFiltro('DISPONIBLE',this)">Disponibles</button>
-                                        <button class="seg-btn" onclick="setFiltro('RESERVADO',this)">Reservados</button>
-                                        <button class="seg-btn" onclick="setFiltro('EN PROCESO',this)">En proceso</button>
-                                        <button class="seg-btn" onclick="setFiltro('VENDIDO',this)">Vendidos</button>
-                                    </div>
-                                </div>
-                            </div>
-                            @if (inmuebles.Count > 0)
-                            {
-                                <div class="tbl-wrap">
-                                    <table class="tbl" id="tablaInmuebles">
-                                        <thead>
-                                            <tr>
-                                                <th>Apto</th>
-                                                <th>Tipo</th>
-                                                <th>Piso</th>
-                                                <th>Metros</th>
-                                                <th>Precio Lista @laEstaArea</th>
-                                                <th>Torre</th>
-                                                <th>Estado</th>
-                                                <th>Acción</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach (var i in inmuebles)
-                                            {
-                                                var cls = i.Estado == "DISPONIBLE" ? "D" : i.Estado == "VENDIDO" ? "V" : i.Estado == "EN PROCESO" ? "EP" : "R";
-                                                var precioLista = laEstaArea == 1 ? i.Lista1 : laEstaArea == 2 ? i.Lista2 : laEstaArea == 3 ? i.Lista3 : laEstaArea == 4 ? i.Lista4 : i.Lista5;
-                                                var plLimpio = (precioLista?.ToString() ?? "0").Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
-                                                <tr data-estado="@i.Estado">
-                                                    <td style="font-weight:600">@i.Apto</td>
-                                                    <td>
-                                                        @if (i.Tipo == "EXT")
-                                                        {
-                                                            <span style="background:rgba(255,149,0,0.12);color:#CC7700;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">EXT</span>
-                                                        }
-                                                        else if (i.Tipo == "INT")
-                                                        {
-                                                            <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">INT</span>
-                                                        }
-                                                        else
-                                                        {
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty"><div class="empty-ico">&#127970;</div><div class="empty-txt">No hay inmuebles en esta área</div></div>
+            }
+        </div>
+    }
+}
 
-                                                            <span>@i.Tipo</span>
-                                                        }
-                                                    </td>
-                                                    <td>@i.Piso</td>
-                                                    <td>@i.Metros m²</td>
-                                                    <td style="font-weight:500;color:var(--azul)">$@(string.Format("{0:N0}", long.TryParse(plLimpio, out long lp) ? lp : 0))</td>
-                                                    <td>@i.Torre</td>
-                                                    <td>
-                                                        <span class="bdg @cls">@i.Estado</span>
-                                                        @if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso > 0)
-                                                        {
-                                                            var nomVend = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Vendedor";
-                                                            <br /><span style="font-size:11px;color:#5A5AC8;font-weight:600">👤 @nomVend</span>
-                                                        }
-                                                    </td>
-                                                    <td>
-                                                        @if (i.Estado == "DISPONIBLE")
-                                                        {
-                                                            <form action="/Inmuebles/TomarInmueble" method="post" style="display:inline">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="idInmueble" value="@i.Id" />
-                                                                <button type="submit" class="btn-accion btn-vender">Vender</button>
-                                                            </form>
-                                                            <form action="/Inmuebles/ReservarInmueble" method="post" style="display:inline">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="idInmueble" value="@i.Id" />
-                                                                <button type="submit" class="btn-accion btn-reservar" onclick="return confirm('¿Reservar este inmueble?')">Reservar</button>
-                                                            </form>
-                                                        }
-                                                        else if (i.Estado == "RESERVADO")
-                                                        {
-                                                            <form action="/Inmuebles/LiberarReserva" method="post" style="display:inline">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="idInmueble" value="@i.Id" />
-                                                                <button type="submit" class="btn-accion btn-liberar" onclick="return confirm('¿Liberar esta reserva?')">Liberar</button>
-                                                            </form>
-                                                        }
-                                                        else if (i.Estado == "EN PROCESO")
-                                                        {
-                                                            <form action="/Inmuebles/CancelarProceso" method="post" style="display:inline">
-                                                                @Html.AntiForgeryToken()
-                                                                <input type="hidden" name="idInmueble" value="@i.Id" />
-                                                                <button type="submit" class="btn-accion btn-liberar" onclick="return confirm('¿Cancelar este proceso?')">Cancelar</button>
-                                                            </form>
-                                                        }
-                                                        else
-                                                        {
-                                                            <span style="color:var(--label3);font-size:12px">—</span>
-                                                        }
-                                                    </td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-                            }
-                            else
-                            {
-                                <div class="empty"><div class="empty-ico">🏢</div><div class="empty-txt">No hay inmuebles en esta área</div></div>
-                            }
-                        </div>
-                    }
-                }
+<!-- Edit price modal -->
+<div class="modal-overlay" id="modalEditar">
+    <div class="modal-box">
+        <div class="modal-title">&#9998; Editar precio de lista</div>
+        <div class="modal-sub" id="modalSub">Área seleccionada</div>
+        <form action="/Inmuebles/EditarPrecioArea" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="metros" id="modalMetros"/>
+            <div class="modal-field">
+                <label>Lista a modificar</label>
+                <select name="numLista" id="modalNumLista"></select>
             </div>
-        </div>
+            <div class="modal-field">
+                <label>Nuevo precio</label>
+                <input type="number" name="nuevoPrecio" id="modalPrecio" placeholder="Ej: 480000000" min="0" required/>
+            </div>
+            <div class="modal-btns">
+                <button type="button" class="btn-modal-cancel" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn-modal-save">Guardar precio</button>
+            </div>
+        </form>
     </div>
-    <div class="modal-overlay" id="modalEditar">
-        <div class="modal-box">
-            <div class="modal-title">✏️ Editar precio de lista</div>
-            <div class="modal-sub" id="modalSub">Área seleccionada</div>
-            <form action="/Inmuebles/EditarPrecioArea" method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="metros" id="modalMetros" />
-                <div class="modal-field">
-                    <label>Lista a modificar</label>
-                    <select name="numLista" id="modalNumLista"></select>
-                </div>
-                <div class="modal-field">
-                    <label>Nuevo precio</label>
-                    <input type="number" name="nuevoPrecio" id="modalPrecio" placeholder="Ej: 480000000" min="0" required />
-                </div>
-                <div class="modal-btns">
-                    <button type="button" class="btn-modal-cancel" onclick="cerrarModal()">Cancelar</button>
-                    <button type="submit" class="btn-modal-save">💾 Guardar precio</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <div id="sbOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;backdrop-filter:blur(2px);"></div>
-    <script>
-            let filtroActual='todos';
-            function setFiltro(f,btn){filtroActual=f;document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');filtrar();}
-            function filtrar(){
-                const q=document.getElementById('buscar')?.value.toLowerCase()||'';
-                document.querySelectorAll('#tablaInmuebles tbody tr').forEach(tr=>{
-                    const matchF=filtroActual==='todos'||tr.dataset.estado===filtroActual;
-                    tr.style.display=matchF&&tr.innerText.toLowerCase().includes(q)?'':'none';
-                });
+</div>
+
+@section Scripts {
+<script>
+    let filtroActual='todos';
+    function setFiltro(f,btn){filtroActual=f;document.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');filtrar();}
+    function filtrar(){
+        const q=document.getElementById('buscar')?.value.toLowerCase()||'';
+        document.querySelectorAll('#tablaInmuebles tbody tr').forEach(tr=>{
+            const matchF=filtroActual==='todos'||tr.dataset.estado===filtroActual;
+            tr.style.display=matchF&&tr.innerText.toLowerCase().includes(q)?'':'none';
+        });
+    }
+    function abrirModal(metros,p1,p2,p3,p4,p5,laActual){
+        document.getElementById('modalMetros').value=metros;
+        document.getElementById('modalSub').textContent='Área '+metros+' m² — Lista activa: '+laActual;
+        var sel=document.getElementById('modalNumLista');
+        sel.innerHTML='';
+        [p1,p2,p3,p4,p5].forEach(function(p,i){
+            if(p>0){
+                var opt=document.createElement('option');
+                opt.value=i+1;
+                opt.textContent='Lista '+(i+1)+': $'+Number(p).toLocaleString('es-CO');
+                if((i+1)===laActual)opt.selected=true;
+                sel.appendChild(opt);
             }
-            function abrirModal(metros,p1,p2,p3,p4,p5,laActual){
-                document.getElementById('modalMetros').value=metros;
-                document.getElementById('modalSub').textContent='Área '+metros+' m² — Lista activa: '+laActual;
-                var sel=document.getElementById('modalNumLista');
-                sel.innerHTML='';
-                [p1,p2,p3,p4,p5].forEach(function(p,i){
-                    if(p>0){
-                        var opt=document.createElement('option');
-                        opt.value=i+1;
-                        opt.textContent='Lista '+(i+1)+': $'+Number(p).toLocaleString('es-CO');
-                        if((i+1)===laActual)opt.selected=true;
-                        sel.appendChild(opt);
-                    }
-                });
-                document.getElementById('modalPrecio').value='';
-                document.getElementById('modalEditar').classList.add('open');
-            }
-            function cerrarModal(){document.getElementById('modalEditar').classList.remove('open');}
-            document.addEventListener('click',function(e){
-                var ov=document.getElementById('modalEditar');
-                if(ov&&e.target===ov)cerrarModal();
-                var b=document.getElementById('proyBtn'),d=document.getElementById('proyDrop');
-                if(b&&d&&!b.contains(e.target)&&!d.contains(e.target))d.classList.remove('open');
-            });
-            function toggleDrop(){document.getElementById('proyDrop').classList.toggle('open');}
-            function toggleSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(!sb)return;var o=sb.classList.toggle('open');if(ov)ov.style.display=o?'block':'none';}
-            function closeSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(sb)sb.classList.remove('open');if(ov)ov.style.display='none';}
-    </script>
-</body>
-</html>
+        });
+        document.getElementById('modalPrecio').value='';
+        document.getElementById('modalEditar').classList.add('open');
+    }
+    function cerrarModal(){document.getElementById('modalEditar').classList.remove('open');}
+    document.addEventListener('click',function(e){
+        var ov=document.getElementById('modalEditar');
+        if(ov&&e.target===ov)cerrarModal();
+    });
+</script>
+}

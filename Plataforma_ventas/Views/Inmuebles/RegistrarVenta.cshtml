@@ -1,9 +1,14 @@
-﻿@{
-    Layout = null;
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Registrar venta";
+    ViewBag.ActiveNav = "ventas";
+    ViewBag.TbBread   = "Registrar venta";
+
     var nombre = ViewBag.Nombre as string ?? "";
     var apellido = ViewBag.Apellido as string ?? "";
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
+    ViewBag.Iniciales = iniciales;
     var inm = ViewBag.Inmueble;
     var clientes = ViewBag.Clientes as List<dynamic> ?? new List<dynamic>();
     int listaActual = ViewBag.ListaActual != null ? (int)ViewBag.ListaActual : 1;
@@ -21,258 +26,169 @@
     var precios = new[] { l1, l2, l3, l4, l5 };
     long precioActivoLong = listaActual >= 1 && listaActual <= 5 ? precios[listaActual - 1] : l1;
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>Registrar Venta · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{--azul:#0076e3;--celeste:#00c9ff;--negro:#1e222b;--plata:#c3cfdb;--menta:#00d4a1;--mid:#0060bb;--blue:#0076e3;--rojo:#E63946;--verde:#34C759;--oro:#FF9500;--label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(60,60,67,0.3);--sep:rgba(60,60,67,0.12);--sep2:rgba(60,60,67,0.06);--fill3:rgba(120,120,128,0.08);--glass:rgba(255,255,255,0.75);--gb:rgba(255,255,255,0.6);--sh:0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);}
-        html,body{background:#EEF2F7;color:var(--label);overflow-x:hidden;}
-        *{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
-        body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,118,227,0.12) 0%,transparent 55%),#EEF2F7;pointer-events:none;}
-        .app{display:flex;min-height:100vh;position:relative;z-index:1;}
-        .sidebar{width:230px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-right:1px solid var(--gb);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
-        .sb-app{font-size:17px;font-weight:700;color:var(--label);letter-spacing:-0.4px;}
-        .sb-sub{font-size:11px;color:var(--label3);margin-top:1px;}
-        .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;display:inline-block;}
-        @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
-        .sb-sec{padding:14px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);}
-        .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 6px;border-radius:11px;font-size:14px;color:var(--label2);text-decoration:none;transition:all 0.2s;}
-        .nav-item:hover{background:var(--fill3);color:var(--label);}
-        .nav-item.active{background:var(--blue);color:white;font-weight:600;box-shadow:0 4px 12px rgba(0,118,227,0.28);}
-        .nav-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--fill3);flex-shrink:0;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.2);}
-        .sb-footer{margin-top:auto;padding:10px 12px 20px;border-top:1px solid var(--sep2);display:flex;align-items:center;gap:8px;}
-        .sb-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
-        .sb-logout{margin-left:auto;width:26px;height:26px;border-radius:7px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--label2);text-decoration:none;}
-        .sb-logout:hover{background:rgba(230,57,70,0.1);color:var(--rojo);}
-        .main{flex:1;display:flex;flex-direction:column;min-width:0;}
-        .topbar{height:50px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-bottom:1px solid var(--sep);padding:0 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-        .tb-bread{font-size:13px;color:var(--label2);}.tb-bread strong{color:var(--label);font-weight:600;}
-        .tb-right{display:flex;align-items:center;gap:8px;}
-        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);}
-        .tb-ibtn{width:30px;height:30px;border-radius:9px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:var(--label);}
-        .view{flex:1;padding:18px;display:flex;flex-direction:column;gap:14px;}
-        @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .inm-card{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.3s ease both;flex-wrap:wrap;gap:12px;}
-        .inm-info h2{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;}
-        .inm-info p{font-size:13px;color:rgba(255,255,255,0.7);margin-top:3px;}
-        .inm-datos{display:flex;gap:16px;}
-        .inm-dato{text-align:center;}
-        .inm-dato-val{font-size:15px;font-weight:600;color:white;}
-        .inm-dato-lbl{font-size:10px;color:rgba(255,255,255,0.6);}
-        .form-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.3s ease 0.1s both;margin-bottom:14px;}
-        .form-card-head{padding:14px 18px;border-bottom:1px solid var(--sep2);display:flex;align-items:center;gap:10px;}
-        .form-card-title{font-size:15px;font-weight:600;color:var(--label);}
-        .form-body{padding:18px;}
-        .lista-activa-card{background:linear-gradient(135deg,rgba(0,118,227,0.08),rgba(0,118,227,0.05));border:2px solid rgba(0,118,227,0.25);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
-        .la-left{display:flex;align-items:center;gap:12px;}
-        .la-badge{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:white;box-shadow:0 4px 12px rgba(0,96,187,0.25);flex-shrink:0;}
-        .la-info-lbl{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);font-weight:600;margin-bottom:2px;}
-        .la-info-val{font-size:16px;font-weight:700;color:var(--azul);}
-        .la-info-sub{font-size:11px;color:var(--label2);margin-top:2px;}
-        .la-precio{text-align:right;}
-        .la-precio-lbl{font-size:10px;color:var(--label3);font-weight:600;text-transform:uppercase;margin-bottom:2px;}
-        .la-precio-val{font-size:22px;font-weight:300;color:var(--azul);letter-spacing:-1px;}
-        /* Destino */
-        .destino-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
-        .destino-opt{border:2px solid var(--sep);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all 0.2s;background:white;display:flex;align-items:center;gap:10px;}
-        .destino-opt:hover{border-color:var(--blue);background:rgba(0,118,227,0.03);}
-        .destino-opt.sel{border-color:var(--blue);background:rgba(0,118,227,0.07);}
-        .destino-ico{font-size:20px;flex-shrink:0;}
-        .destino-txt{font-size:13px;font-weight:600;color:var(--label);}
-        .destino-sub{font-size:11px;color:var(--label3);margin-top:1px;}
-        /* Cliente */
-        .tab-row{display:flex;background:var(--fill3);border-radius:11px;padding:3px;gap:2px;margin-bottom:16px;}
-        .tab-btn{flex:1;padding:8px;border-radius:8px;border:none;background:none;font-size:13px;font-weight:600;color:var(--label2);cursor:pointer;transition:all 0.2s;}
-        .tab-btn.active{background:white;color:var(--label);box-shadow:0 1px 4px rgba(0,0,0,0.1);}
-        .tab-pane{display:none;}.tab-pane.active{display:block;}
-        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-        .field{display:flex;flex-direction:column;gap:5px;}
-        .field.full{grid-column:1/-1;}
-        .field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);}
-        .field input,.field select{padding:9px 12px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:14px;color:var(--label);outline:none;transition:all 0.2s;}
-        .field input:focus,.field select:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
-        .btn-row{display:flex;gap:10px;justify-content:flex-end;}
-        .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:10px 20px;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,118,227,0.28);transition:all 0.2s;text-decoration:none;}
-        .ios-btn:hover{background:var(--mid);}
-        .ios-btn.ghost{background:var(--fill3);color:var(--label);box-shadow:none;border:1px solid var(--sep);}
-        .ios-btn.ghost:hover{background:rgba(120,120,128,0.14);}
-        @@media(max-width:700px){
-            .app{flex-direction:column;}
-            .sidebar{display:none;}
-            .destino-grid{grid-template-columns:1fr!important;}
-            .form-grid{grid-template-columns:1fr!important;}
-        }
-    
-        /* ── Sidebar blanco corporativo ── */
-        .sidebar{background:#fff!important;border-right:1px solid rgba(0,0,0,0.07)!important;backdrop-filter:none!important;box-shadow:2px 0 12px rgba(0,0,0,0.04)!important;}
-        .sb-logo-area{padding:16px 14px 12px;border-bottom:1px solid rgba(0,0,0,0.06);margin-bottom:4px;}
-        .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
-        .sb-app{color:#1e222b!important;font-weight:700!important;}
-        .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .sb-sec{color:rgba(30,34,43,0.38)!important;letter-spacing:0.08em!important;}
-        .nav-item{color:rgba(30,34,43,0.65)!important;}
-        .nav-item:hover{background:rgba(0,118,227,0.07)!important;color:#0076e3!important;}
-        .nav-item.active{background:#0076e3!important;color:#fff!important;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.22)!important;}
-        .nav-ico{background:rgba(30,34,43,0.06)!important;color:inherit!important;}
-        .sb-footer{border-top-color:rgba(0,0,0,0.07)!important;}
-        .sb-logout{background:rgba(30,34,43,0.05)!important;color:rgba(30,34,43,0.45)!important;}
-        .sb-logout:hover{background:rgba(230,57,70,0.08)!important;color:#E63946!important;}
-        .nav-item{display:flex!important;align-items:center!important;gap:10px!important;padding:9px 12px!important;margin:1px 6px!important;border-radius:11px!important;font-size:14px!important;min-height:40px!important;text-decoration:none!important;transition:all 0.18s!important;}
-        .nav-ico{width:26px!important;height:26px!important;border-radius:8px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;flex-shrink:0!important;}
-        .sb-sec{padding:14px 18px 4px!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;}
-    </style>
-</head>
-<body>
-<div class="app">
-    <div class="sidebar">
-        <div class="sb-logo-area">
-            <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
-        </div>
-        <div class="sb-sec">Principal</div>
-        <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-        <a class="nav-item active" href="/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
-        <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
-        <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
-        <div class="sb-sec">General</div>
-        <a class="nav-item" href="/Reportes"><div class="nav-ico">📊</div>Reportes</a>
-        <a class="nav-item" href="/Carga/Index"><div class="nav-ico">📂</div>Cargar Excel</a>
-        <a class="nav-item" href="/Usuarios"><div class="nav-ico">👥</div>Usuarios</a>
-        <div class="sb-footer">
-            <div class="sb-av">@iniciales</div>
-            <div><div style="font-size:12px;font-weight:600">@nombre @apellido</div><div style="font-size:10px;color:var(--label3)">Administrador</div></div>
-            <a class="sb-logout" href="/Account/Logout">↩</a>
-        </div>
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .inm-card{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:18px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.3s ease both;flex-wrap:wrap;gap:12px;}
+    .inm-info h2{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;}
+    .inm-info p{font-size:13px;color:rgba(255,255,255,0.7);margin-top:3px;}
+    .inm-datos{display:flex;gap:16px;}
+    .inm-dato{text-align:center;}
+    .inm-dato-val{font-size:15px;font-weight:600;color:white;}
+    .inm-dato-lbl{font-size:10px;color:rgba(255,255,255,0.6);}
+    .form-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.3s ease 0.1s both;margin-bottom:14px;}
+    .form-card-head{padding:14px 18px;border-bottom:1px solid var(--sep2);display:flex;align-items:center;gap:10px;}
+    .form-card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .form-body{padding:18px;}
+    .lista-activa-card{background:linear-gradient(135deg,rgba(0,118,227,0.08),rgba(0,118,227,0.05));border:2px solid rgba(0,118,227,0.25);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+    .la-left{display:flex;align-items:center;gap:12px;}
+    .la-badge{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:white;box-shadow:0 4px 12px rgba(0,96,187,0.25);flex-shrink:0;}
+    .la-info-lbl{font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);font-weight:600;margin-bottom:2px;}
+    .la-info-val{font-size:16px;font-weight:700;color:var(--azul);}
+    .la-info-sub{font-size:11px;color:var(--label2);margin-top:2px;}
+    .la-precio{text-align:right;}
+    .la-precio-lbl{font-size:10px;color:var(--label3);font-weight:600;text-transform:uppercase;margin-bottom:2px;}
+    .la-precio-val{font-size:22px;font-weight:300;color:var(--azul);letter-spacing:-1px;}
+    .destino-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+    .destino-opt{border:2px solid var(--sep);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all 0.2s;background:white;display:flex;align-items:center;gap:10px;}
+    .destino-opt:hover{border-color:var(--blue);background:rgba(0,118,227,0.03);}
+    .destino-opt.sel{border-color:var(--blue);background:rgba(0,118,227,0.07);}
+    .destino-ico{font-size:20px;flex-shrink:0;}
+    .destino-txt{font-size:13px;font-weight:600;color:var(--label);}
+    .destino-sub{font-size:11px;color:var(--label3);margin-top:1px;}
+    .tab-row{display:flex;background:var(--fill3);border-radius:11px;padding:3px;gap:2px;margin-bottom:16px;}
+    .tab-btn{flex:1;padding:8px;border-radius:8px;border:none;background:none;font-size:13px;font-weight:600;color:var(--label2);cursor:pointer;transition:all 0.2s;}
+    .tab-btn.active{background:white;color:var(--label);box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+    .tab-pane{display:none;}.tab-pane.active{display:block;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .field{display:flex;flex-direction:column;gap:5px;}
+    .field.full{grid-column:1/-1;}
+    .field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);}
+    .field input,.field select{padding:9px 12px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:14px;color:var(--label);outline:none;transition:all 0.2s;}
+    .field input:focus,.field select:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
+    .btn-row{display:flex;gap:10px;justify-content:flex-end;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:10px 20px;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,118,227,0.28);transition:all 0.2s;text-decoration:none;}
+    .ios-btn:hover{background:var(--mid);}
+    .ios-btn.ghost{background:var(--fill3);color:var(--label);box-shadow:none;border:1px solid var(--sep);}
+    .ios-btn.ghost:hover{background:rgba(120,120,128,0.14);}
+    @@media(max-width:700px){.destino-grid{grid-template-columns:1fr!important;}.form-grid{grid-template-columns:1fr!important;}}
+</style>
+}
+
+<!-- Info inmueble -->
+<div class="inm-card">
+    <div class="inm-info">
+        <h2>Apto @inm.Apto</h2>
+        <p>Torre @inm.Torre · Piso @inm.Piso · @inm.Tipo · @inm.Metros m²</p>
     </div>
-    <div class="main">
-        <div class="topbar">
-            <span class="tb-bread"><a href="/Inmuebles" style="color:var(--label2);text-decoration:none">Inmuebles</a> › <strong>Registrar venta</strong></span>
-            <div class="tb-right"><div class="tb-chip"><span class="pulse"></span>@proyActivo</div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
-        </div>
-        <div class="view">
-
-            <!-- Info inmueble -->
-            <div class="inm-card">
-                <div class="inm-info">
-                    <h2>Apto @inm.Apto</h2>
-                    <p>Torre @inm.Torre · Piso @inm.Piso · @inm.Tipo · @inm.Metros m²</p>
-                </div>
-                <div class="inm-datos">
-                    <div class="inm-dato"><div class="inm-dato-val">@inm.Torre</div><div class="inm-dato-lbl">Torre</div></div>
-                    <div class="inm-dato"><div class="inm-dato-val">@inm.Piso</div><div class="inm-dato-lbl">Piso</div></div>
-                    <div class="inm-dato"><div class="inm-dato-val">@inm.Metros m²</div><div class="inm-dato-lbl">Área</div></div>
-                </div>
-            </div>
-
-            <form action="/Inmuebles/ConfirmarVenta" method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="idInmueble"   value="@inm.Id" />
-                <input type="hidden" name="tipoCliente"  id="tipoCliente" value="existente" />
-                <input type="hidden" name="listaAplicada" value="@listaActual" />
-                <input type="hidden" name="precioVenta"  value="@precioActivoLong" />
-                <input type="hidden" name="destino"      id="destinoInput" value="Vivienda" />
-
-                <!-- Precio -->
-                <div class="form-card">
-                    <div class="form-card-head"><span style="font-size:18px">💰</span><span class="form-card-title">Precio de venta</span></div>
-                    <div class="form-body">
-                        <div class="lista-activa-card">
-                            <div class="la-left">
-                                <div class="la-badge">@listaActual</div>
-                                <div>
-                                    <div class="la-info-lbl">Lista activa del proyecto</div>
-                                    <div class="la-info-val">Lista @listaActual</div>
-                                    <div class="la-info-sub">
-                                        @if (aptsPorLista > 0) { <span>Sube cada @aptsPorLista vendidos</span> }
-                                        else { <span>Configurada manualmente</span> }
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="la-precio">
-                                <div class="la-precio-lbl">Precio</div>
-                                <div class="la-precio-val">$@precioActivoLong.ToString("N0")</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Destino -->
-                <div class="form-card">
-                    <div class="form-card-head"><span style="font-size:18px">🏷️</span><span class="form-card-title">Destino del inmueble</span></div>
-                    <div class="form-body">
-                        <div class="destino-grid">
-                            <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
-                                <span class="destino-ico">🏠</span>
-                                <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
-                            </div>
-                            <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
-                                <span class="destino-ico">📈</span>
-                                <div><div class="destino-txt">Inversión para reventa</div><div class="destino-sub">Plusvalía a futuro</div></div>
-                            </div>
-                            <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
-                                <span class="destino-ico">🔑</span>
-                                <div><div class="destino-txt">Inversión para arriendo</div><div class="destino-sub">Renta mensual</div></div>
-                            </div>
-                            <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
-                                <span class="destino-ico">📋</span>
-                                <div><div class="destino-txt">Cesión de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cliente -->
-                <div class="form-card">
-                    <div class="form-card-head"><span style="font-size:18px">👤</span><span class="form-card-title">Cliente</span></div>
-                    <div class="form-body">
-                        <div class="tab-row">
-                            <button type="button" class="tab-btn active" onclick="document.getElementById('tipoCliente').value='existente';setTab('existente',this)">Cliente existente</button>
-                            <button type="button" class="tab-btn" onclick="document.getElementById('tipoCliente').value='nuevo';setTab('nuevo',this)">Nuevo cliente</button>
-                        </div>
-                        <div class="tab-pane active" id="tab-existente">
-                            <div class="field">
-                                <label>Seleccionar cliente</label>
-                                <select name="idClienteExistente">
-                                    <option value="0">— Selecciona un cliente —</option>
-                                    @foreach (var c in clientes) { <option value="@c.Id">@c.Nombre — @c.Documento</option> }
-                                </select>
-                            </div>
-                        </div>
-                        <div class="tab-pane" id="tab-nuevo">
-                            <div class="form-grid">
-                                <div class="field"><label>Nombre</label><input type="text" name="clienteNombre" placeholder="Nombre"/></div>
-                                <div class="field"><label>Apellido</label><input type="text" name="clienteApellido" placeholder="Apellido"/></div>
-                                <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT"/></div>
-                                <div class="field"><label>Celular</label><input type="text" name="clienteCelular" placeholder="Celular"/></div>
-                                <div class="field full"><label>Correo</label><input type="email" name="clienteCorreo" placeholder="correo@email.com"/></div>
-                                <div class="field full"><label>Dirección</label><input type="text" name="clienteDireccion" placeholder="Dirección de residencia"/></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="btn-row">
-                    <button type="submit" class="ios-btn">✓ Confirmar venta</button>
-                </div>
-            </form>
-
-            <div class="btn-row" style="margin-top:-8px">
-                <form action="/Inmuebles/CancelarProceso" method="post" style="display:inline">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="idInmueble" value="@inm.Id" />
-                    <button type="submit" class="ios-btn ghost" onclick="return confirm('¿Cancelar? El inmueble volverá a estar disponible.')">Cancelar</button>
-                </form>
-            </div>
-
-        </div>
+    <div class="inm-datos">
+        <div class="inm-dato"><div class="inm-dato-val">@inm.Torre</div><div class="inm-dato-lbl">Torre</div></div>
+        <div class="inm-dato"><div class="inm-dato-val">@inm.Piso</div><div class="inm-dato-lbl">Piso</div></div>
+        <div class="inm-dato"><div class="inm-dato-val">@inm.Metros m²</div><div class="inm-dato-lbl">Área</div></div>
     </div>
 </div>
+
+<form action="/Inmuebles/ConfirmarVenta" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="idInmueble"   value="@inm.Id"/>
+    <input type="hidden" name="tipoCliente"  id="tipoCliente" value="existente"/>
+    <input type="hidden" name="listaAplicada" value="@listaActual"/>
+    <input type="hidden" name="precioVenta"  value="@precioActivoLong"/>
+    <input type="hidden" name="destino"      id="destinoInput" value="Vivienda"/>
+
+    <!-- Precio -->
+    <div class="form-card">
+        <div class="form-card-head"><span style="font-size:18px">&#128176;</span><span class="form-card-title">Precio de venta</span></div>
+        <div class="form-body">
+            <div class="lista-activa-card">
+                <div class="la-left">
+                    <div class="la-badge">@listaActual</div>
+                    <div>
+                        <div class="la-info-lbl">Lista activa del proyecto</div>
+                        <div class="la-info-val">Lista @listaActual</div>
+                        <div class="la-info-sub">
+                            @if (aptsPorLista > 0) { <span>Sube cada @aptsPorLista vendidos</span> }
+                            else { <span>Configurada manualmente</span> }
+                        </div>
+                    </div>
+                </div>
+                <div class="la-precio">
+                    <div class="la-precio-lbl">Precio</div>
+                    <div class="la-precio-val">$@precioActivoLong.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Destino -->
+    <div class="form-card">
+        <div class="form-card-head"><span style="font-size:18px">&#127991;</span><span class="form-card-title">Destino del inmueble</span></div>
+        <div class="form-body">
+            <div class="destino-grid">
+                <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
+                    <span class="destino-ico">&#127968;</span>
+                    <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
+                </div>
+                <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
+                    <span class="destino-ico">&#128200;</span>
+                    <div><div class="destino-txt">Inversión para reventa</div><div class="destino-sub">Plusvalía a futuro</div></div>
+                </div>
+                <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
+                    <span class="destino-ico">&#128273;</span>
+                    <div><div class="destino-txt">Inversión para arriendo</div><div class="destino-sub">Renta mensual</div></div>
+                </div>
+                <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
+                    <span class="destino-ico">&#128203;</span>
+                    <div><div class="destino-txt">Cesión de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cliente -->
+    <div class="form-card">
+        <div class="form-card-head"><span style="font-size:18px">&#128100;</span><span class="form-card-title">Cliente</span></div>
+        <div class="form-body">
+            <div class="tab-row">
+                <button type="button" class="tab-btn active" onclick="document.getElementById('tipoCliente').value='existente';setTab('existente',this)">Cliente existente</button>
+                <button type="button" class="tab-btn" onclick="document.getElementById('tipoCliente').value='nuevo';setTab('nuevo',this)">Nuevo cliente</button>
+            </div>
+            <div class="tab-pane active" id="tab-existente">
+                <div class="field">
+                    <label>Seleccionar cliente</label>
+                    <select name="idClienteExistente">
+                        <option value="0">— Selecciona un cliente —</option>
+                        @foreach (var c in clientes) { <option value="@c.Id">@c.Nombre — @c.Documento</option> }
+                    </select>
+                </div>
+            </div>
+            <div class="tab-pane" id="tab-nuevo">
+                <div class="form-grid">
+                    <div class="field"><label>Nombre</label><input type="text" name="clienteNombre" placeholder="Nombre"/></div>
+                    <div class="field"><label>Apellido</label><input type="text" name="clienteApellido" placeholder="Apellido"/></div>
+                    <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT"/></div>
+                    <div class="field"><label>Celular</label><input type="text" name="clienteCelular" placeholder="Celular"/></div>
+                    <div class="field full"><label>Correo</label><input type="email" name="clienteCorreo" placeholder="correo@email.com"/></div>
+                    <div class="field full"><label>Dirección</label><input type="text" name="clienteDireccion" placeholder="Dirección de residencia"/></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="btn-row">
+        <button type="submit" class="ios-btn">&#10003; Confirmar venta</button>
+    </div>
+</form>
+
+<div class="btn-row" style="margin-top:-8px">
+    <form action="/Inmuebles/CancelarProceso" method="post" style="display:inline">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="idInmueble" value="@inm.Id"/>
+        <button type="submit" class="ios-btn ghost" onclick="return confirm('¿Cancelar? El inmueble volverá a estar disponible.')">Cancelar</button>
+    </form>
+</div>
+
+@section Scripts {
 <script>
     function selDestino(val, el) {
         document.getElementById('destinoInput').value = val;
@@ -286,5 +202,4 @@
         document.getElementById('tab-' + tab).classList.add('active');
     }
 </script>
-</body>
-</html>
+}
