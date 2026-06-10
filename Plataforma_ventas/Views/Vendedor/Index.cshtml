@@ -47,20 +47,8 @@
         .sv-num{font-size:18px;font-weight:300;color:white;letter-spacing:-0.5px;}
         .sv-lbl{font-size:9px;color:rgba(255,255,255,0.6);font-weight:500;margin-top:1px;}
 
-        .sb-proy{margin:8px 10px 0;background:rgba(0,118,227,0.08);border:1px solid rgba(0,118,227,0.18);border-radius:12px;padding:8px 12px;}
-        .sb-proy-lbl{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--label3);font-weight:600;margin-bottom:2px;}
-        .sb-proy-name{font-size:13px;font-weight:700;color:var(--azul);}
 
         /* Dropdown proyectos vendedor */
-        .sb-proy{margin:8px 10px 0;background:rgba(0,118,227,0.08);border:1px solid rgba(0,118,227,0.18);border-radius:12px;padding:8px 12px;cursor:pointer;transition:background 0.2s;}
-        .sb-proy:hover{background:rgba(0,118,227,0.14);}
-        .sb-proy-lbl{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--label3);font-weight:600;margin-bottom:2px;}
-        .sb-proy-name{font-size:13px;font-weight:700;color:var(--azul);}
-        .proy-drop{display:none;margin:4px 10px 0;background:white;border:1px solid var(--sep);border-radius:12px;overflow:hidden;box-shadow:var(--sh);}
-        .proy-drop.open{display:block;}
-        .proy-drop-item{width:100%;padding:9px 14px;background:none;border:none;border-bottom:1px solid var(--sep2);text-align:left;font-size:13px;font-weight:500;cursor:pointer;color:var(--label);display:flex;align-items:center;gap:8px;transition:background 0.15s;}
-        .proy-drop-item:hover{background:var(--fill3);}
-        .proy-drop-item:last-child{border-bottom:none;}
         .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;display:inline-block;}
         @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
 
@@ -140,7 +128,7 @@
             .view{overflow-y:visible!important;padding:12px!important;height:auto!important;}
             .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
             .action-row{grid-template-columns:1fr!important;}
-            .tb-chip{display:none!important;}
+            .tb-chip{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
             .tbl-wrap{overflow-x:auto!important;}
             .tbl{min-width:500px!important;}
             .filter-bar{flex-direction:column!important;align-items:flex-start!important;}
@@ -167,15 +155,6 @@
         .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
         .sb-app{color:#1e222b!important;font-weight:700!important;}
         .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .sb-proy{background:rgba(0,118,227,0.06)!important;border-color:rgba(0,118,227,0.18)!important;}
-        .sb-proy:hover{background:rgba(0,118,227,0.10)!important;}
-        .sb-proy-lbl{color:rgba(30,34,43,0.45)!important;font-size:9px!important;}
-        .sb-proy-name{color:#0076e3!important;font-weight:700!important;}
-        .sb-proy-meta{color:rgba(30,34,43,0.5)!important;}
-        .proy-drop{background:#fff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 8px 24px rgba(0,0,0,0.1)!important;}
-        .proy-drop-item{color:#1e222b!important;}
-        .proy-drop-item:hover{background:rgba(0,118,227,0.06)!important;color:#0076e3!important;}
-        .proy-drop-link{color:#0076e3!important;background:rgba(0,118,227,0.04)!important;}
         .sb-sec{color:rgba(30,34,43,0.38)!important;letter-spacing:0.08em!important;}
         .nav-item{color:rgba(30,34,43,0.65)!important;}
         .nav-item:hover{background:rgba(0,118,227,0.07)!important;color:#0076e3!important;}
@@ -207,22 +186,6 @@
             </div>
         </div>
 
-        <div class="sb-proy" id="proyBtn" onclick="toggleDrop()">
-            <div class="sb-proy-lbl"><span class="pulse"></span> PROYECTO ACTIVO ▾</div>
-            <div class="sb-proy-name">@proyActivo</div>
-        </div>
-        @if (proyectos.Count > 1) {
-            <div class="proy-drop" id="proyDrop">
-                @foreach (var p in proyectos) {
-                    <form action="/Vendedor/CambiarProyecto" method="post" style="margin:0">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="idProyecto" value="@p.Id"/>
-                        <input type="hidden" name="nombreProyecto" value="@p.Nombre"/>
-                        <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                    </form>
-                }
-            </div>
-        }
 
         <div class="sb-sec">Mi espacio</div>
         <a class="nav-item active" href="/Vendedor"><div class="nav-ico">⊞</div>Inicio</a>
@@ -308,14 +271,6 @@
     </div>
 </div>
 <script>
-    function toggleDrop(){
-        if(document.getElementById('proyDrop'))
-            document.getElementById('proyDrop').classList.toggle('open');
-    }
-    document.addEventListener('click', function(e){
-        var b=document.getElementById('proyBtn'), d=document.getElementById('proyDrop');
-        if(b&&d&&!b.contains(e.target)&&!d.contains(e.target)) d.classList.remove('open');
-    });
     function toggleSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(!sb)return;var o=sb.classList.toggle('open');if(ov)ov.style.display=o?'block':'none';}
     function closeSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');if(sb)sb.classList.remove('open');if(ov)ov.style.display='none';}
 </script>

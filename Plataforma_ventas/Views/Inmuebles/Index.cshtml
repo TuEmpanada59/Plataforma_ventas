@@ -123,7 +123,6 @@
                 margin-top: 1px;
             }
 
-            .sb-proy {
                 margin: 14px 10px 0;
                 background: rgba(0,118,227,0.08);
                 border: 1px solid rgba(0,118,227,0.18);
@@ -133,11 +132,9 @@
                 transition: background 0.2s;
             }
 
-                .sb-proy:hover {
                     background: rgba(0,118,227,0.13);
                 }
 
-            .sb-proy-lbl {
                 font-size: 9px;
                 text-transform: uppercase;
                 letter-spacing: 0.1em;
@@ -146,13 +143,11 @@
                 margin-bottom: 2px;
             }
 
-            .sb-proy-name {
                 font-size: 14px;
                 font-weight: 700;
                 color: var(--azul);
             }
 
-            .sb-proy-meta {
                 display: flex;
                 align-items: center;
                 gap: 4px;
@@ -187,7 +182,11 @@
 
             .proy-drop {
                 display: none;
-                margin: 4px 10px 4px;
+                position: absolute;
+                top: calc(100% + 8px);
+                right: 0;
+                min-width: 240px;
+                z-index: 120;
                 background: white;
                 border: 1px solid var(--sep);
                 border-radius: 14px;
@@ -371,6 +370,7 @@
                 gap: 8px;
             }
 
+            .tb-proy { position: relative; }
             .tb-chip {
                 display: flex;
                 align-items: center;
@@ -382,7 +382,10 @@
                 font-size: 12px;
                 font-weight: 600;
                 color: var(--blue);
+                cursor: pointer;
+                font-family: inherit;
             }
+            .tb-chip-caret { font-size: 9px; margin-left: 5px; opacity: .7; }
 
             .tb-ibtn {
                 width: 30px;
@@ -1250,7 +1253,10 @@
                 }
 
                 .tb-chip {
-                    display: none !important;
+                    max-width: 130px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
 
                 .areas-grid {
@@ -1277,11 +1283,6 @@
         .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
         .sb-app{color:#1e222b!important;font-weight:700!important;}
         .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .sb-proy{background:rgba(0,118,227,0.06)!important;border-color:rgba(0,118,227,0.18)!important;}
-        .sb-proy:hover{background:rgba(0,118,227,0.10)!important;}
-        .sb-proy-lbl{color:rgba(30,34,43,0.45)!important;font-size:9px!important;}
-        .sb-proy-name{color:#0076e3!important;font-weight:700!important;}
-        .sb-proy-meta{color:rgba(30,34,43,0.5)!important;}
         .proy-drop{background:#fff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 8px 24px rgba(0,0,0,0.1)!important;}
         .proy-drop-item{color:#1e222b!important;}
         .proy-drop-item:hover{background:rgba(0,118,227,0.06)!important;color:#0076e3!important;}
@@ -1306,30 +1307,6 @@
         <div class="sb-logo-area">
             <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
         </div>
-            <div class="sb-proy" id="proyBtn" onclick="toggleDrop()">
-                <div class="sb-proy-lbl">PROYECTO ACTIVO ▾</div>
-                <div class="sb-proy-name">@proyActivo</div>
-                <div class="sb-proy-meta"><span class="pulse"></span>Toca para cambiar</div>
-            </div>
-            <div class="proy-drop" id="proyDrop">
-                @{
-                    var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;
-                }
-                @if (proyectos != null)
-                {
-                    foreach (var p in proyectos)
-                    {
-                        <form action="/Inmuebles/SeleccionarProyecto" method="post" style="margin:0">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="idProyecto" value="@p.Id" />
-                            <input type="hidden" name="nombreProyecto" value="@p.Nombre" />
-                            <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                        </form>
-                    }
-                }
-                <a href="/Inmuebles" class="proy-drop-link">← Ver todos los proyectos</a>
-                <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
-            </div>
             <div class="sb-sec">Principal</div>
             <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
             <a class="nav-item active" href="/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
@@ -1360,7 +1337,30 @@
                         }
                     </span>
                 </div>
-                <div class="tb-right"><div class="tb-chip"><span class="pulse"></span>@proyActivo</div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
+                <div class="tb-right"><div class="tb-proy">
+                    <button type="button" class="tb-chip" id="proyBtn" onclick="toggleDrop()" title="Cambiar proyecto">
+                        <span class="pulse"></span>@proyActivo<span class="tb-chip-caret">▾</span>
+                    </button>
+                    <div class="proy-drop" id="proyDrop">
+                @{
+                    var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;
+                }
+                @if (proyectos != null)
+                {
+                    foreach (var p in proyectos)
+                    {
+                        <form action="/Inmuebles/SeleccionarProyecto" method="post" style="margin:0">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="idProyecto" value="@p.Id" />
+                            <input type="hidden" name="nombreProyecto" value="@p.Nombre" />
+                            <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
+                        </form>
+                    }
+                }
+                <a href="/Inmuebles" class="proy-drop-link">← Ver todos los proyectos</a>
+                <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
+                    </div>
+                </div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
             </div>
             <div class="view">
                 @if (TempData["Exito"] != null)

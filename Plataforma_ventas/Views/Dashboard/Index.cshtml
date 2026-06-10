@@ -44,14 +44,9 @@
         .sb-logo-full{width:100%;height:100%;object-fit:contain;display:block;}
         .sb-app{font-size:17px;font-weight:700;color:var(--label);letter-spacing:-0.4px;}
         .sb-sub{font-size:11px;color:var(--label3);margin-top:1px;}
-        .sb-proy{margin:14px 10px 0;background:rgba(0,118,227,0.08);border:1px solid rgba(0,118,227,0.18);border-radius:14px;padding:10px 12px;cursor:pointer;transition:background 0.2s;}
-        .sb-proy:hover{background:rgba(0,118,227,0.13);}
-        .sb-proy-lbl{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--label3);font-weight:600;margin-bottom:2px;}
-        .sb-proy-name{font-size:14px;font-weight:700;color:var(--azul);letter-spacing:-0.2px;}
-        .sb-proy-meta{display:flex;align-items:center;gap:4px;margin-top:3px;font-size:11px;color:var(--label2);}
         .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;}
         @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
-        .proy-drop{display:none;margin:4px 10px;background:white;border:1px solid var(--sep);border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
+        .proy-drop{display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;z-index:120;background:white;border:1px solid var(--sep);border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
         .proy-drop.open{display:block;}
         .proy-drop-item{width:100%;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--sep2);text-align:left;font-size:13px;font-weight:500;cursor:pointer;color:var(--label);display:flex;align-items:center;gap:8px;transition:background 0.15s;}
         .proy-drop-item:hover{background:var(--fill3);}
@@ -72,7 +67,9 @@
         .tb-bread{font-size:13px;color:var(--label2);}
         .tb-bread strong{color:var(--label);font-weight:600;}
         .tb-right{display:flex;align-items:center;gap:8px;}
-        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);}
+        .tb-proy{position:relative;}
+        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);cursor:pointer;font-family:inherit;}
+        .tb-chip-caret{font-size:9px;margin-left:5px;opacity:.7;}
         .tb-ibtn{width:30px;height:30px;border-radius:9px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;position:relative;transition:background 0.15s;text-decoration:none;color:var(--label);border:none;}
         .tb-ibtn:hover{background:var(--fill2);}
         .nd{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--rojo);border:1.5px solid #EEF2F7;}
@@ -178,7 +175,7 @@
             .kpi-row{grid-template-columns:1fr 1fr;gap:8px;}
             .dash-row{grid-template-columns:1fr;}
             .listas-body{grid-template-columns:1fr;gap:10px;}
-            .tb-chip{display:none;}
+            .tb-chip{max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
             .kpi-num{font-size:20px;}
             .sb-footer{padding:10px 12px 30px;}
         }
@@ -189,11 +186,6 @@
         .sb-logo-area img{width:100%;max-height:52px;object-fit:contain;display:block;mix-blend-mode:multiply;filter:contrast(1.05);}
         .sb-app{color:#1e222b!important;font-weight:700!important;}
         .sb-sub{color:rgba(30,34,43,0.45)!important;}
-        .sb-proy{background:rgba(0,118,227,0.06)!important;border-color:rgba(0,118,227,0.18)!important;}
-        .sb-proy:hover{background:rgba(0,118,227,0.10)!important;}
-        .sb-proy-lbl{color:rgba(30,34,43,0.45)!important;font-size:9px!important;}
-        .sb-proy-name{color:#0076e3!important;font-weight:700!important;}
-        .sb-proy-meta{color:rgba(30,34,43,0.5)!important;}
         .proy-drop{background:#fff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 8px 24px rgba(0,0,0,0.1)!important;}
         .proy-drop-item{color:#1e222b!important;}
         .proy-drop-item:hover{background:rgba(0,118,227,0.06)!important;color:#0076e3!important;}
@@ -222,27 +214,6 @@
             <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" style="width:100%;max-height:56px;object-fit:contain;display:block;mix-blend-mode:multiply;" />
         </div>
 
-        <div class="sb-proy" id="proyBtn" onclick="toggleDrop()">
-            <div class="sb-proy-lbl">PROYECTO ACTIVO ▾</div>
-            <div class="sb-proy-name">@proyActivo</div>
-            <div class="sb-proy-meta"><span class="pulse"></span>Toca para cambiar</div>
-        </div>
-        <div class="proy-drop" id="proyDrop">
-            @{var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;}
-            @if (proyectos != null && proyectos.Count > 0) {
-                foreach (var p in proyectos) {
-                    <form asp-action="CambiarProyecto" asp-controller="Dashboard" method="post" style="margin:0">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="idProyecto" value="@p.Id"/>
-                        <input type="hidden" name="nombreProyecto" value="@p.Nombre"/>
-                        <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                    </form>
-                }
-            } else {
-                <div style="padding:12px 14px;font-size:13px;color:var(--label2)">No hay proyectos cargados</div>
-            }
-            <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
-        </div>
         <div class="sb-sec">Principal</div>
         <a class="nav-item active" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
         <a class="nav-item" href="/Inmuebles"><div class="nav-ico">🏢</div>Proyectos</a>
@@ -267,7 +238,27 @@
                 <span class="tb-bread"><strong>Inicio</strong></span>
             </div>
             <div class="tb-right">
-                <div class="tb-chip"><span class="pulse"></span>@proyActivo</div>
+                <div class="tb-proy">
+                    <button type="button" class="tb-chip" id="proyBtn" onclick="toggleDrop()" title="Cambiar proyecto">
+                        <span class="pulse"></span>@proyActivo<span class="tb-chip-caret">▾</span>
+                    </button>
+                    <div class="proy-drop" id="proyDrop">
+                        @{var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;}
+                        @if (proyectos != null && proyectos.Count > 0) {
+                            foreach (var p in proyectos) {
+                                <form asp-action="CambiarProyecto" asp-controller="Dashboard" method="post" style="margin:0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="idProyecto" value="@p.Id"/>
+                                    <input type="hidden" name="nombreProyecto" value="@p.Nombre"/>
+                                    <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
+                                </form>
+                            }
+                        } else {
+                            <div style="padding:12px 14px;font-size:13px;color:var(--label2)">No hay proyectos cargados</div>
+                        }
+                        <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
+                    </div>
+                </div>
                 <div class="tb-ibtn">🔔<div class="nd"></div></div>
                 <a class="tb-ibtn" href="/Account/Logout">↩</a>
             </div>
