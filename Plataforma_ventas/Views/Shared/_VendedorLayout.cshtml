@@ -65,19 +65,19 @@
         </svg>
       </div>Inmuebles
     </a>
-    <a class="nav-item @(activeNav=="vendedor-ventas"?"active":"")" href="/Vendedor/MisVentas">
-      <div class="nav-ico">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-        </svg>
-      </div>Mis ventas
-    </a>
     <a class="nav-item @(activeNav=="vendedor-reservas"?"active":"")" href="/Vendedor/MisReservas">
       <div class="nav-ico">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
       </div>Mis reservas
+    </a>
+    <a class="nav-item @(activeNav=="vendedor-ventas"?"active":"")" href="/Vendedor/MisVentas">
+      <div class="nav-ico">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>Mis ventas
     </a>
     <a class="nav-item @(activeNav=="vendedor-perfil"?"active":"")" href="/Vendedor/Perfil">
       <div class="nav-ico">
@@ -90,7 +90,7 @@
     <div class="sb-footer">
       <div class="sb-av2">@iniciales</div>
       <div>
-        <div style="font-size:12px;font-weight:600">@nombre</div>
+        <div style="font-size:12px;font-weight:600">@nombre @apellido</div>
         <div style="font-size:10px;color:var(--label3)">Vendedor</div>
       </div>
       <a class="sb-logout" href="/Account/Logout" title="Cerrar sesión">
