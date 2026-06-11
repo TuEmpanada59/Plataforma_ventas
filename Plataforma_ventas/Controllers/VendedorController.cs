@@ -263,6 +263,7 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Reservados = lista.Count(x => x.Estado == "RESERVADO");
             ViewBag.Vendidos = lista.Count(x => x.Estado == "VENDIDO");
             ViewBag.IdUsuario = idUsuario;
+            ViewBag.ProyectoId = idProy;
             ViewBag.EnProceso = lista.Count(x => x.Estado == "EN PROCESO");
             return View();
         }

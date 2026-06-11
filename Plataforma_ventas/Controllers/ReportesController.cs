@@ -719,6 +719,217 @@ namespace Plataforma_ventas.Controllers
                 $"Ventas_Asesores_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.xlsx");
         }
 
+        /// <summary>
+        /// Displays the attendance sheet (cuadro de asistencia) for the active project.
+        /// Shows all registered visitors with their interest, assigned vendor, and outcome.
+        /// Gracefully handles the case where the Asistencias table has not been created yet.
+        /// </summary>
+        public async Task<IActionResult> Asistencia()
+        {
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
+            ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid2) ? uid2 : 0;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var proyectos = new List<(int Id, string Nombre)>();
+            var cmdList = new SqlCommand("SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
+            cmdList.Parameters.AddWithValue("@admin", idAdmin);
+            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
+            ViewBag.Proyectos = proyectos;
+
+            // Load available metros for dropdown
+            var metros = new List<string>();
+            var cmdMetros = new SqlCommand("SELECT DISTINCT Metros FROM ProyectoAreaListas WHERE IdProyecto=@id ORDER BY Metros", con);
+            cmdMetros.Parameters.AddWithValue("@id", idProy);
+            using (var rm = (SqlDataReader)await cmdMetros.ExecuteReaderAsync())
+                while (await rm.ReadAsync())
+                    metros.Add(rm["Metros"]?.ToString() ?? "");
+            ViewBag.MetrosDisponibles = metros;
+
+            // Load vendors for dropdown
+            var vendedores = new List<dynamic>();
+            var cmdVend = new SqlCommand("SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto FROM Usuarios WHERE Rol='Vendedor' ORDER BY Nombre", con);
+            using (var rv = (SqlDataReader)await cmdVend.ExecuteReaderAsync())
+                while (await rv.ReadAsync())
+                    vendedores.Add(new { Id = (int)rv["IdUsuario"], Nombre = rv["NombreCompleto"]?.ToString() ?? "" });
+            ViewBag.Vendedores = vendedores;
+
+            // Load attendance records — catch gracefully if table doesn't exist yet
+            var asistencias = new List<dynamic>();
+            try
+            {
+                var cmdAs = new SqlCommand(@"
+                    SELECT a.IdAsistencia, a.Nombre, a.Apellido, a.Documento, a.Celular, a.Correo,
+                           a.MetrosInteres, a.TipoInteres,
+                           ISNULL(u.Nombre+' '+u.Apellido,'—') AS Vendedor,
+                           FORMAT(a.FechaVisita,'dd/MM/yyyy HH:mm') AS FechaVisita,
+                           a.Estado, a.Observaciones
+                    FROM Asistencias a
+                    LEFT JOIN Usuarios u ON u.IdUsuario = a.IdVendedorAtiende
+                    WHERE a.IdProyecto = @id
+                    ORDER BY a.FechaVisita DESC", con);
+                cmdAs.Parameters.AddWithValue("@id", idProy);
+                using (var ra = (SqlDataReader)await cmdAs.ExecuteReaderAsync())
+                    while (await ra.ReadAsync())
+                        asistencias.Add(new
+                        {
+                            Id = (int)ra["IdAsistencia"],
+                            Nombre = ra["Nombre"]?.ToString() ?? "",
+                            Apellido = ra["Apellido"]?.ToString() ?? "",
+                            Documento = ra["Documento"]?.ToString() ?? "",
+                            Celular = ra["Celular"]?.ToString() ?? "",
+                            Correo = ra["Correo"]?.ToString() ?? "",
+                            MetrosInteres = ra["MetrosInteres"]?.ToString() ?? "",
+                            TipoInteres = ra["TipoInteres"]?.ToString() ?? "",
+                            Vendedor = ra["Vendedor"]?.ToString() ?? "—",
+                            FechaVisita = ra["FechaVisita"]?.ToString() ?? "",
+                            Estado = ra["Estado"]?.ToString() ?? "",
+                            Observaciones = ra["Observaciones"]?.ToString() ?? "",
+                        });
+                ViewBag.TablaCreadaOk = true;
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Number == 208)
+            {
+                ViewBag.TablaCreadaOk = false;
+            }
+
+            ViewBag.Asistencias = asistencias;
+            return View();
+        }
+
+        /// <summary>
+        /// Registers a new attendee in the attendance sheet.
+        /// Inserts a row into the Asistencias table for the active project.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegistrarAsistente(
+            string nombre, string apellido, string documento,
+            string celular, string correo, string metrosInteres, string tipoInteres,
+            int? idVendedorAtiende, string estado, string observaciones)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+            var cmd = new SqlCommand(@"INSERT INTO Asistencias
+                (IdProyecto,Nombre,Apellido,Documento,Celular,Correo,
+                 MetrosInteres,TipoInteres,IdVendedorAtiende,Estado,Observaciones,FechaVisita)
+                VALUES (@proy,@nom,@ape,@doc,@cel,@cor,@met,@tip,@vend,@est,@obs,GETDATE())", con);
+            cmd.Parameters.AddWithValue("@proy", idProy);
+            cmd.Parameters.AddWithValue("@nom", nombre ?? "");
+            cmd.Parameters.AddWithValue("@ape", apellido ?? "");
+            cmd.Parameters.AddWithValue("@doc", documento ?? "");
+            cmd.Parameters.AddWithValue("@cel", celular ?? "");
+            cmd.Parameters.AddWithValue("@cor", correo ?? "");
+            cmd.Parameters.AddWithValue("@met", metrosInteres ?? "");
+            cmd.Parameters.AddWithValue("@tip", tipoInteres ?? "");
+            cmd.Parameters.AddWithValue("@vend", idVendedorAtiende.HasValue ? (object)idVendedorAtiende.Value : DBNull.Value);
+            cmd.Parameters.AddWithValue("@est", estado ?? "Visitó");
+            cmd.Parameters.AddWithValue("@obs", observaciones ?? "");
+            await cmd.ExecuteNonQueryAsync();
+            TempData["AsistExito"] = "Asistente registrado correctamente.";
+            return RedirectToAction("Asistencia");
+        }
+
+        /// <summary>
+        /// Exports the attendance sheet to Excel.
+        /// Generates a colour-coded workbook with one row per attendee.
+        /// </summary>
+        public async Task<IActionResult> ExportarAsistencia()
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+            var asistencias = new List<dynamic>();
+            var cmd = new SqlCommand(@"
+                SELECT a.Nombre, a.Apellido, a.Documento, a.Celular, a.Correo,
+                       a.MetrosInteres, a.TipoInteres,
+                       ISNULL(u.Nombre+' '+u.Apellido,'—') AS Vendedor,
+                       FORMAT(a.FechaVisita,'dd/MM/yyyy HH:mm') AS FechaVisita,
+                       a.Estado, a.Observaciones
+                FROM Asistencias a
+                LEFT JOIN Usuarios u ON u.IdUsuario = a.IdVendedorAtiende
+                WHERE a.IdProyecto = @id
+                ORDER BY a.FechaVisita DESC", con);
+            cmd.Parameters.AddWithValue("@id", idProy);
+            using (var r = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    asistencias.Add(new
+                    {
+                        Nombre = r["Nombre"]?.ToString() ?? "",
+                        Apellido = r["Apellido"]?.ToString() ?? "",
+                        Documento = r["Documento"]?.ToString() ?? "",
+                        Celular = r["Celular"]?.ToString() ?? "",
+                        Correo = r["Correo"]?.ToString() ?? "",
+                        MetrosInteres = r["MetrosInteres"]?.ToString() ?? "",
+                        TipoInteres = r["TipoInteres"]?.ToString() ?? "",
+                        Vendedor = r["Vendedor"]?.ToString() ?? "—",
+                        FechaVisita = r["FechaVisita"]?.ToString() ?? "",
+                        Estado = r["Estado"]?.ToString() ?? "",
+                        Observaciones = r["Observaciones"]?.ToString() ?? "",
+                    });
+
+            ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Cuadro de asistencia");
+
+            ws.Cells[1, 1].Value = $"Cuadro de asistencia — {proyNombre}";
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Size = 14;
+            ws.Cells[1, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+            ws.Cells[1, 1, 1, 11].Merge = true;
+            ws.Cells[2, 1].Value = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}";
+            ws.Cells[2, 1].Style.Font.Color.SetColor(DColor.Gray);
+
+            var headers = new[] { "Nombre", "Apellido", "Documento", "Celular", "Correo", "Área m²", "Tipo", "Asesor", "Fecha visita", "Estado", "Observaciones" };
+            for (int i = 0; i < headers.Length; i++) { ws.Cells[4, i + 1].Value = headers[i]; StyleHeader(ws.Cells[4, i + 1]); }
+
+            int row = 5;
+            foreach (var a in asistencias)
+            {
+                ws.Cells[row, 1].Value = a.Nombre;
+                ws.Cells[row, 2].Value = a.Apellido;
+                ws.Cells[row, 3].Value = a.Documento;
+                ws.Cells[row, 4].Value = a.Celular;
+                ws.Cells[row, 5].Value = a.Correo;
+                ws.Cells[row, 6].Value = a.MetrosInteres;
+                ws.Cells[row, 7].Value = a.TipoInteres;
+                ws.Cells[row, 8].Value = a.Vendedor;
+                ws.Cells[row, 9].Value = a.FechaVisita;
+                ws.Cells[row, 10].Value = a.Estado;
+                ws.Cells[row, 11].Value = a.Observaciones;
+
+                // Colour-code by Estado
+                var bgColor = a.Estado == "Compró" ? DColor.FromArgb(52, 199, 89) :
+                              a.Estado == "Apartó" ? DColor.FromArgb(255, 149, 0) :
+                              a.Estado == "No interesado" ? DColor.FromArgb(230, 57, 70) :
+                              DColor.FromArgb(230, 244, 255);
+                ws.Cells[row, 10].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                ws.Cells[row, 10].Style.Fill.BackgroundColor.SetColor(bgColor);
+                ws.Cells[row, 10].Style.Font.Bold = true;
+                if (row % 2 == 0)
+                {
+                    ws.Cells[row, 1, row, 9].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    ws.Cells[row, 1, row, 9].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(248, 250, 253));
+                    ws.Cells[row, 11].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    ws.Cells[row, 11].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(248, 250, 253));
+                }
+                row++;
+            }
+
+            for (int col = 1; col <= 11; col++) ws.Column(col).AutoFit();
+            return File(package.GetAsByteArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"Asistencia_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.xlsx");
+        }
+
         private static void StyleHeader(ExcelRange cell)
         {
             cell.Style.Font.Bold = true;

@@ -1,0 +1,231 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Cuadro de asistencia";
+    ViewBag.ActiveNav = "reportes";
+    ViewBag.TbBread   = "Cuadro de asistencia";
+
+    var proyActivo       = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+    var asistencias      = ViewBag.Asistencias    as List<dynamic> ?? new List<dynamic>();
+    var vendedores       = ViewBag.Vendedores      as List<dynamic> ?? new List<dynamic>();
+    var metrosDisp       = ViewBag.MetrosDisponibles as List<string> ?? new List<string>();
+    bool tablaCreadaOk   = ViewBag.TablaCreadaOk  != null ? (bool)ViewBag.TablaCreadaOk : false;
+}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .tab-bar{display:flex;gap:6px;background:var(--fill3);border-radius:14px;padding:4px;width:fit-content;margin-bottom:4px;}
+    .tab-btn{padding:7px 18px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;color:var(--label2);transition:all 0.2s;}
+    .tab-btn.active{background:white;color:var(--label);box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+    .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease both;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
+    .card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .card-body{padding:20px;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+    .form-group{display:flex;flex-direction:column;gap:5px;}
+    .form-group label{font-size:12px;font-weight:600;color:var(--label2);text-transform:uppercase;letter-spacing:0.04em;}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 12px;border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);background:var(--fill3);outline:none;font-family:inherit;}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
+    .form-group textarea{resize:vertical;min-height:68px;}
+    .btn-submit{background:var(--blue);color:white;border:none;padding:10px 24px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;}
+    .btn-submit:hover{background:var(--mid);}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;min-width:800px;}
+    .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.95);}
+    .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--sep2);}
+    .tbl td{padding:10px 14px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .bdg-estado{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+    .bdg-visito{background:rgba(0,118,227,0.1);color:var(--blue);}
+    .bdg-aparto{background:rgba(255,149,0,0.12);color:#CC7700;}
+    .bdg-compro{background:rgba(52,199,89,0.12);color:#1EA851;}
+    .bdg-no{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .search-wrap{position:relative;max-width:220px;}
+    .search-wrap input{width:100%;padding:7px 12px 7px 30px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);outline:none;}
+    .search-wrap input:focus{background:white;border-color:var(--blue);}
+    .search-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--label3);pointer-events:none;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;color:white;border:none;padding:7px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;text-decoration:none;box-shadow:0 3px 10px rgba(0,118,227,0.2);}
+    .ios-btn.verde{background:#1EA851;}.ios-btn.verde:hover{background:#167A3D;}
+    .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851;margin-bottom:4px;}
+    .sql-box{background:var(--fill2);border:1px solid var(--sep);border-radius:12px;padding:18px;font-family:monospace;font-size:12px;color:var(--label);white-space:pre-wrap;overflow-x:auto;}
+    .setup-card{background:rgba(255,149,0,0.07);border:1px solid rgba(255,149,0,0.3);border-radius:18px;padding:24px;}
+    @@media(max-width:900px){.form-grid{grid-template-columns:1fr 1fr!important;}}
+    @@media(max-width:600px){.form-grid{grid-template-columns:1fr!important;}}
+</style>
+}
+
+<!-- TABS DE REPORTES -->
+<div class="tab-bar">
+    <a href="/Reportes" class="tab-btn">Dashboard</a>
+    <a href="/Reportes/Asistencia" class="tab-btn active">Cuadro de asistencia</a>
+</div>
+
+@if (TempData["AsistExito"] != null) {
+    <div class="alerta-exito">✅ @TempData["AsistExito"]</div>
+}
+
+@if (!tablaCreadaOk) {
+    <!-- SETUP: tabla aún no creada -->
+    <div class="setup-card">
+        <div style="font-size:17px;font-weight:700;color:#CC7700;margin-bottom:8px;">⚠️ Tabla de asistencias no encontrada</div>
+        <p style="font-size:13px;color:var(--label2);margin-bottom:16px;">
+            Para activar el cuadro de asistencia, ejecuta el siguiente script SQL en tu base de datos <strong>Lanzamientos</strong>:
+        </p>
+        <div class="sql-box">CREATE TABLE Asistencias (
+    IdAsistencia      INT           IDENTITY(1,1) PRIMARY KEY,
+    IdProyecto        INT           NOT NULL,
+    Nombre            NVARCHAR(100) NOT NULL,
+    Apellido          NVARCHAR(100) NOT NULL DEFAULT '',
+    Documento         NVARCHAR(20)  NOT NULL DEFAULT '',
+    Celular           NVARCHAR(20)  NOT NULL DEFAULT '',
+    Correo            NVARCHAR(100) NOT NULL DEFAULT '',
+    MetrosInteres     NVARCHAR(20)  NOT NULL DEFAULT '',
+    TipoInteres       NVARCHAR(10)  NOT NULL DEFAULT '',
+    IdVendedorAtiende INT           NULL,
+    FechaVisita       DATETIME      NOT NULL DEFAULT GETDATE(),
+    Estado            NVARCHAR(30)  NOT NULL DEFAULT 'Visitó',
+    Observaciones     NVARCHAR(500) NOT NULL DEFAULT ''
+);</div>
+        <p style="font-size:12px;color:var(--label3);margin-top:12px;">
+            Una vez creada, recarga esta página y el cuadro de asistencia estará disponible.
+        </p>
+    </div>
+} else {
+    <!-- FORMULARIO DE REGISTRO -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">➕ Registrar asistente — @proyActivo</span>
+        </div>
+        <div class="card-body">
+            <form action="/Reportes/RegistrarAsistente" method="post">
+                @Html.AntiForgeryToken()
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input type="text" name="nombre" placeholder="Nombre" required/>
+                    </div>
+                    <div class="form-group">
+                        <label>Apellido</label>
+                        <input type="text" name="apellido" placeholder="Apellido"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Documento</label>
+                        <input type="text" name="documento" placeholder="Cédula o NIT"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Celular</label>
+                        <input type="text" name="celular" placeholder="Número celular"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Correo</label>
+                        <input type="email" name="correo" placeholder="correo@ejemplo.com"/>
+                    </div>
+                    <div class="form-group">
+                        <label>Área de interés (m²)</label>
+                        @if (metrosDisp.Count > 0) {
+                            <select name="metrosInteres">
+                                <option value="">— Sin especificar —</option>
+                                @foreach (var m in metrosDisp) {
+                                    <option value="@m">@m m²</option>
+                                }
+                            </select>
+                        } else {
+                            <input type="text" name="metrosInteres" placeholder="Ej: 60"/>
+                        }
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select name="tipoInteres">
+                            <option value="">— Sin especificar —</option>
+                            <option value="INT">Interior (INT)</option>
+                            <option value="EXT">Exterior (EXT)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Asesor que atiende</label>
+                        <select name="idVendedorAtiende">
+                            <option value="">— Sin asignar —</option>
+                            @foreach (dynamic v in vendedores) {
+                                <option value="@v.Id">@v.Nombre</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado / resultado</label>
+                        <select name="estado">
+                            <option value="Visitó">Visitó</option>
+                            <option value="Apartó">Apartó</option>
+                            <option value="Compró">Compró</option>
+                            <option value="No interesado">No interesado</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column:1/-1;">
+                        <label>Observaciones</label>
+                        <textarea name="observaciones" placeholder="Notas adicionales..."></textarea>
+                    </div>
+                </div>
+                <div style="margin-top:14px;">
+                    <button type="submit" class="btn-submit">Registrar asistente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TABLA DE ASISTENCIAS -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">📋 Asistentes registrados — @proyActivo</span>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@asistencias.Count personas</span>
+                <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar..." oninput="filtrar()"/></div>
+                <a href="/Reportes/ExportarAsistencia" class="ios-btn verde">⬇ Excel</a>
+            </div>
+        </div>
+        @if (asistencias.Count > 0) {
+            <div class="tbl-wrap">
+                <table class="tbl" id="tablaAsist">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th><th>Documento</th><th>Celular</th><th>Correo</th>
+                            <th>Área m²</th><th>Tipo</th><th>Asesor</th><th>Fecha</th><th>Estado</th><th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var a in asistencias) {
+                        var bdgCls = a.Estado == "Compró" ? "bdg-compro" :
+                                     a.Estado == "Apartó" ? "bdg-aparto" :
+                                     a.Estado == "No interesado" ? "bdg-no" : "bdg-visito";
+                        <tr>
+                            <td style="font-weight:600">@a.Nombre @a.Apellido</td>
+                            <td style="color:var(--label2)">@a.Documento</td>
+                            <td>@a.Celular</td>
+                            <td style="font-size:12px;color:var(--label2)">@a.Correo</td>
+                            <td style="text-align:center">@(string.IsNullOrEmpty(a.MetrosInteres) ? "—" : a.MetrosInteres + " m²")</td>
+                            <td style="text-align:center">@(string.IsNullOrEmpty(a.TipoInteres) ? "—" : a.TipoInteres)</td>
+                            <td style="color:var(--blue);font-weight:500">@a.Vendedor</td>
+                            <td style="font-size:12px;color:var(--label2)">@a.FechaVisita</td>
+                            <td><span class="bdg-estado @bdgCls">@a.Estado</span></td>
+                            <td style="font-size:12px;color:var(--label2);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="@a.Observaciones">@a.Observaciones</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        } else {
+            <div style="padding:40px;text-align:center;color:var(--label3);font-size:14px;">
+                Aún no hay asistentes registrados para <strong>@proyActivo</strong>.
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+<script>
+    function filtrar() {
+        const q = document.getElementById('buscar')?.value.toLowerCase() || '';
+        document.querySelectorAll('#tablaAsist tbody tr').forEach(tr => {
+            tr.style.display = tr.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+</script>
+}
