@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Plataforma_ventas.Filters;
 using OfficeOpenXml;
@@ -7,17 +7,29 @@ using System.Drawing;
 
 namespace Plataforma_ventas.Controllers
 {
+    /// <summary>
+    /// Administrator controller for viewing and exporting sales records
+    /// for the active project.
+    /// </summary>
     [RolAutorizado("Administrador")]
     public class VentasController : Controller
     {
         private readonly string _conn;
 
+        /// <summary>Initializes the controller with DB connection string from configuration.</summary>
         public VentasController(IConfiguration config)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
         }
 
-        public IActionResult Index()
+        /// <summary>
+        /// Lists all sales for the active project with server-side pagination.
+        /// Results are ordered by FechaVenta descending (newest first).
+        /// Performs a COUNT query for total pages and a paginated SELECT query for the current page.
+        /// </summary>
+        /// <param name="page">1-based page number. Defaults to 1.</param>
+        /// <param name="pageSize">Number of sales per page. Defaults to 25.</param>
+        public async Task<IActionResult> Index([FromQuery] int page = 1, [FromQuery] int pageSize = 25)
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
@@ -27,19 +39,44 @@ namespace Plataforma_ventas.Controllers
             int idProy = int.TryParse(proyIdStr, out int pid) ? pid : 0;
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
 
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 25;
+
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             // Solo proyectos de este admin
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand("SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
             cmdList.Parameters.AddWithValue("@admin", idAdmin);
-            using (var r = cmdList.ExecuteReader())
-                while (r.Read())
+            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
+                while (await r.ReadAsync())
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
-            // Todas las ventas del proyecto
+            // COUNT for pagination
+            var cmdCount = new SqlCommand(
+                "SELECT COUNT(*) FROM Ventas WHERE IdProyecto = @proy", con);
+            cmdCount.Parameters.AddWithValue("@proy", idProy);
+            int total = (int)(await cmdCount.ExecuteScalarAsync())!;
+            int totalPages = (int)Math.Ceiling((double)total / pageSize);
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            ViewBag.Page = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.Total = total;
+
+            // Sum the full project total (all pages). NOTE: this scalar query MUST run
+            // before the paginated reader below is opened — a `using var` reader stays
+            // open until the end of the method, and executing another command on the
+            // same connection while a DataReader is open throws InvalidOperationException.
+            var cmdSum = new SqlCommand(
+                "SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@proy", con);
+            cmdSum.Parameters.AddWithValue("@proy", idProy);
+            ViewBag.TotalValor = Convert.ToInt64(await cmdSum.ExecuteScalarAsync());
+
+            // Paginated query — sales ordered newest first
             var ventas = new List<dynamic>();
             var cmd = new SqlCommand(@"
                 SELECT v.IdVenta,
@@ -56,10 +93,13 @@ namespace Plataforma_ventas.Controllers
                 JOIN Clientes  c ON v.IdCliente  = c.IdCliente
                 JOIN Usuarios  u ON v.IdUsuario  = u.IdUsuario
                 WHERE v.IdProyecto = @proy
-                ORDER BY v.FechaVenta DESC", con);
+                ORDER BY v.FechaVenta DESC
+                OFFSET (@page-1)*@pageSize ROWS FETCH NEXT @pageSize ROWS ONLY", con);
             cmd.Parameters.AddWithValue("@proy", idProy);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            cmd.Parameters.AddWithValue("@page", page);
+            cmd.Parameters.AddWithValue("@pageSize", pageSize);
+            using var reader = (SqlDataReader)await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
                 ventas.Add(new
                 {
@@ -82,26 +122,29 @@ namespace Plataforma_ventas.Controllers
 
             ViewBag.Ventas = ventas;
             ViewBag.TotalVentas = ventas.Count;
-            ViewBag.TotalValor = ventas.Sum(v => long.TryParse(v.PrecioVenta, out long p) ? p : 0);
 
             return View();
         }
 
-        // ── Generar mapa Excel ──
-        public IActionResult GenerarMapa()
+        /// <summary>
+        /// Generates an Excel workbook with a colour-coded property map
+        /// showing the current estado of every unit in the active project.
+        /// Performs a SELECT query for all properties ordered by Torre/Piso/Apto.
+        /// </summary>
+        public async Task<IActionResult> GenerarMapa()
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var inmuebles = new List<dynamic>();
-            var cmd = new SqlCommand(@"SELECT Apto, Piso, Torre, Tipo, Estado FROM Inmuebles 
+            var cmd = new SqlCommand(@"SELECT Apto, Piso, Torre, Tipo, Estado FROM Inmuebles
                 WHERE IdProyecto=@id ORDER BY Torre, Piso DESC, Apto", con);
             cmd.Parameters.AddWithValue("@id", idProy);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            using var reader = (SqlDataReader)await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
                 inmuebles.Add(new { Apto = reader["Apto"]?.ToString() ?? "", Piso = reader["Piso"]?.ToString() ?? "", Torre = reader["Torre"]?.ToString() ?? "", Tipo = reader["Tipo"]?.ToString() ?? "", Estado = reader["Estado"]?.ToString() ?? "" });
             reader.Close();
 

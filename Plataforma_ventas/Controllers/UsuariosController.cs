@@ -1,180 +1,195 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Plataforma_ventas.Filters;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Plataforma_ventas.Controllers
 {
+    /// <summary>
+    /// Administrator controller for user management:
+    /// listing, creating, editing, resetting passwords, and deleting user accounts.
+    /// </summary>
     [RolAutorizado("Administrador")]
     public class UsuariosController : Controller
     {
         private readonly string _conn;
 
+        /// <summary>Initializes the controller with DB connection string from configuration.</summary>
         public UsuariosController(IConfiguration config)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
         }
 
-        public IActionResult Index()
+        /// <summary>
+        /// Lists all users in the system with their assigned project and sale count.
+        /// Performs SELECT queries on Usuarios, Proyectos, and Ventas.
+        /// </summary>
+        public async Task<IActionResult> Index()
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
             ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
-            int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid2) ? uid2 : 0;
-
+            // Todos los proyectos activos — para sidebar y formulario de creación/edición
             var proyectos = new List<(int Id, string Nombre)>();
-            var cmdList = new SqlCommand("SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
-            cmdList.Parameters.AddWithValue("@admin", idAdmin);
-            using (var r = cmdList.ExecuteReader())
-                while (r.Read())
+            var cmdList = new SqlCommand(
+                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
+            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
+                while (await r.ReadAsync())
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
-            // Código del proyecto del admin para mostrarlo en el formulario
-            string codigoProyecto = "";
-            var cmdCod = new SqlCommand("SELECT ISNULL(CodigoAcceso,'') FROM Proyectos WHERE IdAdminCreador=@admin AND Activo=1", con);
-            cmdCod.Parameters.AddWithValue("@admin", idAdmin);
-            var resCod = cmdCod.ExecuteScalar();
-            if (resCod != null && resCod != DBNull.Value) codigoProyecto = resCod.ToString() ?? "";
-            ViewBag.CodigoProyecto = codigoProyecto;
-
-            // Proyecto del admin
-            int idProyAdmin = 0;
-            var cmdPAdm = new SqlCommand("SELECT IdProyectos FROM Proyectos WHERE IdAdminCreador=@admin AND Activo=1", con);
-            cmdPAdm.Parameters.AddWithValue("@admin", idAdmin);
-            var resP = cmdPAdm.ExecuteScalar();
-            if (resP != null && resP != DBNull.Value) idProyAdmin = (int)resP;
-
-            // Solo el admin y sus vendedores
+            // Todos los usuarios del sistema con su proyecto asignado
             var usuarios = new List<dynamic>();
             var cmd = new SqlCommand(@"
-                SELECT u.IdUsuario, u.Nombre, u.Apellido, u.Usuario, u.Correo, u.Documento, u.Celular, u.Rol,
+                SELECT u.IdUsuario, u.Nombre, u.Apellido, u.Usuario, u.Correo,
+                       u.Documento, u.Celular, u.Rol, u.IdProyecto,
+                       ISNULL(p.Nombre, '—') AS NombreProyecto,
                        COUNT(v.IdVenta) AS TotalVentas
                 FROM Usuarios u
-                LEFT JOIN Ventas v ON u.IdUsuario = v.IdUsuario
-                WHERE (u.Rol = 'Administrador' AND u.IdUsuario = @admin)
-                   OR (u.Rol = 'Vendedor'       AND u.IdProyecto = @proy)
-                GROUP BY u.IdUsuario, u.Nombre, u.Apellido, u.Usuario, u.Correo, u.Documento, u.Celular, u.Rol
-                ORDER BY u.Rol, u.Nombre", con);
-            cmd.Parameters.AddWithValue("@admin", idAdmin);
-            cmd.Parameters.AddWithValue("@proy", idProyAdmin);
-            using (var reader = cmd.ExecuteReader())
-                while (reader.Read())
+                LEFT JOIN Proyectos p ON u.IdProyecto = p.IdProyectos
+                LEFT JOIN Ventas    v ON u.IdUsuario  = v.IdUsuario
+                GROUP BY u.IdUsuario, u.Nombre, u.Apellido, u.Usuario, u.Correo,
+                         u.Documento, u.Celular, u.Rol, u.IdProyecto, p.Nombre
+                ORDER BY u.Rol DESC, p.Nombre, u.Nombre", con);
+
+            using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await reader.ReadAsync())
                     usuarios.Add(new
                     {
-                        Id = (int)reader["IdUsuario"],
-                        Nombre = reader["Nombre"]?.ToString() ?? "",
-                        Apellido = reader["Apellido"]?.ToString() ?? "",
-                        Usuario = reader["Usuario"]?.ToString() ?? "",
-                        Correo = reader["Correo"]?.ToString() ?? "",
-                        Documento = reader["Documento"]?.ToString() ?? "",
-                        Celular = reader["Celular"]?.ToString() ?? "",
-                        Rol = reader["Rol"]?.ToString() ?? "",
-                        TotalVentas = (int)reader["TotalVentas"],
+                        Id            = (int)reader["IdUsuario"],
+                        Nombre        = reader["Nombre"]?.ToString()        ?? "",
+                        Apellido      = reader["Apellido"]?.ToString()      ?? "",
+                        Usuario       = reader["Usuario"]?.ToString()       ?? "",
+                        Correo        = reader["Correo"]?.ToString()        ?? "",
+                        Documento     = reader["Documento"]?.ToString()     ?? "",
+                        Celular       = reader["Celular"]?.ToString()       ?? "",
+                        Rol           = reader["Rol"]?.ToString()           ?? "",
+                        IdProyecto    = reader["IdProyecto"] == DBNull.Value ? 0 : (int)reader["IdProyecto"],
+                        NombreProyecto= reader["NombreProyecto"]?.ToString() ?? "—",
+                        TotalVentas   = (int)reader["TotalVentas"],
                     });
 
-            ViewBag.Usuarios = usuarios;
-            ViewBag.TotalUsuarios = usuarios.Count;
-            ViewBag.TotalAdmins = usuarios.Count(u => u.Rol == "Administrador");
+            ViewBag.Usuarios        = usuarios;
+            ViewBag.TotalUsuarios   = usuarios.Count;
+            ViewBag.TotalAdmins     = usuarios.Count(u => u.Rol == "Administrador");
             ViewBag.TotalVendedores = usuarios.Count(u => u.Rol == "Vendedor");
+            ViewBag.TotalProyectos  = proyectos.Count;
             return View();
         }
 
-        // Crear vendedor — siempre Vendedor, con código de proyecto obligatorio
+        /// <summary>
+        /// Creates a new user account. Validates username/email uniqueness before inserting.
+        /// Passwords are hashed with BCrypt (cost factor 12) before storage — never stored in plain text.
+        /// Performs SELECT (uniqueness check) and INSERT queries on Usuarios.
+        /// </summary>
         [HttpPost]
-        public IActionResult Crear(string nombre, string apellido, string documento,
-            string celular, string correo, string usuario, string contrasena, string codigoProyecto)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Crear(string nombre, string apellido, string documento,
+            string celular, string correo, string usuario, string contrasena,
+            string rol, int idProyecto)
         {
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
-            // Verificar usuario único
-            var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE Usuario=@u", con);
+            var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE Usuario=@u OR Correo=@e", con);
             cmdCheck.Parameters.AddWithValue("@u", usuario ?? "");
-            if ((int)cmdCheck.ExecuteScalar() > 0)
+            cmdCheck.Parameters.AddWithValue("@e", correo  ?? "");
+            if ((int)(await cmdCheck.ExecuteScalarAsync())! > 0)
             {
-                TempData["Error"] = "El nombre de usuario ya está en uso.";
+                TempData["Error"] = "El nombre de usuario o correo ya está en uso.";
                 return RedirectToAction("Index");
             }
 
-            // Validar código de proyecto
-            if (string.IsNullOrWhiteSpace(codigoProyecto))
-            {
-                TempData["Error"] = "El código del proyecto es obligatorio.";
-                return RedirectToAction("Index");
-            }
+            // Administrador no requiere proyecto asignado; Vendedor sí
+            string rolFinal = rol == "Administrador" ? "Administrador" : "Vendedor";
+            object proyParam = (rolFinal == "Vendedor" && idProyecto > 0)
+                ? (object)idProyecto
+                : DBNull.Value;
 
-            var cmdProy = new SqlCommand("SELECT IdProyectos FROM Proyectos WHERE CodigoAcceso=@c AND Activo=1", con);
-            cmdProy.Parameters.AddWithValue("@c", codigoProyecto.Trim().ToUpper());
-            var resP = cmdProy.ExecuteScalar();
-            if (resP == null || resP == DBNull.Value)
-            {
-                TempData["Error"] = "El código del proyecto no es válido.";
-                return RedirectToAction("Index");
-            }
-            int idProyecto = (int)resP;
+            var cmd = new SqlCommand(@"
+                INSERT INTO Usuarios (Nombre,Apellido,Documento,Celular,Correo,Usuario,Contraseña,Rol,IdProyecto)
+                VALUES (@n,@a,@d,@c,@e,@u,@p,@r,@proy)", con);
+            cmd.Parameters.AddWithValue("@n",    nombre   ?? "");
+            cmd.Parameters.AddWithValue("@a",    apellido ?? "");
+            cmd.Parameters.AddWithValue("@d",    documento ?? "");
+            cmd.Parameters.AddWithValue("@c",    celular  ?? "");
+            cmd.Parameters.AddWithValue("@e",    correo   ?? "");
+            cmd.Parameters.AddWithValue("@u",    usuario  ?? "");
+            // BCrypt genera una sal aleatoria embebida en el hash (factor de coste = 12)
+            cmd.Parameters.AddWithValue("@p",    BCrypt.Net.BCrypt.HashPassword(contrasena ?? "", 12));
+            cmd.Parameters.AddWithValue("@r",    rolFinal);
+            cmd.Parameters.AddWithValue("@proy", proyParam);
+            await cmd.ExecuteNonQueryAsync();
 
-            var cmd = new SqlCommand(@"INSERT INTO Usuarios (Nombre,Apellido,Documento,Celular,Correo,Usuario,Contraseña,Rol,IdProyecto)
-                VALUES (@n,@a,@d,@c,@e,@u,@p,'Vendedor',@proy)", con);
-            cmd.Parameters.AddWithValue("@n", nombre ?? "");
-            cmd.Parameters.AddWithValue("@a", apellido ?? "");
-            cmd.Parameters.AddWithValue("@d", documento ?? "");
-            cmd.Parameters.AddWithValue("@c", celular ?? "");
-            cmd.Parameters.AddWithValue("@e", correo ?? "");
-            cmd.Parameters.AddWithValue("@u", usuario ?? "");
-            cmd.Parameters.AddWithValue("@p", HashSHA256(contrasena ?? ""));
-            cmd.Parameters.AddWithValue("@proy", idProyecto);
-            cmd.ExecuteNonQuery();
-
-            TempData["Exito"] = $"Vendedor '{usuario}' creado y asignado al proyecto correctamente.";
+            TempData["Exito"] = $"Usuario '{usuario}' ({rolFinal}) creado correctamente.";
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Updates an existing user's profile data (excluding password and username).
+        /// Performs an UPDATE query on Usuarios.
+        /// </summary>
         [HttpPost]
-        public IActionResult Editar(int idUsuario, string nombre, string apellido,
-            string documento, string celular, string correo, string rol)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Editar(int idUsuario, string nombre, string apellido,
+            string documento, string celular, string correo, string rol, int idProyecto)
         {
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
-            var cmd = new SqlCommand(@"UPDATE Usuarios 
-                SET Nombre=@n, Apellido=@a, Documento=@d, Celular=@c, Correo=@e, Rol=@r
+            object proyParam = idProyecto > 0 ? (object)idProyecto : DBNull.Value;
+
+            var cmd = new SqlCommand(@"
+                UPDATE Usuarios
+                SET Nombre=@n, Apellido=@a, Documento=@d, Celular=@c,
+                    Correo=@e, Rol=@r, IdProyecto=@proy
                 WHERE IdUsuario=@id", con);
-            cmd.Parameters.AddWithValue("@n", nombre ?? "");
-            cmd.Parameters.AddWithValue("@a", apellido ?? "");
-            cmd.Parameters.AddWithValue("@d", documento ?? "");
-            cmd.Parameters.AddWithValue("@c", celular ?? "");
-            cmd.Parameters.AddWithValue("@e", correo ?? "");
-            cmd.Parameters.AddWithValue("@r", rol ?? "Vendedor");
-            cmd.Parameters.AddWithValue("@id", idUsuario);
-            cmd.ExecuteNonQuery();
+            cmd.Parameters.AddWithValue("@n",    nombre   ?? "");
+            cmd.Parameters.AddWithValue("@a",    apellido ?? "");
+            cmd.Parameters.AddWithValue("@d",    documento ?? "");
+            cmd.Parameters.AddWithValue("@c",    celular  ?? "");
+            cmd.Parameters.AddWithValue("@e",    correo   ?? "");
+            cmd.Parameters.AddWithValue("@r",    rol      ?? "Vendedor");
+            cmd.Parameters.AddWithValue("@proy", proyParam);
+            cmd.Parameters.AddWithValue("@id",   idUsuario);
+            await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Usuario actualizado correctamente.";
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Resets a user's password. The new password is hashed with BCrypt (cost 12)
+        /// before storage. Only admins can trigger this operation.
+        /// Performs an UPDATE query on Usuarios.
+        /// </summary>
         [HttpPost]
-        public IActionResult ResetPassword(int idUsuario, string nuevaContrasena)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(int idUsuario, string nuevaContrasena)
         {
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var cmd = new SqlCommand("UPDATE Usuarios SET Contraseña=@p WHERE IdUsuario=@id", con);
-            cmd.Parameters.AddWithValue("@p", HashSHA256(nuevaContrasena ?? ""));
+            // BCrypt genera una sal aleatoria embebida en el hash (factor de coste = 12)
+            cmd.Parameters.AddWithValue("@p",  BCrypt.Net.BCrypt.HashPassword(nuevaContrasena ?? "", 12));
             cmd.Parameters.AddWithValue("@id", idUsuario);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Contraseña actualizada correctamente.";
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Deletes a user account permanently. Prevents self-deletion for safety.
+        /// Performs a DELETE query on Usuarios.
+        /// </summary>
         [HttpPost]
-        public IActionResult Eliminar(int idUsuario)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Eliminar(int idUsuario)
         {
             int idActual = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             if (idUsuario == idActual)
@@ -184,21 +199,14 @@ namespace Plataforma_ventas.Controllers
             }
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var cmd = new SqlCommand("DELETE FROM Usuarios WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@id", idUsuario);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Usuario eliminado correctamente.";
             return RedirectToAction("Index");
-        }
-
-        private static string HashSHA256(string input)
-        {
-            using var sha = SHA256.Create();
-            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-            return Convert.ToHexString(bytes).ToLower();
         }
     }
 }

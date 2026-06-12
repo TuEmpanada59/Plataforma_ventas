@@ -1,262 +1,269 @@
-﻿@{
-    Layout = null;
-    var nombre      = ViewBag.Nombre   as string ?? "Admin";
-    var apellido    = ViewBag.Apellido as string ?? "";
-    var proyActivo  = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Usuarios";
+    ViewBag.ActiveNav = "usuarios";
+    ViewBag.TbBread   = "Usuarios";
+
     var usuarios    = ViewBag.Usuarios as List<dynamic> ?? new List<dynamic>();
+    var proyectos   = ViewBag.Proyectos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
     int total       = ViewBag.TotalUsuarios   != null ? (int)ViewBag.TotalUsuarios   : 0;
     int admins      = ViewBag.TotalAdmins     != null ? (int)ViewBag.TotalAdmins     : 0;
     int vendedores  = ViewBag.TotalVendedores != null ? (int)ViewBag.TotalVendedores : 0;
-    var codigoProy = ViewBag.CodigoProyecto as string ?? "";
-    var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
+    int totalProy   = ViewBag.TotalProyectos  != null ? (int)ViewBag.TotalProyectos  : 0;
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-    <title>Usuarios · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{--azul:#003A70;--mid:#0055A5;--blue:#0077C8;--rojo:#E63946;--verde:#34C759;--oro:#FF9500;--label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(60,60,67,0.3);--sep:rgba(60,60,67,0.12);--sep2:rgba(60,60,67,0.06);--fill2:rgba(120,120,128,0.12);--fill3:rgba(120,120,128,0.08);--glass:rgba(255,255,255,0.75);--gb:rgba(255,255,255,0.6);--sh:0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);}
-        html,body{background:#EEF2F7;color:var(--label);}
-        *{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
-        body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,119,200,0.12) 0%,transparent 55%),#EEF2F7;pointer-events:none;}
-        .app{display:flex;min-height:100vh;position:relative;z-index:1;}
-        .sidebar{width:230px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-right:1px solid var(--gb);display:flex;flex-direction:column;}
-        .sb-top{padding:20px 14px 0;}
-        .sb-icon{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,85,165,0.25);}
-        .sb-app{font-size:17px;font-weight:700;color:var(--label);letter-spacing:-0.4px;}
-        .sb-sub{font-size:11px;color:var(--label3);margin-top:1px;}
-        .sb-proy{margin:14px 10px 0;background:rgba(0,119,200,0.08);border:1px solid rgba(0,119,200,0.18);border-radius:14px;padding:10px 12px;cursor:pointer;transition:background 0.2s;}
-        .sb-proy:hover{background:rgba(0,119,200,0.13);}
-        .sb-proy-lbl{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--label3);font-weight:600;margin-bottom:2px;}
-        .sb-proy-name{font-size:14px;font-weight:700;color:var(--azul);}
-        .sb-proy-meta{display:flex;align-items:center;gap:4px;margin-top:3px;font-size:11px;color:var(--label2);}
-        .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;}
-        @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
-        .proy-drop{display:none;margin:4px 10px 4px;background:white;border:1px solid var(--sep);border-radius:14px;overflow:hidden;box-shadow:var(--sh);}
-        .proy-drop.open{display:block;}
-        .proy-drop-item{width:100%;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--sep2);text-align:left;font-size:13px;font-weight:500;cursor:pointer;color:var(--label);display:flex;align-items:center;gap:8px;transition:background 0.15s;}
-        .proy-drop-item:hover{background:var(--fill3);}
-        .proy-drop-link{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;background:rgba(0,119,200,0.04);}
-        .sb-sec{padding:16px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);}
-        .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 6px;border-radius:11px;font-size:14px;color:var(--label2);text-decoration:none;transition:all 0.2s;}
-        .nav-item:hover{background:var(--fill3);color:var(--label);}
-        .nav-item.active{background:var(--blue);color:white;font-weight:600;box-shadow:0 4px 12px rgba(0,119,200,0.28);}
-        .nav-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--fill3);flex-shrink:0;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.2);}
-        .sb-footer{margin-top:auto;padding:10px 12px 20px;border-top:1px solid var(--sep2);display:flex;align-items:center;gap:8px;}
-        .sb-av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
-        .sb-logout{margin-left:auto;width:26px;height:26px;border-radius:7px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--label2);text-decoration:none;}
-        .sb-logout:hover{background:rgba(230,57,70,0.1);color:var(--rojo);}
-        .main{flex:1;display:flex;flex-direction:column;min-width:0;}
-        .topbar{height:50px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-bottom:1px solid var(--sep);padding:0 18px;display:flex;align-items:center;justify-content:space-between;}
-        .tb-bread{font-size:13px;color:var(--label2);}.tb-bread strong{color:var(--label);font-weight:600;}
-        .tb-right{display:flex;align-items:center;gap:8px;}
-        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);}
-        .tb-ibtn{width:30px;height:30px;border-radius:9px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:var(--label);}
-        .view{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;}
-        .view::-webkit-scrollbar{width:0;}
-        @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-        .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:16px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
-        .kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.1s}.kpi:nth-child(3){animation-delay:.15s}
-        .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
-        .kpi-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
-        .kpi-tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
-        .kpi-num{font-size:32px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
-        .kpi-lbl{font-size:12px;color:var(--label2);}
-        .kpi.k1 .kpi-ico{background:rgba(0,119,200,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,119,200,0.1);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
-        .kpi.k2 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k2 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k2 .kpi-num{color:var(--rojo)}
-        .kpi.k3 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k3 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k3 .kpi-num{color:#1EA851}
-        .layout2{display:grid;grid-template-columns:1fr 320px;gap:14px;flex:1;min-height:0;}
-        .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.2s both;display:flex;flex-direction:column;}
-        .card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep2);flex-shrink:0;}
-        .card-title{font-size:15px;font-weight:600;color:var(--label);}
-        .tbl-wrap{overflow-y:auto;flex:1;}
-        .tbl{width:100%;border-collapse:collapse;}
-        .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);}
-        .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--sep2);}
-        .tbl td{padding:10px 14px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
-        .tbl tr:last-child td{border-bottom:none;}
-        .tbl tr:hover td{background:var(--fill3);}
-        .bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
-        .bdg.A{background:rgba(0,119,200,0.1);color:var(--blue)}
-        .bdg.V{background:rgba(52,199,89,0.1);color:#1EA851}
-        .btn-sm{border:none;padding:4px 9px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;}
-        .btn-edit{background:rgba(0,119,200,0.1);color:var(--blue);}
-        .btn-edit:hover{background:rgba(0,119,200,0.2);}
-        .btn-del{background:rgba(230,57,70,0.1);color:var(--rojo);}
-        .btn-del:hover{background:rgba(230,57,70,0.2);}
-        .btn-pwd{background:rgba(255,149,0,0.1);color:#CC7700;}
-        .btn-pwd:hover{background:rgba(255,149,0,0.2);}
-        /* Form nueva usuario */
-        .form-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.25s both;}
-        .form-body{padding:16px;}
-        .field{margin-bottom:11px;}
-        .field label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);margin-bottom:4px;}
-        .field input,.field select{width:100%;padding:8px 11px;background:var(--fill3);border:1px solid var(--sep);border-radius:9px;font-size:13px;color:var(--label);outline:none;transition:all 0.2s;}
-        .field input:focus,.field select:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,119,200,0.1);}
-        .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,119,200,0.28);transition:all 0.2s;width:100%;justify-content:center;}
-        .ios-btn:hover{background:var(--mid);}
-        .av-usr{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--mid),var(--blue));display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;}
-        .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851;}
-        .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
-        /* Modal editar */
-        .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(4px);z-index:100;align-items:center;justify-content:center;}
-        .modal-bg.open{display:flex;}
-        .modal{background:white;border-radius:18px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
-        .modal-title{font-size:16px;font-weight:700;color:var(--label);margin-bottom:16px;}
-        .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-        .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
-        .btn-ghost{background:var(--fill3);color:var(--label);border:1px solid var(--sep);padding:8px 14px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;}
-        .btn-primary{background:var(--blue);color:white;border:none;padding:8px 16px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .kpi{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:16px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.04);animation:fu 0.3s ease both;}
+    .kpi:nth-child(1){animation-delay:.04s}.kpi:nth-child(2){animation-delay:.08s}
+    .kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.16s}
+    .kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .kpi-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+    .kpi-tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;letter-spacing:0.03em;}
+    .kpi-num{font-size:34px;font-weight:200;letter-spacing:-1.5px;line-height:1;margin-bottom:2px;}
+    .kpi-lbl{font-size:12px;color:var(--label2);}
+    .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,118,227,0.08);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
+    .kpi.k2 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k2 .kpi-tag{background:rgba(230,57,70,0.08);color:var(--rojo)}.kpi.k2 .kpi-num{color:var(--rojo)}
+    .kpi.k3 .kpi-ico{background:rgba(0,212,161,0.12)}.kpi.k3 .kpi-tag{background:rgba(0,212,161,0.10);color:#00a07a}.kpi.k3 .kpi-num{color:#00a07a}
+    .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.08);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
+    .content-grid{display:grid;grid-template-columns:1fr 320px;gap:16px;flex:1;min-height:0;}
+    .card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu 0.3s ease 0.18s both;display:flex;flex-direction:column;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.06);flex-shrink:0;gap:10px;flex-wrap:wrap;}
+    .card-title{font-size:15px;font-weight:700;color:var(--label);}
+    .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .filter-bar input,.filter-bar select{padding:6px 11px;background:var(--fill3);border:1px solid var(--sep);border-radius:9px;font-size:12px;color:var(--label);outline:none;transition:border-color 0.2s;}
+    .filter-bar input:focus,.filter-bar select:focus{border-color:var(--blue);}
+    .filter-bar input{width:180px;}
+    .tbl-wrap{overflow-y:auto;flex:1;overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;}
+    .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.97);}
+    .tbl th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid rgba(0,0,0,0.06);white-space:nowrap;}
+    .tbl td{padding:11px 14px;font-size:13px;color:var(--label);border-bottom:1px solid rgba(0,0,0,0.04);vertical-align:middle;}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tbody tr:hover td{background:rgba(0,118,227,0.03);}
+    .av-usr{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
+    .user-info{display:flex;align-items:center;gap:10px;}
+    .user-name{font-weight:600;font-size:13px;}
+    .user-sub{font-size:11px;color:var(--label2);}
+    .bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+    .bdg.A{background:rgba(0,118,227,0.1);color:var(--blue)}
+    .bdg.V{background:rgba(0,212,161,0.12);color:#00a07a}
+    .proy-bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(255,149,0,0.08);color:#9a5c00;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .btn-sm{border:none;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
+    .btn-edit{background:rgba(0,118,227,0.1);color:var(--blue);}
+    .btn-edit:hover{background:rgba(0,118,227,0.2);}
+    .btn-del{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .btn-del:hover{background:rgba(230,57,70,0.2);}
+    .btn-pwd{background:rgba(255,149,0,0.1);color:#CC7700;}
+    .btn-pwd:hover{background:rgba(255,149,0,0.2);}
+    .actions-cell{display:flex;gap:5px;align-items:center;}
+    .form-card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu 0.3s ease 0.22s both;display:flex;flex-direction:column;}
+    .form-body{padding:16px;overflow-y:auto;flex:1;}
+    .form-body::-webkit-scrollbar{width:0;}
+    .field{margin-bottom:12px;}
+    .field label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);margin-bottom:5px;}
+    .field input,.field select{width:100%;padding:9px 12px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);outline:none;transition:all 0.2s;}
+    .field input:focus,.field select:focus{background:white;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .ios-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--blue);color:white;border:none;padding:10px 16px;border-radius:11px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,118,227,0.3);transition:all 0.2s;width:100%;margin-top:4px;}
+    .ios-btn:hover{background:var(--mid);transform:translateY(-1px);}
+    .form-divider{border:none;border-top:1px solid rgba(0,0,0,0.06);margin:14px 0;}
+    .rol-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .rol-opt{position:relative;}
+    .rol-opt input[type=radio]{position:absolute;opacity:0;width:0;height:0;}
+    .rol-opt label{display:flex;align-items:center;gap:8px;padding:9px 12px;border:2px solid var(--sep);border-radius:11px;cursor:pointer;font-size:12px;font-weight:600;color:var(--label2);transition:all 0.2s;}
+    .rol-opt input:checked + label{border-color:var(--blue);background:rgba(0,118,227,0.06);color:var(--blue);}
+    .alerta-exito{background:rgba(0,212,161,0.1);border:1px solid rgba(0,212,161,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:#00896b;}
+    .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
+    .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.28);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;}
+    .modal-bg.open{display:flex;}
+    .modal{background:white;border-radius:20px;padding:26px;width:100%;max-width:480px;box-shadow:0 24px 72px rgba(0,0,0,0.18);}
+    .modal-title{font-size:17px;font-weight:700;color:var(--label);margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.06);}
+    .btn-ghost{background:var(--fill3);color:var(--label);border:1px solid var(--sep);padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;}
+    .btn-primary{background:var(--blue);color:white;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px rgba(0,118,227,0.28);}
+    .modal-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);margin:14px 0 8px;}
+    @@media(max-width:1300px){.kpi-row{grid-template-columns:repeat(2,1fr)!important;}}
+    @@media(max-width:1100px){.content-grid{grid-template-columns:1fr!important;}}
+    @@media(max-width:700px){
+        .kpi-row{grid-template-columns:1fr 1fr!important;}
+        .tbl th:nth-child(4),.tbl td:nth-child(4){display:none!important;}
+        .modal{margin:16px!important;max-width:calc(100% - 32px)!important;}
+        .modal-grid{grid-template-columns:1fr!important;}
+    }
+</style>
+}
 
-        /* ═══ RESPONSIVE ═══ */
-        html,body{overflow-x:hidden;}
-        .app{min-height:100vh;height:auto;}
-        .main{min-width:0;overflow:visible;}
-        .view{height:auto;}
-        .sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;}
-        .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border-radius:8px;background:var(--fill3);border:none;}
-        .hamburger span{display:block;width:18px;height:2px;background:var(--label);border-radius:2px;}
-        @@media(max-width:1200px){.sidebar{width:185px!important;}.layout2{grid-template-columns:1fr 280px!important;}}
-        @@media(max-width:1024px){.sidebar{width:175px!important;}.layout2{grid-template-columns:1fr!important;}}
-        @@media(max-width:700px){
-            html,body{height:auto!important;overflow:auto!important;}
-            .app{flex-direction:column!important;height:auto!important;}
-            .sidebar{position:fixed!important;top:0!important;left:-270px!important;width:260px!important;height:100vh!important;z-index:100!important;overflow-y:auto!important;transition:left 0.3s!important;}
-            .sidebar.open{left:0!important;}
-            .main{width:100%!important;overflow:visible!important;}
-            .topbar{position:sticky!important;top:0!important;z-index:50!important;}
-            .hamburger{display:flex!important;}
-            .view{overflow-y:visible!important;padding:12px!important;height:auto!important;}
-            .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
-            .layout2{grid-template-columns:1fr!important;}
-            .tb-chip{display:none!important;}
-            .tbl-wrap{overflow-x:auto!important;}
-            .tbl{min-width:500px!important;}
-            .modal{margin:16px!important;max-width:calc(100% - 32px)!important;}
-            .modal-grid{grid-template-columns:1fr!important;}
-        }
-    </style>
-</head>
-<body>
-<div class="app">
-    <div class="sidebar" id="sidebar">
-        <div class="sb-top" style="display:flex;align-items:center;gap:10px;padding:18px 14px 0;"><div style="width:42px;height:42px;border-radius:12px;overflow:hidden;flex-shrink:0;box-shadow:0 4px 12px rgba(0,85,165,0.25);"><img src="data:image/png;base64,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" style="width:100%;height:100%;object-fit:cover;display:block;" alt="LG"/></div><div><div class="sb-app">Londoño Gómez</div><div class="sb-sub">Sistema de Lanzamientos</div></div></div>
-        <div class="sb-proy" id="proyBtn" onclick="toggleDrop()">
-            <div class="sb-proy-lbl">PROYECTO ACTIVO ▾</div>
-            <div class="sb-proy-name">@proyActivo</div>
-            <div class="sb-proy-meta"><span class="pulse"></span>Toca para cambiar</div>
-        </div>
-        <div class="proy-drop" id="proyDrop">
-            @{ var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>; }
-            @if (proyectos != null) {
-                foreach (var p in proyectos) {
-                    <form action="/Dashboard/CambiarProyecto" method="post" style="margin:0">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="idProyecto" value="@p.Id"/>
-                        <input type="hidden" name="nombreProyecto" value="@p.Nombre"/>
-                        <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                    </form>
-                }
-            }
-            <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
-        </div>
-        <div class="sb-sec">Principal</div>
-        <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-        <a class="nav-item" href="/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
-        <a class="nav-item" href="/Inmuebles/Reservas"><div class="nav-ico">🔒</div>Reservas</a>
-        <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
-        <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
-        <div class="sb-sec">General</div>
-        <a class="nav-item" href="/Reportes"><div class="nav-ico">📊</div>Reportes</a>
-        <a class="nav-item" href="/Carga/Index"><div class="nav-ico">📂</div>Cargar Excel</a>
-        <a class="nav-item active" href="/Usuarios"><div class="nav-ico">👥</div>Usuarios</a>
-        <div class="sb-footer">
-                <div class="sb-av">@iniciales</div>
-            <div><div style="font-size:12px;font-weight:600">@nombre @apellido</div><div style="font-size:10px;color:var(--label3)">Administrador</div></div>
-            <a class="sb-logout" href="/Account/Logout">↩</a>
-        </div>
+@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
+@if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
+
+<!-- KPIs -->
+<div class="kpi-row">
+    <div class="kpi k1">
+        <div class="kpi-top"><div class="kpi-ico">👥</div><span class="kpi-tag">Total</span></div>
+        <div class="kpi-num">@total</div><div class="kpi-lbl">Usuarios registrados</div>
     </div>
-    <div class="main">
-        <div class="topbar">
-            <div style="display:flex;align-items:center;gap:10px;"><button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button><span class="tb-bread"><strong>Usuarios</strong></span></div>
-            <div class="tb-right"><div class="tb-chip"><span class="pulse"></span>@proyActivo</div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
-        </div>
-        <div class="view">
-            @if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
-            @if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
-
-            <div class="kpi-row">
-                <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">👥</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Usuarios</div></div>
-                <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">Admins</span></div><div class="kpi-num">@admins</div><div class="kpi-lbl">Administradores</div></div>
-                <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">💼</div><span class="kpi-tag">Vendedores</span></div><div class="kpi-num">@vendedores</div><div class="kpi-lbl">Asesores</div></div>
-            </div>
-
-            <div class="layout2">
-                <!-- Tabla usuarios -->
-                <div class="card">
-                    <div class="card-head"><span class="card-title">👥 Usuarios del sistema</span></div>
-                    <div class="tbl-wrap">
-                        <table class="tbl">
-                            <thead><tr><th></th><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Rol</th><th>Ventas</th><th>Acciones</th></tr></thead>
-                            <tbody>
-                            @foreach (var u in usuarios) {
-                                var ini = ((u.Nombre?.Length > 0 ? u.Nombre.Substring(0,1) : "") + (u.Apellido?.Length > 0 ? u.Apellido.Substring(0,1) : "")).ToUpper();
-                                <tr>
-                                    <td><div class="av-usr">@ini</div></td>
-                                    <td style="font-weight:600">@u.Nombre @u.Apellido</td>
-                                    <td style="color:var(--label2)">@u.Usuario</td>
-                                    <td style="color:var(--label2)">@u.Correo</td>
-                                    <td><span class="bdg @(u.Rol == "Administrador" ? "A" : "V")">@u.Rol</span></td>
-                                    <td style="text-align:center;font-weight:600;color:var(--blue)">@u.TotalVentas</td>
-                                    <td>
-                                        <button class="btn-sm btn-edit" onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Documento','@u.Celular','@u.Correo','@u.Rol')">✏️ Editar</button>
-                                        <button class="btn-sm btn-pwd" onclick="abrirPassword(@u.Id)">🔑 Pass</button>
-                                        <form action="/Usuarios/Eliminar" method="post" style="display:inline">
-                                            @Html.AntiForgeryToken()
-                                            <input type="hidden" name="idUsuario" value="@u.Id"/>
-                                            <button type="submit" class="btn-sm btn-del" onclick="return confirm('¿Eliminar a @u.Nombre @u.Apellido?')">🗑</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Form nuevo usuario -->
-                <div class="form-card">
-                    <div class="card-head"><span class="card-title">➕ Nuevo usuario</span></div>
-                    <div class="form-body">
-                        <form action="/Usuarios/Crear" method="post">
-                            @Html.AntiForgeryToken()
-                            <div class="field"><label>Nombre</label><input type="text" name="nombre" placeholder="Nombre" required/></div>
-                            <div class="field"><label>Apellido</label><input type="text" name="apellido" placeholder="Apellido" required/></div>
-                            <div class="field"><label>Documento</label><input type="text" name="documento" placeholder="CC / NIT"/></div>
-                            <div class="field"><label>Celular</label><input type="text" name="celular" placeholder="Celular"/></div>
-                            <div class="field"><label>Correo</label><input type="email" name="correo" placeholder="correo@email.com"/></div>
-                            <div class="field"><label>Usuario</label><input type="text" name="usuario" placeholder="Nombre de usuario" required/></div>
-                            <div class="field"><label>Contraseña</label><input type="password" name="contrasena" placeholder="Contraseña" required/></div>
-                            <div class="field">
-                                <label>Código del proyecto</label>
-                                <input type="text" name="codigoProyecto" value="@codigoProy" placeholder="Ej: VENT-X7K2" style="text-transform:uppercase;font-weight:600;letter-spacing:1px" required/>
-                                @if (!string.IsNullOrEmpty(codigoProy)) {
-                                    <div style="font-size:11px;color:#1EA851;margin-top:3px">✓ Código de tu proyecto activo</div>
-                                }
-                            </div>
-                            <button type="submit" class="ios-btn">Crear usuario</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="kpi k2">
+        <div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">Admins</span></div>
+        <div class="kpi-num">@admins</div><div class="kpi-lbl">Administradores</div>
+    </div>
+    <div class="kpi k3">
+        <div class="kpi-top"><div class="kpi-ico">💼</div><span class="kpi-tag">Asesores</span></div>
+        <div class="kpi-num">@vendedores</div><div class="kpi-lbl">Vendedores activos</div>
+    </div>
+    <div class="kpi k4">
+        <div class="kpi-top"><div class="kpi-ico">🏗</div><span class="kpi-tag">Proyectos</span></div>
+        <div class="kpi-num">@totalProy</div><div class="kpi-lbl">Proyectos activos</div>
     </div>
 </div>
+
+<!-- Tabla + Formulario -->
+<div class="content-grid">
+
+    <!-- Tabla de usuarios -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">Usuarios del sistema</span>
+            <div class="filter-bar">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar nombre o usuario…" oninput="filtrarTabla()"/>
+                <select id="filterProy" onchange="filtrarTabla()">
+                    <option value="">Todos los proyectos</option>
+                    @foreach (var p in proyectos) {
+                        <option value="@p.Nombre">@p.Nombre</option>
+                    }
+                    <option value="—">Sin proyecto</option>
+                </select>
+                <select id="filterRol" onchange="filtrarTabla()">
+                    <option value="">Todos los roles</option>
+                    <option value="Administrador">Administrador</option>
+                    <option value="Vendedor">Vendedor</option>
+                </select>
+            </div>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl" id="tablaUsuarios">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Contacto</th>
+                        <th>Proyecto asignado</th>
+                        <th>Rol</th>
+                        <th style="text-align:center">Ventas</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var u in usuarios) {
+                    string uNom = u.Nombre as string ?? "";
+                    string uApe = u.Apellido as string ?? "";
+                    var ini = ((uNom.Length > 0 ? uNom.Substring(0,1) : "") + (uApe.Length > 0 ? uApe.Substring(0,1) : "")).ToUpper();
+                    <tr data-nombre="@u.Nombre @u.Apellido" data-usuario="@u.Usuario" data-proy="@u.NombreProyecto" data-rol="@u.Rol">
+                        <td>
+                            <div class="user-info">
+                                <div class="av-usr">@ini</div>
+                                <div>
+                                    <div class="user-name">@u.Nombre @u.Apellido</div>
+                                    <div class="user-sub">@@u.Usuario</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size:12px;color:var(--label2)">@u.Correo</div>
+                            @if (!string.IsNullOrEmpty(u.Celular as string)) {
+                                <div style="font-size:11px;color:var(--label3)">📱 @u.Celular</div>
+                            }
+                        </td>
+                        <td>
+                            @if (u.NombreProyecto != "—") {
+                                <span class="proy-bdg">🏗 @u.NombreProyecto</span>
+                            } else {
+                                <span style="font-size:12px;color:var(--label3)">—</span>
+                            }
+                        </td>
+                        <td><span class="bdg @(u.Rol == "Administrador" ? "A" : "V")">@u.Rol</span></td>
+                        <td style="text-align:center;font-size:15px;font-weight:600;color:var(--blue)">@u.TotalVentas</td>
+                        <td>
+                            <div class="actions-cell">
+                                <button class="btn-sm btn-edit"
+                                    onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Documento','@u.Celular','@u.Correo','@u.Rol',@u.IdProyecto)">
+                                    ✏️ Editar
+                                </button>
+                                <button class="btn-sm btn-pwd" onclick="abrirPassword(@u.Id)">🔑</button>
+                                <form action="/Usuarios/Eliminar" method="post" style="display:inline;margin:0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="idUsuario" value="@u.Id"/>
+                                    <button type="submit" class="btn-sm btn-del"
+                                        onclick="return confirm('¿Eliminar a @u.Nombre @u.Apellido? Esta acción no se puede deshacer.')">🗑</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            @if (!usuarios.Any()) {
+                <div style="padding:40px;text-align:center;color:var(--label2);font-size:14px">
+                    No hay usuarios registrados aún.
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Formulario nuevo usuario -->
+    <div class="form-card">
+        <div class="card-head"><span class="card-title">➕ Nuevo usuario</span></div>
+        <div class="form-body">
+            <form action="/Usuarios/Crear" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="modal-section">Datos personales</div>
+                <div class="field-row">
+                    <div class="field"><label>Nombre</label><input type="text" name="nombre" placeholder="Nombre" required/></div>
+                    <div class="field"><label>Apellido</label><input type="text" name="apellido" placeholder="Apellido" required/></div>
+                </div>
+                <div class="field-row">
+                    <div class="field"><label>Documento</label><input type="text" name="documento" placeholder="CC / NIT"/></div>
+                    <div class="field"><label>Celular</label><input type="text" name="celular" placeholder="Celular"/></div>
+                </div>
+                <div class="field"><label>Correo electrónico</label><input type="email" name="correo" placeholder="correo@email.com"/></div>
+
+                <hr class="form-divider"/>
+                <div class="modal-section">Acceso al sistema</div>
+                <div class="field"><label>Nombre de usuario</label><input type="text" name="usuario" placeholder="Ej: jgomez" required/></div>
+                <div class="field"><label>Contraseña</label><input type="password" name="contrasena" placeholder="Contraseña" required/></div>
+
+                <div class="field">
+                    <label>Rol</label>
+                    <div class="rol-selector">
+                        <div class="rol-opt">
+                            <input type="radio" name="rol" id="rolVendedor" value="Vendedor" checked/>
+                            <label for="rolVendedor">💼 Vendedor</label>
+                        </div>
+                        <div class="rol-opt">
+                            <input type="radio" name="rol" id="rolAdmin" value="Administrador"/>
+                            <label for="rolAdmin">🔑 Administrador</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field" id="campoProyecto">
+                    <label>Proyecto asignado</label>
+                    <select name="idProyecto" id="selectProyectoCrear">
+                        <option value="0">— Sin proyecto —</option>
+                        @foreach (var p in proyectos) {
+                            <option value="@p.Id">@p.Nombre</option>
+                        }
+                    </select>
+                </div>
+
+                <button type="submit" class="ios-btn">Crear usuario</button>
+            </form>
+        </div>
+    </div>
+
+</div><!-- /content-grid -->
 
 <!-- Modal editar -->
 <div class="modal-bg" id="modalEditar">
@@ -265,22 +272,36 @@
         <form action="/Usuarios/Editar" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="idUsuario" id="editId"/>
+            <div class="modal-section">Datos personales</div>
             <div class="modal-grid">
                 <div class="field"><label>Nombre</label><input type="text" name="nombre" id="editNombre"/></div>
                 <div class="field"><label>Apellido</label><input type="text" name="apellido" id="editApellido"/></div>
                 <div class="field"><label>Documento</label><input type="text" name="documento" id="editDocumento"/></div>
                 <div class="field"><label>Celular</label><input type="text" name="celular" id="editCelular"/></div>
                 <div class="field" style="grid-column:1/-1"><label>Correo</label><input type="email" name="correo" id="editCorreo"/></div>
-                <div class="field" style="grid-column:1/-1"><label>Rol</label>
-                    <select name="rol" id="editRol">
+            </div>
+            <div class="modal-section">Permisos y asignación</div>
+            <div class="modal-grid">
+                <div class="field">
+                    <label>Rol</label>
+                    <select name="rol" id="editRol" onchange="toggleProyectoEdit()">
                         <option value="Vendedor">Vendedor</option>
                         <option value="Administrador">Administrador</option>
+                    </select>
+                </div>
+                <div class="field" id="editCampoProyecto">
+                    <label>Proyecto asignado</label>
+                    <select name="idProyecto" id="editProyecto">
+                        <option value="0">— Sin proyecto —</option>
+                        @foreach (var p in proyectos) {
+                            <option value="@p.Id">@p.Nombre</option>
+                        }
                     </select>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-ghost" onclick="cerrarModal('modalEditar')">Cancelar</button>
-                <button type="submit" class="btn-primary">Guardar</button>
+                <button type="submit" class="btn-primary">Guardar cambios</button>
             </div>
         </form>
     </div>
@@ -293,34 +314,33 @@
         <form action="/Usuarios/ResetPassword" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="idUsuario" id="pwdId"/>
-            <div class="field"><label>Nueva contraseña</label><input type="password" name="nuevaContrasena" placeholder="Nueva contraseña" required/></div>
+            <div class="field"><label>Nueva contraseña</label><input type="password" name="nuevaContrasena" placeholder="Nueva contraseña" required autocomplete="new-password"/></div>
             <div class="modal-footer">
                 <button type="button" class="btn-ghost" onclick="cerrarModal('modalPassword')">Cancelar</button>
-                <button type="submit" class="btn-primary">Actualizar</button>
+                <button type="submit" class="btn-primary">Actualizar contraseña</button>
             </div>
         </form>
     </div>
 </div>
 
-<div id="sbOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;backdrop-filter:blur(2px);"></div>
+@section Scripts {
 <script>
-
-    function toggleSidebar(){var sb=document.getElementById('sidebar')||document.querySelector('.sidebar'),ov=document.getElementById('sbOverlay');if(!sb)return;var o=sb.classList.toggle('open');if(ov)ov.style.display=o?'block':'none';}
-    function closeSidebar(){var sb=document.getElementById('sidebar')||document.querySelector('.sidebar'),ov=document.getElementById('sbOverlay');if(sb)sb.classList.remove('open');if(ov)ov.style.display='none';}
-    function toggleDrop(){document.getElementById('proyDrop').classList.toggle('open');}
-    document.addEventListener('click',e=>{
-        const b=document.getElementById('proyBtn'),d=document.getElementById('proyDrop');
-        if(!b.contains(e.target)&&!d.contains(e.target))d.classList.remove('open');
-    });
-    function abrirEditar(id,nombre,apellido,documento,celular,correo,rol){
-        document.getElementById('editId').value=id;
-        document.getElementById('editNombre').value=nombre;
-        document.getElementById('editApellido').value=apellido;
-        document.getElementById('editDocumento').value=documento;
-        document.getElementById('editCelular').value=celular;
-        document.getElementById('editCorreo').value=correo;
-        document.getElementById('editRol').value=rol;
+    function abrirEditar(id,nombre,apellido,documento,celular,correo,rol,idProy){
+        document.getElementById('editId').value       = id;
+        document.getElementById('editNombre').value   = nombre;
+        document.getElementById('editApellido').value = apellido;
+        document.getElementById('editDocumento').value= documento;
+        document.getElementById('editCelular').value  = celular;
+        document.getElementById('editCorreo').value   = correo;
+        document.getElementById('editRol').value      = rol;
+        document.getElementById('editProyecto').value = idProy || 0;
+        toggleProyectoEdit();
         document.getElementById('modalEditar').classList.add('open');
+    }
+    function toggleProyectoEdit(){
+        var rol   = document.getElementById('editRol').value;
+        var campo = document.getElementById('editCampoProyecto');
+        campo.style.opacity = rol==='Administrador' ? '0.4' : '1';
     }
     function abrirPassword(id){
         document.getElementById('pwdId').value=id;
@@ -330,6 +350,22 @@
     document.querySelectorAll('.modal-bg').forEach(m=>{
         m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');});
     });
+
+    function filtrarTabla(){
+        var buscar = document.getElementById('searchInput').value.toLowerCase();
+        var proy   = document.getElementById('filterProy').value.toLowerCase();
+        var rol    = document.getElementById('filterRol').value.toLowerCase();
+        var filas  = document.querySelectorAll('#tablaUsuarios tbody tr');
+        filas.forEach(function(tr){
+            var nombre  = (tr.dataset.nombre  || '').toLowerCase();
+            var usuario = (tr.dataset.usuario || '').toLowerCase();
+            var trProy  = (tr.dataset.proy    || '').toLowerCase();
+            var trRol   = (tr.dataset.rol     || '').toLowerCase();
+            var matchBuscar = !buscar || nombre.includes(buscar) || usuario.includes(buscar);
+            var matchProy   = !proy   || trProy === proy;
+            var matchRol    = !rol    || trRol  === rol;
+            tr.style.display = (matchBuscar && matchProy && matchRol) ? '' : 'none';
+        });
+    }
 </script>
-</body>
-</html>
+}

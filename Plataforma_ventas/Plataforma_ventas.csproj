@@ -6,6 +6,7 @@
 		<UserSecretsId>855178c8-2a59-40be-9ea9-4dece835987e</UserSecretsId>
 	</PropertyGroup>
 	<ItemGroup>
+		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 		<PackageReference Include="EPPlus" Version="8.4.2" />
 		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.2" />
