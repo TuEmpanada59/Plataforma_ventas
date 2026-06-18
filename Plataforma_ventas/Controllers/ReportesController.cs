@@ -719,10 +719,14 @@ namespace Plataforma_ventas.Controllers
                 $"Ventas_Asesores_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.xlsx");
         }
 
+        // ====================================================================
+        //  CUADRO DE ASISTENCIA — resumen diario del lanzamiento
+        // ====================================================================
+
         /// <summary>
-        /// Displays the attendance sheet (cuadro de asistencia) for the active project.
-        /// Shows all registered visitors with their interest, assigned vendor, and outcome.
-        /// Gracefully handles the case where the Asistencias table has not been created yet.
+        /// Loads the launch attendance summary (evento + días + torres) for the
+        /// active project and renders the entry form / summary table.
+        /// Gracefully handles the case where the tables don't exist yet.
         /// </summary>
         public async Task<IActionResult> Asistencia()
         {
@@ -743,103 +747,126 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
-            // Load available metros for dropdown
-            var metros = new List<string>();
-            var cmdMetros = new SqlCommand("SELECT DISTINCT Metros FROM ProyectoAreaListas WHERE IdProyecto=@id ORDER BY Metros", con);
-            cmdMetros.Parameters.AddWithValue("@id", idProy);
-            using (var rm = (SqlDataReader)await cmdMetros.ExecuteReaderAsync())
-                while (await rm.ReadAsync())
-                    metros.Add(rm["Metros"]?.ToString() ?? "");
-            ViewBag.MetrosDisponibles = metros;
+            var evento = await CargarEventoAsync(con, idProy);
+            ViewBag.TablaCreadaOk = evento.TablaOk;
+            ViewBag.EventoJson = System.Text.Json.JsonSerializer.Serialize(evento.Data);
 
-            // Load vendors for dropdown
-            var vendedores = new List<dynamic>();
-            var cmdVend = new SqlCommand("SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto FROM Usuarios WHERE Rol='Vendedor' ORDER BY Nombre", con);
-            using (var rv = (SqlDataReader)await cmdVend.ExecuteReaderAsync())
-                while (await rv.ReadAsync())
-                    vendedores.Add(new { Id = (int)rv["IdUsuario"], Nombre = rv["NombreCompleto"]?.ToString() ?? "" });
-            ViewBag.Vendedores = vendedores;
-
-            // Load attendance records — catch gracefully if table doesn't exist yet
-            var asistencias = new List<dynamic>();
-            try
-            {
-                var cmdAs = new SqlCommand(@"
-                    SELECT a.IdAsistencia, a.Nombre, a.Apellido, a.Documento, a.Celular, a.Correo,
-                           a.MetrosInteres, a.TipoInteres,
-                           ISNULL(u.Nombre+' '+u.Apellido,'—') AS Vendedor,
-                           FORMAT(a.FechaVisita,'dd/MM/yyyy HH:mm') AS FechaVisita,
-                           a.Estado, a.Observaciones
-                    FROM Asistencias a
-                    LEFT JOIN Usuarios u ON u.IdUsuario = a.IdVendedorAtiende
-                    WHERE a.IdProyecto = @id
-                    ORDER BY a.FechaVisita DESC", con);
-                cmdAs.Parameters.AddWithValue("@id", idProy);
-                using (var ra = (SqlDataReader)await cmdAs.ExecuteReaderAsync())
-                    while (await ra.ReadAsync())
-                        asistencias.Add(new
-                        {
-                            Id = (int)ra["IdAsistencia"],
-                            Nombre = ra["Nombre"]?.ToString() ?? "",
-                            Apellido = ra["Apellido"]?.ToString() ?? "",
-                            Documento = ra["Documento"]?.ToString() ?? "",
-                            Celular = ra["Celular"]?.ToString() ?? "",
-                            Correo = ra["Correo"]?.ToString() ?? "",
-                            MetrosInteres = ra["MetrosInteres"]?.ToString() ?? "",
-                            TipoInteres = ra["TipoInteres"]?.ToString() ?? "",
-                            Vendedor = ra["Vendedor"]?.ToString() ?? "—",
-                            FechaVisita = ra["FechaVisita"]?.ToString() ?? "",
-                            Estado = ra["Estado"]?.ToString() ?? "",
-                            Observaciones = ra["Observaciones"]?.ToString() ?? "",
-                        });
-                ViewBag.TablaCreadaOk = true;
-            }
-            catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Number == 208)
-            {
-                ViewBag.TablaCreadaOk = false;
-            }
-
-            ViewBag.Asistencias = asistencias;
             return View();
         }
 
         /// <summary>
-        /// Registers a new attendee in the attendance sheet.
-        /// Inserts a row into the Asistencias table for the active project.
+        /// Persists the full launch summary sent as a JSON payload, replacing any
+        /// previous summary for the active project. Runs inside a transaction so a
+        /// partial save can never leave orphaned días/torres.
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RegistrarAsistente(
-            string nombre, string apellido, string documento,
-            string celular, string correo, string metrosInteres, string tipoInteres,
-            int? idVendedorAtiende, string estado, string observaciones)
+        public async Task<IActionResult> GuardarAsistencia(string payload)
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            if (idProy == 0)
+            {
+                TempData["AsistError"] = "No hay un proyecto activo.";
+                return RedirectToAction("Asistencia");
+            }
+
+            using var doc = System.Text.Json.JsonDocument.Parse(payload ?? "{}");
+            var root = doc.RootElement;
+            string titulo = root.TryGetProperty("titulo", out var tEl) ? (tEl.GetString() ?? "") : "";
+            string observaciones = root.TryGetProperty("observaciones", out var oEl) ? (oEl.GetString() ?? "") : "";
+
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
-            var cmd = new SqlCommand(@"INSERT INTO Asistencias
-                (IdProyecto,Nombre,Apellido,Documento,Celular,Correo,
-                 MetrosInteres,TipoInteres,IdVendedorAtiende,Estado,Observaciones,FechaVisita)
-                VALUES (@proy,@nom,@ape,@doc,@cel,@cor,@met,@tip,@vend,@est,@obs,GETDATE())", con);
-            cmd.Parameters.AddWithValue("@proy", idProy);
-            cmd.Parameters.AddWithValue("@nom", nombre ?? "");
-            cmd.Parameters.AddWithValue("@ape", apellido ?? "");
-            cmd.Parameters.AddWithValue("@doc", documento ?? "");
-            cmd.Parameters.AddWithValue("@cel", celular ?? "");
-            cmd.Parameters.AddWithValue("@cor", correo ?? "");
-            cmd.Parameters.AddWithValue("@met", metrosInteres ?? "");
-            cmd.Parameters.AddWithValue("@tip", tipoInteres ?? "");
-            cmd.Parameters.AddWithValue("@vend", idVendedorAtiende.HasValue ? (object)idVendedorAtiende.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@est", estado ?? "Visitó");
-            cmd.Parameters.AddWithValue("@obs", observaciones ?? "");
-            await cmd.ExecuteNonQueryAsync();
-            TempData["AsistExito"] = "Asistente registrado correctamente.";
+            using var tx = (SqlTransaction)await con.BeginTransactionAsync();
+            try
+            {
+                // Replace: remove the previous summary for this project (cascade clears días/torres)
+                var cmdDel = new SqlCommand("DELETE FROM AsistenciaEvento WHERE IdProyecto=@p", con, tx);
+                cmdDel.Parameters.AddWithValue("@p", idProy);
+                await cmdDel.ExecuteNonQueryAsync();
+
+                var cmdEv = new SqlCommand(@"INSERT INTO AsistenciaEvento (IdProyecto,Titulo,Observaciones)
+                    OUTPUT INSERTED.IdEvento VALUES (@p,@t,@o)", con, tx);
+                cmdEv.Parameters.AddWithValue("@p", idProy);
+                cmdEv.Parameters.AddWithValue("@t", titulo);
+                cmdEv.Parameters.AddWithValue("@o", observaciones);
+                int idEvento = (int)(await cmdEv.ExecuteScalarAsync())!;
+
+                int ordenDia = 0;
+                if (root.TryGetProperty("dias", out var diasEl) && diasEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var dia in diasEl.EnumerateArray())
+                    {
+                        string fechaStr = dia.TryGetProperty("fecha", out var fEl) ? (fEl.GetString() ?? "") : "";
+                        object fechaParam = DateTime.TryParse(fechaStr, out var fdt) ? fdt.Date : (object)DBNull.Value;
+                        string nombreDia = dia.TryGetProperty("nombreDia", out var ndEl) ? (ndEl.GetString() ?? "") : "";
+
+                        var cmdDia = new SqlCommand(@"INSERT INTO AsistenciaDia
+                            (IdEvento,Fecha,NombreDia,Orden,Familias,Adultos,Ninos,Mascotas,
+                             AsisteCita,Carros,Motos,Caminando,AgendadosEquipo,AgendadosLucia,AsisteCitaLucia)
+                            OUTPUT INSERTED.IdDia
+                            VALUES (@ev,@fe,@nd,@or,@fa,@ad,@ni,@ma,@ac,@ca,@mo,@cm,@ae,@al,@acl)", con, tx);
+                        cmdDia.Parameters.AddWithValue("@ev", idEvento);
+                        cmdDia.Parameters.AddWithValue("@fe", fechaParam);
+                        cmdDia.Parameters.AddWithValue("@nd", nombreDia);
+                        cmdDia.Parameters.AddWithValue("@or", ordenDia++);
+                        cmdDia.Parameters.AddWithValue("@fa", JInt(dia, "familias"));
+                        cmdDia.Parameters.AddWithValue("@ad", JInt(dia, "adultos"));
+                        cmdDia.Parameters.AddWithValue("@ni", JInt(dia, "ninos"));
+                        cmdDia.Parameters.AddWithValue("@ma", JInt(dia, "mascotas"));
+                        cmdDia.Parameters.AddWithValue("@ac", JInt(dia, "asisteCita"));
+                        cmdDia.Parameters.AddWithValue("@ca", JInt(dia, "carros"));
+                        cmdDia.Parameters.AddWithValue("@mo", JInt(dia, "motos"));
+                        cmdDia.Parameters.AddWithValue("@cm", JInt(dia, "caminando"));
+                        cmdDia.Parameters.AddWithValue("@ae", JInt(dia, "agendadosEquipo"));
+                        cmdDia.Parameters.AddWithValue("@al", JInt(dia, "agendadosLucia"));
+                        cmdDia.Parameters.AddWithValue("@acl", JInt(dia, "asisteCitaLucia"));
+                        int idDia = (int)(await cmdDia.ExecuteScalarAsync())!;
+
+                        int ordenTorre = 0;
+                        if (dia.TryGetProperty("torres", out var torresEl) && torresEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            foreach (var t in torresEl.EnumerateArray())
+                            {
+                                var cmdT = new SqlCommand(@"INSERT INTO AsistenciaTorre
+                                    (IdDia,Torre,Orden,Preventas,ValorPreventa,Ventas,ValorVenta,Opciones,ValorOpciones)
+                                    VALUES (@d,@to,@or,@pv,@vpv,@ve,@vve,@op,@vop)", con, tx);
+                                cmdT.Parameters.AddWithValue("@d", idDia);
+                                cmdT.Parameters.AddWithValue("@to", t.TryGetProperty("torre", out var toEl) ? (toEl.GetString() ?? "") : "");
+                                cmdT.Parameters.AddWithValue("@or", ordenTorre++);
+                                cmdT.Parameters.AddWithValue("@pv", JInt(t, "preventas"));
+                                cmdT.Parameters.AddWithValue("@vpv", JLong(t, "valorPreventa"));
+                                cmdT.Parameters.AddWithValue("@ve", JInt(t, "ventas"));
+                                cmdT.Parameters.AddWithValue("@vve", JLong(t, "valorVenta"));
+                                cmdT.Parameters.AddWithValue("@op", JInt(t, "opciones"));
+                                cmdT.Parameters.AddWithValue("@vop", JLong(t, "valorOpciones"));
+                                await cmdT.ExecuteNonQueryAsync();
+                            }
+                        }
+                    }
+                }
+
+                await tx.CommitAsync();
+                TempData["AsistExito"] = "Cuadro de asistencia guardado correctamente.";
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Number == 208)
+            {
+                await tx.RollbackAsync();
+                TempData["AsistError"] = "Las tablas de asistencia no existen aún. Ejecuta Scripts/Asistencias.sql.";
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
             return RedirectToAction("Asistencia");
         }
 
         /// <summary>
-        /// Exports the attendance sheet to Excel.
-        /// Generates a colour-coded workbook with one row per attendee.
+        /// Exports the launch attendance summary to Excel, reproducing the
+        /// "Cuadro de asistencia" layout: metric rows, one column per day,
+        /// a TOTAL column, the per-torre breakdown, and the observations block.
         /// </summary>
         public async Task<IActionResult> ExportarAsistencia()
         {
@@ -848,87 +875,266 @@ namespace Plataforma_ventas.Controllers
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
-            var asistencias = new List<dynamic>();
-            var cmd = new SqlCommand(@"
-                SELECT a.Nombre, a.Apellido, a.Documento, a.Celular, a.Correo,
-                       a.MetrosInteres, a.TipoInteres,
-                       ISNULL(u.Nombre+' '+u.Apellido,'—') AS Vendedor,
-                       FORMAT(a.FechaVisita,'dd/MM/yyyy HH:mm') AS FechaVisita,
-                       a.Estado, a.Observaciones
-                FROM Asistencias a
-                LEFT JOIN Usuarios u ON u.IdUsuario = a.IdVendedorAtiende
-                WHERE a.IdProyecto = @id
-                ORDER BY a.FechaVisita DESC", con);
-            cmd.Parameters.AddWithValue("@id", idProy);
-            using (var r = (SqlDataReader)await cmd.ExecuteReaderAsync())
-                while (await r.ReadAsync())
-                    asistencias.Add(new
-                    {
-                        Nombre = r["Nombre"]?.ToString() ?? "",
-                        Apellido = r["Apellido"]?.ToString() ?? "",
-                        Documento = r["Documento"]?.ToString() ?? "",
-                        Celular = r["Celular"]?.ToString() ?? "",
-                        Correo = r["Correo"]?.ToString() ?? "",
-                        MetrosInteres = r["MetrosInteres"]?.ToString() ?? "",
-                        TipoInteres = r["TipoInteres"]?.ToString() ?? "",
-                        Vendedor = r["Vendedor"]?.ToString() ?? "—",
-                        FechaVisita = r["FechaVisita"]?.ToString() ?? "",
-                        Estado = r["Estado"]?.ToString() ?? "",
-                        Observaciones = r["Observaciones"]?.ToString() ?? "",
-                    });
+            var ev = await CargarEventoAsync(con, idProy);
+            if (!ev.TablaOk)
+            {
+                TempData["AsistError"] = "Las tablas de asistencia no existen aún.";
+                return RedirectToAction("Asistencia");
+            }
+            var dias = ev.Dias;
 
             ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
             using var package = new ExcelPackage();
             var ws = package.Workbook.Worksheets.Add("Cuadro de asistencia");
 
-            ws.Cells[1, 1].Value = $"Cuadro de asistencia — {proyNombre}";
+            // Column layout: A = label, then one column per día, last column = TOTAL
+            int nDias = dias.Count;
+            int colTotal = 2 + nDias;
+
+            // Title
+            ws.Cells[1, 1].Value = string.IsNullOrWhiteSpace(ev.Titulo) ? $"Cuadro de asistencia — {proyNombre}" : ev.Titulo;
             ws.Cells[1, 1].Style.Font.Bold = true;
-            ws.Cells[1, 1].Style.Font.Size = 14;
+            ws.Cells[1, 1].Style.Font.Size = 13;
             ws.Cells[1, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
-            ws.Cells[1, 1, 1, 11].Merge = true;
-            ws.Cells[2, 1].Value = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}";
-            ws.Cells[2, 1].Style.Font.Color.SetColor(DColor.Gray);
+            ws.Cells[1, 1, 1, colTotal].Merge = true;
+            ws.Cells[1, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
 
-            var headers = new[] { "Nombre", "Apellido", "Documento", "Celular", "Correo", "Área m²", "Tipo", "Asesor", "Fecha visita", "Estado", "Observaciones" };
-            for (int i = 0; i < headers.Length; i++) { ws.Cells[4, i + 1].Value = headers[i]; StyleHeader(ws.Cells[4, i + 1]); }
+            int row = 3;
+            // Header row with day names
+            ws.Cells[row, 1].Value = "";
+            for (int d = 0; d < nDias; d++) { ws.Cells[row, 2 + d].Value = dias[d].NombreDia; StyleHeader(ws.Cells[row, 2 + d]); }
+            ws.Cells[row, colTotal].Value = "TOTAL"; StyleHeader(ws.Cells[row, colTotal]);
+            row++;
 
-            int row = 5;
-            foreach (var a in asistencias)
+            // Helper to write an integer metric row with TOTAL = sum
+            void FilaInt(string label, Func<dynamic, int> sel, bool bold = false)
             {
-                ws.Cells[row, 1].Value = a.Nombre;
-                ws.Cells[row, 2].Value = a.Apellido;
-                ws.Cells[row, 3].Value = a.Documento;
-                ws.Cells[row, 4].Value = a.Celular;
-                ws.Cells[row, 5].Value = a.Correo;
-                ws.Cells[row, 6].Value = a.MetrosInteres;
-                ws.Cells[row, 7].Value = a.TipoInteres;
-                ws.Cells[row, 8].Value = a.Vendedor;
-                ws.Cells[row, 9].Value = a.FechaVisita;
-                ws.Cells[row, 10].Value = a.Estado;
-                ws.Cells[row, 11].Value = a.Observaciones;
-
-                // Colour-code by Estado
-                var bgColor = a.Estado == "Compró" ? DColor.FromArgb(52, 199, 89) :
-                              a.Estado == "Apartó" ? DColor.FromArgb(255, 149, 0) :
-                              a.Estado == "No interesado" ? DColor.FromArgb(230, 57, 70) :
-                              DColor.FromArgb(230, 244, 255);
-                ws.Cells[row, 10].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                ws.Cells[row, 10].Style.Fill.BackgroundColor.SetColor(bgColor);
-                ws.Cells[row, 10].Style.Font.Bold = true;
-                if (row % 2 == 0)
+                ws.Cells[row, 1].Value = label;
+                ws.Cells[row, 1].Style.Font.Bold = true;
+                ws.Cells[row, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+                int total = 0;
+                for (int d = 0; d < nDias; d++)
                 {
-                    ws.Cells[row, 1, row, 9].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    ws.Cells[row, 1, row, 9].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(248, 250, 253));
-                    ws.Cells[row, 11].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    ws.Cells[row, 11].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(248, 250, 253));
+                    int v = sel(dias[d]); total += v;
+                    var c = ws.Cells[row, 2 + d]; c.Value = v;
+                    c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    if (bold) c.Style.Font.Bold = true;
                 }
+                var ct = ws.Cells[row, colTotal]; ct.Value = total;
+                ct.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; ct.Style.Font.Bold = true;
+                row++;
+            }
+            // Helper for percentage row (calculated per day, no naive sum)
+            void FilaPct(string label, Func<dynamic, double> sel, double totalPct)
+            {
+                ws.Cells[row, 1].Value = label;
+                ws.Cells[row, 1].Style.Font.Bold = true;
+                ws.Cells[row, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+                for (int d = 0; d < nDias; d++)
+                {
+                    var c = ws.Cells[row, 2 + d]; c.Value = sel(dias[d]);
+                    c.Style.Numberformat.Format = "0%"; c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                }
+                var ct = ws.Cells[row, colTotal]; ct.Value = totalPct;
+                ct.Style.Numberformat.Format = "0%"; ct.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; ct.Style.Font.Bold = true;
                 row++;
             }
 
-            for (int col = 1; col <= 11; col++) ws.Column(col).AutoFit();
+            int SumFam = dias.Sum(d => (int)d.Familias);
+            int SumAsisteCita = dias.Sum(d => (int)d.AsisteCita);
+            int SumAgendLucia = dias.Sum(d => (int)d.AgendadosLucia);
+            int SumAsisteLucia = dias.Sum(d => (int)d.AsisteCitaLucia);
+            int SumAgendEquipo = dias.Sum(d => (int)d.AgendadosEquipo);
+
+            FilaInt("Familias", d => (int)d.Familias, true);
+            FilaInt("Adultos", d => (int)d.Adultos, true);
+            FilaInt("Niños", d => (int)d.Ninos);
+            FilaInt("Mascotas", d => (int)d.Mascotas);
+            FilaInt("Asiste con cita", d => (int)d.AsisteCita, true);
+            FilaPct("% asiste con cita", d => (int)d.Familias > 0 ? (double)(int)d.AsisteCita / (int)d.Familias : 0,
+                    SumFam > 0 ? (double)SumAsisteCita / SumFam : 0);
+            FilaInt("Carros", d => (int)d.Carros);
+            FilaInt("Motos", d => (int)d.Motos);
+            FilaInt("Caminando", d => (int)d.Caminando);
+
+            // ── Bloque por torre ──
+            var torresNombres = dias.SelectMany(d => ((List<dynamic>)d.Torres).Select(t => (string)t.Torre))
+                                     .Distinct().ToList();
+            // Header torres
+            ws.Cells[row, 1].Value = "TORRES /ETAPAS";
+            ws.Cells[row, 1].Style.Font.Bold = true;
+            row++;
+
+            long GVal(dynamic dia, string torre, Func<dynamic, long> sel)
+            {
+                foreach (var t in (List<dynamic>)dia.Torres) if ((string)t.Torre == torre) return sel(t);
+                return 0;
+            }
+
+            void FilaTorreInt(string label, Func<dynamic, long> sel)
+            {
+                ws.Cells[row, 1].Value = label; ws.Cells[row, 1].Style.Font.Bold = true;
+                long total = 0;
+                for (int d = 0; d < nDias; d++)
+                {
+                    long v = 0; foreach (var t in (List<dynamic>)dias[d].Torres) v += sel(t);
+                    total += v; ws.Cells[row, 2 + d].Value = v;
+                    ws.Cells[row, 2 + d].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                }
+                ws.Cells[row, colTotal].Value = total; ws.Cells[row, colTotal].Style.Font.Bold = true;
+                ws.Cells[row, colTotal].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                row++;
+            }
+            void FilaTorreMoney(string label, Func<dynamic, long> sel)
+            {
+                ws.Cells[row, 1].Value = label; ws.Cells[row, 1].Style.Font.Bold = true;
+                long total = 0;
+                for (int d = 0; d < nDias; d++)
+                {
+                    long v = 0; foreach (var t in (List<dynamic>)dias[d].Torres) v += sel(t);
+                    total += v; var c = ws.Cells[row, 2 + d]; c.Value = v; c.Style.Numberformat.Format = "$ #,##0";
+                }
+                var ct = ws.Cells[row, colTotal]; ct.Value = total; ct.Style.Numberformat.Format = "$ #,##0"; ct.Style.Font.Bold = true;
+                row++;
+            }
+
+            FilaTorreInt("Preventas", t => (long)(int)t.Preventas);
+            FilaTorreMoney("Valor preventa", t => (long)t.ValorPreventa);
+            FilaTorreInt("Ventas", t => (long)(int)t.Ventas);
+            FilaTorreMoney("Valor de venta", t => (long)t.ValorVenta);
+            FilaTorreInt("Opciones (En proceso)", t => (long)(int)t.Opciones);
+            FilaTorreMoney("Opciones (En pesos)", t => (long)t.ValorOpciones);
+            FilaTorreInt("Ventas totales unidades", t => (long)((int)t.Preventas + (int)t.Ventas));
+            FilaTorreMoney("Ventas totales pesos", t => (long)t.ValorPreventa + (long)t.ValorVenta);
+            FilaTorreInt("Opciones + ventas", t => (long)((int)t.Preventas + (int)t.Ventas + (int)t.Opciones));
+            FilaTorreMoney("Opciones + ventas (En pesos)", t => (long)t.ValorPreventa + (long)t.ValorVenta + (long)t.ValorOpciones);
+
+            // ── Bloque citas ──
+            FilaInt("Agendados Equipo comercial", d => (int)d.AgendadosEquipo);
+            FilaInt("Agendados por Lucia", d => (int)d.AgendadosLucia);
+            FilaInt("Asiste con cita Lucía", d => (int)d.AsisteCitaLucia);
+            FilaPct("% asistencia Lucía", d => (int)d.AgendadosLucia > 0 ? (double)(int)d.AsisteCitaLucia / (int)d.AgendadosLucia : 0,
+                    SumAgendLucia > 0 ? (double)SumAsisteLucia / SumAgendLucia : 0);
+            FilaInt("Total agendados", d => (int)d.AgendadosEquipo + (int)d.AgendadosLucia);
+            FilaPct("% cumplimiento cita",
+                    d => ((int)d.AgendadosEquipo + (int)d.AgendadosLucia) > 0 ? (double)(int)d.AsisteCitaLucia / ((int)d.AgendadosEquipo + (int)d.AgendadosLucia) : 0,
+                    (SumAgendEquipo + SumAgendLucia) > 0 ? (double)SumAsisteLucia / (SumAgendEquipo + SumAgendLucia) : 0);
+            FilaPct("Ventas Vs familias",
+                    d => (int)d.Familias > 0 ? (double)((List<dynamic>)d.Torres).Sum(t => (int)t.Ventas) / (int)d.Familias : 0,
+                    SumFam > 0 ? (double)dias.SelectMany(d => (List<dynamic>)d.Torres).Sum(t => (int)t.Ventas) / SumFam : 0);
+
+            // ── Observaciones ──
+            row++;
+            ws.Cells[row, 1].Value = "Observaciones";
+            ws.Cells[row, 1].Style.Font.Bold = true;
+            ws.Cells[row, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+            var obsCell = ws.Cells[row, 2, row, colTotal];
+            obsCell.Merge = true;
+            obsCell.Value = ev.Observaciones;
+            obsCell.Style.WrapText = true;
+            obsCell.Style.VerticalAlignment = ExcelVerticalAlignment.Top;
+            ws.Row(row).Height = 200;
+
+            ws.Column(1).Width = 28;
+            for (int c = 2; c <= colTotal; c++) ws.Column(c).Width = 20;
+
             return File(package.GetAsByteArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 $"Asistencia_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.xlsx");
         }
+
+        // ── Helpers ──
+
+        private static int JInt(System.Text.Json.JsonElement el, string prop)
+        {
+            if (el.TryGetProperty(prop, out var p))
+            {
+                if (p.ValueKind == System.Text.Json.JsonValueKind.Number && p.TryGetInt32(out int v)) return v;
+                if (p.ValueKind == System.Text.Json.JsonValueKind.String && int.TryParse(p.GetString(), out int sv)) return sv;
+            }
+            return 0;
+        }
+        private static long JLong(System.Text.Json.JsonElement el, string prop)
+        {
+            if (el.TryGetProperty(prop, out var p))
+            {
+                if (p.ValueKind == System.Text.Json.JsonValueKind.Number && p.TryGetInt64(out long v)) return v;
+                if (p.ValueKind == System.Text.Json.JsonValueKind.String && long.TryParse(p.GetString(), out long sv)) return sv;
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Loads the full attendance summary (evento + días + torres) for a project.
+        /// Returns TablaOk=false (without throwing) if the schema isn't installed yet.
+        /// </summary>
+        private async Task<(bool TablaOk, int IdEvento, string Titulo, string Observaciones, List<dynamic> Dias, object Data)>
+            CargarEventoAsync(SqlConnection con, int idProy)
+        {
+            var dias = new List<dynamic>();
+            try
+            {
+                var cmdEv = new SqlCommand("SELECT TOP 1 IdEvento,Titulo,Observaciones FROM AsistenciaEvento WHERE IdProyecto=@p ORDER BY IdEvento DESC", con);
+                cmdEv.Parameters.AddWithValue("@p", idProy);
+                int idEvento = 0; string titulo = "", obs = "";
+                using (var re = (SqlDataReader)await cmdEv.ExecuteReaderAsync())
+                    if (await re.ReadAsync())
+                    {
+                        idEvento = (int)re["IdEvento"];
+                        titulo = re["Titulo"]?.ToString() ?? "";
+                        obs = re["Observaciones"]?.ToString() ?? "";
+                    }
+
+                if (idEvento > 0)
+                {
+                    var cmdD = new SqlCommand("SELECT * FROM AsistenciaDia WHERE IdEvento=@e ORDER BY Orden", con);
+                    cmdD.Parameters.AddWithValue("@e", idEvento);
+                    var diasRaw = new List<dynamic>();
+                    using (var rd = (SqlDataReader)await cmdD.ExecuteReaderAsync())
+                        while (await rd.ReadAsync())
+                            diasRaw.Add(new
+                            {
+                                IdDia = (int)rd["IdDia"],
+                                Fecha = rd["Fecha"] == DBNull.Value ? "" : ((DateTime)rd["Fecha"]).ToString("yyyy-MM-dd"),
+                                NombreDia = rd["NombreDia"]?.ToString() ?? "",
+                                Familias = (int)rd["Familias"], Adultos = (int)rd["Adultos"], Ninos = (int)rd["Ninos"],
+                                Mascotas = (int)rd["Mascotas"], AsisteCita = (int)rd["AsisteCita"], Carros = (int)rd["Carros"],
+                                Motos = (int)rd["Motos"], Caminando = (int)rd["Caminando"],
+                                AgendadosEquipo = (int)rd["AgendadosEquipo"], AgendadosLucia = (int)rd["AgendadosLucia"],
+                                AsisteCitaLucia = (int)rd["AsisteCitaLucia"],
+                            });
+
+                    foreach (var d in diasRaw)
+                    {
+                        var torres = new List<dynamic>();
+                        var cmdT = new SqlCommand("SELECT * FROM AsistenciaTorre WHERE IdDia=@d ORDER BY Orden", con);
+                        cmdT.Parameters.AddWithValue("@d", (int)d.IdDia);
+                        using (var rt = (SqlDataReader)await cmdT.ExecuteReaderAsync())
+                            while (await rt.ReadAsync())
+                                torres.Add(new
+                                {
+                                    Torre = rt["Torre"]?.ToString() ?? "",
+                                    Preventas = (int)rt["Preventas"], ValorPreventa = (long)rt["ValorPreventa"],
+                                    Ventas = (int)rt["Ventas"], ValorVenta = (long)rt["ValorVenta"],
+                                    Opciones = (int)rt["Opciones"], ValorOpciones = (long)rt["ValorOpciones"],
+                                });
+                        dias.Add(new
+                        {
+                            d.IdDia, d.Fecha, d.NombreDia, d.Familias, d.Adultos, d.Ninos, d.Mascotas,
+                            d.AsisteCita, d.Carros, d.Motos, d.Caminando, d.AgendadosEquipo, d.AgendadosLucia,
+                            d.AsisteCitaLucia, Torres = torres,
+                        });
+                    }
+                }
+
+                var data = new { titulo, observaciones = obs, dias };
+                return (true, idEvento, titulo, obs, dias, data);
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Number == 208)
+            {
+                return (false, 0, "", "", dias, new { titulo = "", observaciones = "", dias = new List<dynamic>() });
+            }
+        }
+
 
         private static void StyleHeader(ExcelRange cell)
         {

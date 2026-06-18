@@ -4,11 +4,9 @@
     ViewBag.ActiveNav = "reportes";
     ViewBag.TbBread   = "Cuadro de asistencia";
 
-    var proyActivo       = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
-    var asistencias      = ViewBag.Asistencias    as List<dynamic> ?? new List<dynamic>();
-    var vendedores       = ViewBag.Vendedores      as List<dynamic> ?? new List<dynamic>();
-    var metrosDisp       = ViewBag.MetrosDisponibles as List<string> ?? new List<string>();
-    bool tablaCreadaOk   = ViewBag.TablaCreadaOk  != null ? (bool)ViewBag.TablaCreadaOk : false;
+    var proyActivo     = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+    bool tablaCreadaOk = ViewBag.TablaCreadaOk != null ? (bool)ViewBag.TablaCreadaOk : false;
+    var eventoJson     = ViewBag.EventoJson as string ?? "{}";
 }
 @section Styles {
 <style>
@@ -19,38 +17,39 @@
     .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease both;}
     .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
     .card-title{font-size:15px;font-weight:600;color:var(--label);}
-    .card-body{padding:20px;}
-    .form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
-    .form-group{display:flex;flex-direction:column;gap:5px;}
-    .form-group label{font-size:12px;font-weight:600;color:var(--label2);text-transform:uppercase;letter-spacing:0.04em;}
-    .form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 12px;border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);background:var(--fill3);outline:none;font-family:inherit;}
-    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.1);}
-    .form-group textarea{resize:vertical;min-height:68px;}
-    .btn-submit{background:var(--blue);color:white;border:none;padding:10px 24px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;}
-    .btn-submit:hover{background:var(--mid);}
-    .tbl-wrap{overflow-x:auto;}
-    .tbl{width:100%;border-collapse:collapse;min-width:800px;}
-    .tbl thead{position:sticky;top:0;z-index:2;background:rgba(255,255,255,0.95);}
-    .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--sep2);}
-    .tbl td{padding:10px 14px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
-    .tbl tr:last-child td{border-bottom:none;}
-    .tbl tr:hover td{background:var(--fill3);}
-    .bdg-estado{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
-    .bdg-visito{background:rgba(0,118,227,0.1);color:var(--blue);}
-    .bdg-aparto{background:rgba(255,149,0,0.12);color:#CC7700;}
-    .bdg-compro{background:rgba(52,199,89,0.12);color:#1EA851;}
-    .bdg-no{background:rgba(230,57,70,0.1);color:var(--rojo);}
-    .search-wrap{position:relative;max-width:220px;}
-    .search-wrap input{width:100%;padding:7px 12px 7px 30px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);outline:none;}
-    .search-wrap input:focus{background:white;border-color:var(--blue);}
-    .search-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--label3);pointer-events:none;}
-    .ios-btn{display:inline-flex;align-items:center;gap:6px;color:white;border:none;padding:7px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;text-decoration:none;box-shadow:0 3px 10px rgba(0,118,227,0.2);}
+    .card-body{padding:18px;}
+    .fg{display:flex;flex-direction:column;gap:5px;}
+    .fg label{font-size:11px;font-weight:600;color:var(--label2);text-transform:uppercase;letter-spacing:0.03em;}
+    .fg input,.fg textarea{width:100%;padding:8px 11px;border:1px solid var(--sep);border-radius:9px;font-size:13px;color:var(--label);background:var(--fill3);outline:none;font-family:inherit;}
+    .fg input:focus,.fg textarea:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.08);}
+    .fg input[type=number]{text-align:right;}
+    .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .dia-block{border:1px solid var(--sep);border-radius:14px;padding:16px;margin-bottom:14px;background:rgba(255,255,255,0.4);}
+    .dia-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+    .dia-title{font-size:14px;font-weight:700;color:var(--azul);}
+    .sec-lbl{font-size:11px;font-weight:700;color:var(--label3);text-transform:uppercase;letter-spacing:0.05em;margin:14px 0 8px;}
+    .torre-row{display:grid;grid-template-columns:1.2fr repeat(6,1fr) auto;gap:8px;align-items:end;margin-bottom:8px;}
+    .torre-row .fg label{font-size:9px;}
+    .btn{display:inline-flex;align-items:center;gap:6px;border:none;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;}
+    .btn-azul{background:var(--blue);color:white;}.btn-azul:hover{background:var(--mid);}
+    .btn-soft{background:var(--fill3);color:var(--label);border:1px solid var(--sep);}
+    .btn-soft:hover{background:var(--fill2);}
+    .btn-del{background:rgba(230,57,70,0.1);color:var(--rojo);border:none;padding:7px 10px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;}
+    .btn-verde{background:#1EA851;color:white;}.btn-verde:hover{background:#167A3D;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;color:white;border:none;padding:7px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;box-shadow:0 3px 10px rgba(0,118,227,0.2);}
     .ios-btn.verde{background:#1EA851;}.ios-btn.verde:hover{background:#167A3D;}
     .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851;margin-bottom:4px;}
+    .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);margin-bottom:4px;}
     .sql-box{background:var(--fill2);border:1px solid var(--sep);border-radius:12px;padding:18px;font-family:monospace;font-size:12px;color:var(--label);white-space:pre-wrap;overflow-x:auto;}
     .setup-card{background:rgba(255,149,0,0.07);border:1px solid rgba(255,149,0,0.3);border-radius:18px;padding:24px;}
-    @@media(max-width:900px){.form-grid{grid-template-columns:1fr 1fr!important;}}
-    @@media(max-width:600px){.form-grid{grid-template-columns:1fr!important;}}
+    .tbl{width:100%;border-collapse:collapse;min-width:560px;}
+    .tbl th,.tbl td{padding:8px 12px;font-size:13px;border-bottom:1px solid var(--sep2);text-align:right;}
+    .tbl th:first-child,.tbl td:first-child{text-align:left;}
+    .tbl thead th{background:rgba(0,58,112,0.04);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--label3);font-weight:700;}
+    .tbl .lbl{font-weight:600;color:var(--azul);text-align:left;}
+    .tbl .tot{font-weight:700;background:rgba(0,118,227,0.04);}
+    .tbl .sec td{background:rgba(0,58,112,0.06);font-weight:700;color:var(--azul);font-size:11px;text-transform:uppercase;}
+    @@media(max-width:900px){.metric-grid{grid-template-columns:repeat(2,1fr)!important;}.torre-row{grid-template-columns:1fr 1fr!important;}}
 </style>
 }
 
@@ -60,172 +59,319 @@
     <a href="/Reportes/Asistencia" class="tab-btn active">Cuadro de asistencia</a>
 </div>
 
-@if (TempData["AsistExito"] != null) {
-    <div class="alerta-exito">✅ @TempData["AsistExito"]</div>
-}
+@if (TempData["AsistExito"] != null) { <div class="alerta-exito">✅ @TempData["AsistExito"]</div> }
+@if (TempData["AsistError"] != null) { <div class="alerta-error">❌ @TempData["AsistError"]</div> }
 
 @if (!tablaCreadaOk) {
-    <!-- SETUP: tabla aún no creada -->
     <div class="setup-card">
-        <div style="font-size:17px;font-weight:700;color:#CC7700;margin-bottom:8px;">⚠️ Tabla de asistencias no encontrada</div>
+        <div style="font-size:17px;font-weight:700;color:#CC7700;margin-bottom:8px;">⚠️ Tablas de asistencia no encontradas</div>
         <p style="font-size:13px;color:var(--label2);margin-bottom:16px;">
-            Para activar el cuadro de asistencia, ejecuta el siguiente script SQL en tu base de datos <strong>Lanzamientos</strong>:
-        </p>
-        <div class="sql-box">CREATE TABLE Asistencias (
-    IdAsistencia      INT           IDENTITY(1,1) PRIMARY KEY,
-    IdProyecto        INT           NOT NULL,
-    Nombre            NVARCHAR(100) NOT NULL,
-    Apellido          NVARCHAR(100) NOT NULL DEFAULT '',
-    Documento         NVARCHAR(20)  NOT NULL DEFAULT '',
-    Celular           NVARCHAR(20)  NOT NULL DEFAULT '',
-    Correo            NVARCHAR(100) NOT NULL DEFAULT '',
-    MetrosInteres     NVARCHAR(20)  NOT NULL DEFAULT '',
-    TipoInteres       NVARCHAR(10)  NOT NULL DEFAULT '',
-    IdVendedorAtiende INT           NULL,
-    FechaVisita       DATETIME      NOT NULL DEFAULT GETDATE(),
-    Estado            NVARCHAR(30)  NOT NULL DEFAULT 'Visitó',
-    Observaciones     NVARCHAR(500) NOT NULL DEFAULT ''
-);</div>
-        <p style="font-size:12px;color:var(--label3);margin-top:12px;">
-            Una vez creada, recarga esta página y el cuadro de asistencia estará disponible.
+            Ejecuta el script <strong>Scripts/Asistencias.sql</strong> en tu base de datos <strong>Lanzamientos</strong>
+            (crea las tablas <code>AsistenciaEvento</code>, <code>AsistenciaDia</code> y <code>AsistenciaTorre</code>).
+            Luego recarga esta página.
         </p>
     </div>
 } else {
-    <!-- FORMULARIO DE REGISTRO -->
-    <div class="card">
-        <div class="card-head">
-            <span class="card-title">➕ Registrar asistente — @proyActivo</span>
-        </div>
-        <div class="card-body">
-            <form action="/Reportes/RegistrarAsistente" method="post">
-                @Html.AntiForgeryToken()
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Nombre *</label>
-                        <input type="text" name="nombre" placeholder="Nombre" required/>
-                    </div>
-                    <div class="form-group">
-                        <label>Apellido</label>
-                        <input type="text" name="apellido" placeholder="Apellido"/>
-                    </div>
-                    <div class="form-group">
-                        <label>Documento</label>
-                        <input type="text" name="documento" placeholder="Cédula o NIT"/>
-                    </div>
-                    <div class="form-group">
-                        <label>Celular</label>
-                        <input type="text" name="celular" placeholder="Número celular"/>
-                    </div>
-                    <div class="form-group">
-                        <label>Correo</label>
-                        <input type="email" name="correo" placeholder="correo@ejemplo.com"/>
-                    </div>
-                    <div class="form-group">
-                        <label>Área de interés (m²)</label>
-                        @if (metrosDisp.Count > 0) {
-                            <select name="metrosInteres">
-                                <option value="">— Sin especificar —</option>
-                                @foreach (var m in metrosDisp) {
-                                    <option value="@m">@m m²</option>
-                                }
-                            </select>
-                        } else {
-                            <input type="text" name="metrosInteres" placeholder="Ej: 60"/>
-                        }
-                    </div>
-                    <div class="form-group">
-                        <label>Tipo</label>
-                        <select name="tipoInteres">
-                            <option value="">— Sin especificar —</option>
-                            <option value="INT">Interior (INT)</option>
-                            <option value="EXT">Exterior (EXT)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Asesor que atiende</label>
-                        <select name="idVendedorAtiende">
-                            <option value="">— Sin asignar —</option>
-                            @foreach (dynamic v in vendedores) {
-                                <option value="@v.Id">@v.Nombre</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Estado / resultado</label>
-                        <select name="estado">
-                            <option value="Visitó">Visitó</option>
-                            <option value="Apartó">Apartó</option>
-                            <option value="Compró">Compró</option>
-                            <option value="No interesado">No interesado</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="grid-column:1/-1;">
-                        <label>Observaciones</label>
-                        <textarea name="observaciones" placeholder="Notas adicionales..."></textarea>
-                    </div>
-                </div>
-                <div style="margin-top:14px;">
-                    <button type="submit" class="btn-submit">Registrar asistente</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <form id="formAsist" action="/Reportes/GuardarAsistencia" method="post" onsubmit="return prepararEnvio()">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="payload" id="payload"/>
 
-    <!-- TABLA DE ASISTENCIAS -->
-    <div class="card">
-        <div class="card-head">
-            <span class="card-title">📋 Asistentes registrados — @proyActivo</span>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@asistencias.Count personas</span>
-                <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar..." oninput="filtrar()"/></div>
-                <a href="/Reportes/ExportarAsistencia" class="ios-btn verde">⬇ Excel</a>
+        <!-- DATOS GENERALES -->
+        <div class="card" style="margin-bottom:14px;">
+            <div class="card-head"><span class="card-title">📋 Datos del lanzamiento — @proyActivo</span></div>
+            <div class="card-body">
+                <div class="fg" style="margin-bottom:12px;">
+                    <label>Título del cuadro</label>
+                    <input type="text" id="titulo" placeholder="Ej: LANZAMIENTO POBLADO CENTRAL 23 Y 24 DE AGOSTO"/>
+                </div>
             </div>
         </div>
-        @if (asistencias.Count > 0) {
-            <div class="tbl-wrap">
-                <table class="tbl" id="tablaAsist">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th><th>Documento</th><th>Celular</th><th>Correo</th>
-                            <th>Área m²</th><th>Tipo</th><th>Asesor</th><th>Fecha</th><th>Estado</th><th>Observaciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var a in asistencias) {
-                        var bdgCls = a.Estado == "Compró" ? "bdg-compro" :
-                                     a.Estado == "Apartó" ? "bdg-aparto" :
-                                     a.Estado == "No interesado" ? "bdg-no" : "bdg-visito";
-                        <tr>
-                            <td style="font-weight:600">@a.Nombre @a.Apellido</td>
-                            <td style="color:var(--label2)">@a.Documento</td>
-                            <td>@a.Celular</td>
-                            <td style="font-size:12px;color:var(--label2)">@a.Correo</td>
-                            <td style="text-align:center">@(string.IsNullOrEmpty(a.MetrosInteres) ? "—" : a.MetrosInteres + " m²")</td>
-                            <td style="text-align:center">@(string.IsNullOrEmpty(a.TipoInteres) ? "—" : a.TipoInteres)</td>
-                            <td style="color:var(--blue);font-weight:500">@a.Vendedor</td>
-                            <td style="font-size:12px;color:var(--label2)">@a.FechaVisita</td>
-                            <td><span class="bdg-estado @bdgCls">@a.Estado</span></td>
-                            <td style="font-size:12px;color:var(--label2);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="@a.Observaciones">@a.Observaciones</td>
-                        </tr>
-                    }
-                    </tbody>
-                </table>
+
+        <!-- DÍAS -->
+        <div class="card" style="margin-bottom:14px;">
+            <div class="card-head">
+                <span class="card-title">🗓️ Días del lanzamiento</span>
+                <button type="button" class="btn btn-soft" onclick="agregarDia()">＋ Agregar día</button>
             </div>
-        } else {
-            <div style="padding:40px;text-align:center;color:var(--label3);font-size:14px;">
-                Aún no hay asistentes registrados para <strong>@proyActivo</strong>.
+            <div class="card-body">
+                <div id="diasContainer"></div>
             </div>
-        }
+        </div>
+
+        <!-- OBSERVACIONES -->
+        <div class="card" style="margin-bottom:14px;">
+            <div class="card-head"><span class="card-title">📝 Observaciones</span></div>
+            <div class="card-body">
+                <div class="fg">
+                    <label>Texto libre (se incluye tal cual en el Excel)</label>
+                    <textarea id="observaciones" rows="10" placeholder="* El total de las ventas de la torre 1 es de 93 unidades...&#10;Interesados conectados por áreas:&#10;• 26 interesados área de 50 m² (49.06%)&#10;..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:18px;">
+            <button type="submit" class="btn btn-azul">💾 Guardar cuadro</button>
+            <a href="/Reportes/ExportarAsistencia" class="ios-btn verde">⬇ Exportar a Excel</a>
+        </div>
+    </form>
+
+    <!-- RESUMEN EN VIVO -->
+    <div class="card">
+        <div class="card-head"><span class="card-title">📊 Vista previa del cuadro</span></div>
+        <div style="overflow-x:auto;padding:6px 0;">
+            <table class="tbl" id="resumenTabla"><tbody></tbody></table>
+        </div>
     </div>
 }
 
 @section Scripts {
 <script>
-    function filtrar() {
-        const q = document.getElementById('buscar')?.value.toLowerCase() || '';
-        document.querySelectorAll('#tablaAsist tbody tr').forEach(tr => {
-            tr.style.display = tr.innerText.toLowerCase().includes(q) ? '' : 'none';
-        });
+const TORRE_DEFAULT = "TORRE 1";
+const DIAS_SEMANA = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+
+// Plantilla de un día
+function diaTemplate(idx) {
+    return `
+    <div class="dia-block" data-dia="${idx}">
+      <div class="dia-head">
+        <span class="dia-title">Día <span class="dia-num">${idx+1}</span> <span class="dia-nombre" style="color:var(--label3);font-weight:500"></span></span>
+        <div style="display:flex;gap:8px;align-items:end;">
+          <div class="fg"><label>Fecha</label><input type="date" class="f-fecha" onchange="onFechaChange(this)"/></div>
+          <button type="button" class="btn-del" onclick="eliminarDia(this)">🗑 Quitar día</button>
+        </div>
+      </div>
+
+      <div class="sec-lbl">Tráfico</div>
+      <div class="metric-grid">
+        ${numField('Familias','familias')}
+        ${numField('Adultos','adultos')}
+        ${numField('Niños','ninos')}
+        ${numField('Mascotas','mascotas')}
+        ${numField('Asiste con cita','asisteCita')}
+        ${numField('Carros','carros')}
+        ${numField('Motos','motos')}
+        ${numField('Caminando','caminando')}
+      </div>
+
+      <div class="sec-lbl">Citas / agendamiento</div>
+      <div class="metric-grid">
+        ${numField('Agendados equipo comercial','agendadosEquipo')}
+        ${numField('Agendados por Lucía','agendadosLucia')}
+        ${numField('Asiste con cita Lucía','asisteCitaLucia')}
+      </div>
+
+      <div class="sec-lbl">Torres / etapas</div>
+      <div class="torres-container"></div>
+      <button type="button" class="btn btn-soft" style="margin-top:6px;font-size:12px;padding:6px 12px;" onclick="agregarTorre(this)">＋ Agregar torre</button>
+    </div>`;
+}
+function numField(label, key) {
+    return `<div class="fg"><label>${label}</label><input type="number" min="0" class="m-${key}" value="0" oninput="renderResumen()"/></div>`;
+}
+function torreTemplate() {
+    return `
+    <div class="torre-row">
+      <div class="fg"><label>Torre / etapa</label><input type="text" class="t-torre" value="${TORRE_DEFAULT}" oninput="renderResumen()"/></div>
+      <div class="fg"><label>Preventas</label><input type="number" min="0" class="t-preventas" value="0" oninput="renderResumen()"/></div>
+      <div class="fg"><label>Valor preventa</label><input type="number" min="0" class="t-valorPreventa" value="0" oninput="renderResumen()"/></div>
+      <div class="fg"><label>Ventas</label><input type="number" min="0" class="t-ventas" value="0" oninput="renderResumen()"/></div>
+      <div class="fg"><label>Valor venta</label><input type="number" min="0" class="t-valorVenta" value="0" oninput="renderResumen()"/></div>
+      <div class="fg"><label>Opciones</label><input type="number" min="0" class="t-opciones" value="0" oninput="renderResumen()"/></div>
+      <div class="fg"><label>Valor opciones</label><input type="number" min="0" class="t-valorOpciones" value="0" oninput="renderResumen()"/></div>
+      <button type="button" class="btn-del" onclick="this.closest('.torre-row').remove();renderResumen();">✕</button>
+    </div>`;
+}
+
+let diaCount = 0;
+function agregarDia(data) {
+    const cont = document.getElementById('diasContainer');
+    const wrap = document.createElement('div');
+    wrap.innerHTML = diaTemplate(diaCount);
+    const block = wrap.firstElementChild;
+    cont.appendChild(block);
+    diaCount++;
+    if (data) llenarDia(block, data);
+    else agregarTorre(block.querySelector('.torres-container').nextElementSibling); // add 1 torre by default
+    renumerarDias();
+    renderResumen();
+}
+function eliminarDia(btn) {
+    btn.closest('.dia-block').remove();
+    renumerarDias();
+    renderResumen();
+}
+function renumerarDias() {
+    document.querySelectorAll('#diasContainer .dia-block').forEach((b,i)=>{
+        b.querySelector('.dia-num').textContent = i+1;
+    });
+}
+function agregarTorre(btn, data) {
+    const block = btn.closest('.dia-block');
+    const cont = block.querySelector('.torres-container');
+    const wrap = document.createElement('div');
+    wrap.innerHTML = torreTemplate();
+    const row = wrap.firstElementChild;
+    cont.appendChild(row);
+    if (data) {
+        row.querySelector('.t-torre').value = data.Torre ?? data.torre ?? TORRE_DEFAULT;
+        setVal(row,'.t-preventas',data.Preventas); setVal(row,'.t-valorPreventa',data.ValorPreventa);
+        setVal(row,'.t-ventas',data.Ventas); setVal(row,'.t-valorVenta',data.ValorVenta);
+        setVal(row,'.t-opciones',data.Opciones); setVal(row,'.t-valorOpciones',data.ValorOpciones);
     }
+    renderResumen();
+}
+function setVal(scope,sel,v){ const el=scope.querySelector(sel); if(el) el.value = (v==null?0:v); }
+
+function onFechaChange(input) {
+    const block = input.closest('.dia-block');
+    const lbl = block.querySelector('.dia-nombre');
+    if (input.value) {
+        const d = new Date(input.value + 'T00:00:00');
+        lbl.textContent = '· ' + DIAS_SEMANA[d.getDay()] + ' ' + d.getDate();
+    } else lbl.textContent = '';
+    renderResumen();
+}
+function nombreDiaDe(input) {
+    const block = input.closest ? null : input;
+    return '';
+}
+
+function llenarDia(block, d) {
+    const fecha = block.querySelector('.f-fecha');
+    if (d.Fecha) { fecha.value = d.Fecha; onFechaChange(fecha); }
+    const map = {familias:'Familias',adultos:'Adultos',ninos:'Ninos',mascotas:'Mascotas',
+        asisteCita:'AsisteCita',carros:'Carros',motos:'Motos',caminando:'Caminando',
+        agendadosEquipo:'AgendadosEquipo',agendadosLucia:'AgendadosLucia',asisteCitaLucia:'AsisteCitaLucia'};
+    for (const k in map) setVal(block, '.m-'+k, d[map[k]]);
+    const tc = block.querySelector('.torres-container');
+    (d.Torres||[]).forEach(t => agregarTorre(tc.nextElementSibling, t));
+    if (!(d.Torres||[]).length) agregarTorre(tc.nextElementSibling);
+}
+
+// Recolecta el estado del formulario a un objeto
+function recolectar() {
+    const dias = [];
+    document.querySelectorAll('#diasContainer .dia-block').forEach(block => {
+        const fecha = block.querySelector('.f-fecha').value;
+        let nombreDia = '';
+        if (fecha) { const d=new Date(fecha+'T00:00:00'); nombreDia = DIAS_SEMANA[d.getDay()]+' '+d.getDate(); }
+        const gi = sel => parseInt(block.querySelector(sel)?.value||0)||0;
+        const torres = [];
+        block.querySelectorAll('.torre-row').forEach(r => {
+            const gt = sel => parseInt(r.querySelector(sel)?.value||0)||0;
+            torres.push({
+                torre: r.querySelector('.t-torre').value || '',
+                preventas: gt('.t-preventas'), valorPreventa: gt('.t-valorPreventa'),
+                ventas: gt('.t-ventas'), valorVenta: gt('.t-valorVenta'),
+                opciones: gt('.t-opciones'), valorOpciones: gt('.t-valorOpciones'),
+            });
+        });
+        dias.push({
+            fecha, nombreDia,
+            familias:gi('.m-familias'), adultos:gi('.m-adultos'), ninos:gi('.m-ninos'), mascotas:gi('.m-mascotas'),
+            asisteCita:gi('.m-asisteCita'), carros:gi('.m-carros'), motos:gi('.m-motos'), caminando:gi('.m-caminando'),
+            agendadosEquipo:gi('.m-agendadosEquipo'), agendadosLucia:gi('.m-agendadosLucia'), asisteCitaLucia:gi('.m-asisteCitaLucia'),
+            torres,
+        });
+    });
+    return {
+        titulo: document.getElementById('titulo').value,
+        observaciones: document.getElementById('observaciones').value,
+        dias,
+    };
+}
+
+function prepararEnvio() {
+    document.getElementById('payload').value = JSON.stringify(recolectar());
+    return true;
+}
+
+function fmt(n){ return '$ ' + (parseInt(n)||0).toLocaleString('es-CO'); }
+function pct(num,den){ return den>0 ? Math.round(num/den*100)+'%' : '0%'; }
+
+function renderResumen() {
+    const data = recolectar();
+    const dias = data.dias;
+    const tb = document.querySelector('#resumenTabla tbody');
+    if (!dias.length) { tb.innerHTML = '<tr><td style="padding:24px;color:var(--label3)">Agrega al menos un día para ver el resumen.</td></tr>'; return; }
+
+    const sum = (f) => dias.reduce((a,d)=>a+f(d),0);
+    const tSum = (d,f) => d.torres.reduce((a,t)=>a+f(t),0);
+    const sumT = (f) => dias.reduce((a,d)=>a+tSum(d,f),0);
+
+    let h = '<thead><tr><th></th>';
+    dias.forEach(d => h += `<th>${d.nombreDia||'Día'}</th>`);
+    h += '<th>TOTAL</th></tr></thead><tbody>';
+
+    const filaInt = (lbl,f,cls='') => {
+        h += `<tr class="${cls}"><td class="lbl">${lbl}</td>`;
+        dias.forEach(d => h += `<td>${f(d)}</td>`);
+        h += `<td class="tot">${sum(f)}</td></tr>`;
+    };
+    const filaPct = (lbl,f,tot) => {
+        h += `<tr><td class="lbl">${lbl}</td>`;
+        dias.forEach(d => h += `<td>${f(d)}</td>`);
+        h += `<td class="tot">${tot}</td></tr>`;
+    };
+    const filaTInt = (lbl,f) => {
+        h += `<tr><td class="lbl">${lbl}</td>`;
+        dias.forEach(d => h += `<td>${tSum(d,f)}</td>`);
+        h += `<td class="tot">${sumT(f)}</td></tr>`;
+    };
+    const filaTMoney = (lbl,f) => {
+        h += `<tr><td class="lbl">${lbl}</td>`;
+        dias.forEach(d => h += `<td>${fmt(tSum(d,f))}</td>`);
+        h += `<td class="tot">${fmt(sumT(f))}</td></tr>`;
+    };
+
+    filaInt('Familias', d=>d.familias);
+    filaInt('Adultos', d=>d.adultos);
+    filaInt('Niños', d=>d.ninos);
+    filaInt('Mascotas', d=>d.mascotas);
+    filaInt('Asiste con cita', d=>d.asisteCita);
+    filaPct('% asiste con cita', d=>pct(d.asisteCita,d.familias), pct(sum(d=>d.asisteCita),sum(d=>d.familias)));
+    filaInt('Carros', d=>d.carros);
+    filaInt('Motos', d=>d.motos);
+    filaInt('Caminando', d=>d.caminando);
+
+    h += `<tr class="sec"><td>Torres / etapas</td>${dias.map(()=>'<td></td>').join('')}<td></td></tr>`;
+    filaTInt('Preventas', t=>t.preventas);
+    filaTMoney('Valor preventa', t=>t.valorPreventa);
+    filaTInt('Ventas', t=>t.ventas);
+    filaTMoney('Valor de venta', t=>t.valorVenta);
+    filaTInt('Opciones (en proceso)', t=>t.opciones);
+    filaTMoney('Opciones (en pesos)', t=>t.valorOpciones);
+    filaTInt('Ventas totales unidades', t=>t.preventas+t.ventas);
+    filaTMoney('Ventas totales pesos', t=>t.valorPreventa+t.valorVenta);
+    filaTInt('Opciones + ventas', t=>t.preventas+t.ventas+t.opciones);
+    filaTMoney('Opciones + ventas (pesos)', t=>t.valorPreventa+t.valorVenta+t.valorOpciones);
+
+    h += `<tr class="sec"><td>Citas</td>${dias.map(()=>'<td></td>').join('')}<td></td></tr>`;
+    filaInt('Agendados equipo comercial', d=>d.agendadosEquipo);
+    filaInt('Agendados por Lucía', d=>d.agendadosLucia);
+    filaInt('Asiste con cita Lucía', d=>d.asisteCitaLucia);
+    filaPct('% asistencia Lucía', d=>pct(d.asisteCitaLucia,d.agendadosLucia), pct(sum(d=>d.asisteCitaLucia),sum(d=>d.agendadosLucia)));
+    filaInt('Total agendados', d=>d.agendadosEquipo+d.agendadosLucia);
+    filaPct('% cumplimiento cita', d=>pct(d.asisteCitaLucia,d.agendadosEquipo+d.agendadosLucia),
+            pct(sum(d=>d.asisteCitaLucia),sum(d=>d.agendadosEquipo+d.agendadosLucia)));
+    filaPct('Ventas Vs familias', d=>pct(tSum(d,t=>t.ventas),d.familias),
+            pct(sumT(t=>t.ventas),sum(d=>d.familias)));
+
+    h += '</tbody>';
+    document.getElementById('resumenTabla').innerHTML = h;
+}
+
+// Carga inicial
+(function(){
+    const ev = @Html.Raw(eventoJson);
+    if (ev && ev.titulo) document.getElementById('titulo').value = ev.titulo;
+    if (ev && ev.observaciones) document.getElementById('observaciones').value = ev.observaciones;
+    if (ev && ev.dias && ev.dias.length) {
+        ev.dias.forEach(d => agregarDia(d));
+    } else {
+        agregarDia();
+    }
+    renderResumen();
+})();
 </script>
 }
