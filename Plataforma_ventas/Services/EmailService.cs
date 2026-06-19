@@ -1,5 +1,6 @@
-using System.Net;
-using System.Net.Mail;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
 
 namespace Plataforma_ventas.Services
 {
@@ -9,7 +10,7 @@ namespace Plataforma_ventas.Services
     }
 
     /// <summary>
-    /// Envío SMTP configurable vía appsettings ("Smtp": Host, Port, User, Password, From).
+    /// Envío SMTP vía MailKit. Configurable en appsettings ("Smtp": Host, Port, User, Password, From).
     /// Si no hay SMTP configurado devuelve false y el llamador decide el fallback.
     /// </summary>
     public class SmtpEmailService : IEmailService
@@ -23,17 +24,6 @@ namespace Plataforma_ventas.Services
             _logger = logger;
         }
 
-        /// <summary>
-        /// Sends an HTML email via SMTP. Returns true on success, false if SMTP is not
-        /// configured (Smtp:Host missing in appsettings) or if an error occurs.
-        /// When false is returned the caller is responsible for fallback behaviour
-        /// (e.g. writing the recovery link to the application log in development).
-        /// Credentials are read from Smtp:User / Smtp:Password in configuration;
-        /// never store SMTP credentials in source control.
-        /// </summary>
-        /// <param name="destinatario">Recipient email address.</param>
-        /// <param name="asunto">Email subject line.</param>
-        /// <param name="cuerpoHtml">HTML body of the email.</param>
         public async Task<bool> EnviarAsync(string destinatario, string asunto, string cuerpoHtml)
         {
             var host = _config["Smtp:Host"];
@@ -45,17 +35,23 @@ namespace Plataforma_ventas.Services
 
             try
             {
-                using var client = new SmtpClient(host, int.TryParse(_config["Smtp:Port"], out int p) ? p : 587)
-                {
-                    EnableSsl = true,
-                    Credentials = new NetworkCredential(_config["Smtp:User"], _config["Smtp:Password"])
-                };
-                using var msg = new MailMessage(
-                    _config["Smtp:From"] ?? _config["Smtp:User"] ?? "no-reply@localhost",
-                    destinatario, asunto, cuerpoHtml)
-                { IsBodyHtml = true };
+                int port = int.TryParse(_config["Smtp:Port"], out int p) ? p : 587;
+                string user = _config["Smtp:User"] ?? "";
+                string password = _config["Smtp:Password"] ?? "";
+                string from = _config["Smtp:From"] ?? user;
 
-                await client.SendMailAsync(msg);
+                var message = new MimeMessage();
+                message.From.Add(MailboxAddress.Parse(from));
+                message.To.Add(MailboxAddress.Parse(destinatario));
+                message.Subject = asunto;
+                message.Body = new TextPart("html") { Text = cuerpoHtml };
+
+                using var client = new SmtpClient();
+                await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+                await client.AuthenticateAsync(user, password);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+
                 return true;
             }
             catch (Exception ex)
