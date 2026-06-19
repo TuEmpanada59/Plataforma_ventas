@@ -50,7 +50,7 @@ namespace Plataforma_ventas.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Login(LoginViewModel model)
+        public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid) return View(model);
 
@@ -66,7 +66,7 @@ namespace Plataforma_ventas.Controllers
             }
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var cmd = new SqlCommand(@"
                 SELECT u.IdUsuario, u.Nombre, u.Apellido, u.Rol, u.IdProyecto,
@@ -77,8 +77,8 @@ namespace Plataforma_ventas.Controllers
                 WHERE u.Usuario = @u", con);
             cmd.Parameters.AddWithValue("@u", model.Usuario ?? "");
 
-            using var reader = cmd.ExecuteReader();
-            if (reader.Read() && BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""))
+            using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync() && BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""))
             {
                 _cache.Remove(attemptKey);
 
@@ -95,14 +95,14 @@ namespace Plataforma_ventas.Controllers
 
                 if (rol == "Administrador")
                 {
-                    reader.Close();
+                    await reader.CloseAsync();
                     var cmdProy = new SqlCommand(@"
                         SELECT IdProyectos, Nombre FROM Proyectos
                         WHERE IdAdminCreador = @id AND Activo = 1
                         ORDER BY FechaCarga DESC", con);
                     cmdProy.Parameters.AddWithValue("@id", HttpContext.Session.GetString("UsuarioId"));
-                    using var rP = cmdProy.ExecuteReader();
-                    if (rP.Read())
+                    using var rP = await cmdProy.ExecuteReaderAsync();
+                    if (await rP.ReadAsync())
                     {
                         HttpContext.Session.SetString("ProyectoId", rP["IdProyectos"].ToString()!);
                         HttpContext.Session.SetString("ProyectoNombre", rP["Nombre"]?.ToString() ?? "");
@@ -112,7 +112,7 @@ namespace Plataforma_ventas.Controllers
                 {
                     var idProy = reader["IdProyecto"];
                     var nomProy = reader["NombreProyecto"];
-                    reader.Close();
+                    await reader.CloseAsync();
                     if (idProy != DBNull.Value)
                     {
                         HttpContext.Session.SetString("ProyectoId", idProy.ToString()!);
@@ -187,11 +187,11 @@ namespace Plataforma_ventas.Controllers
             if (!string.IsNullOrWhiteSpace(correo))
             {
                 using var con = new SqlConnection(_conn);
-                con.Open();
+                await con.OpenAsync();
                 var cmd = new SqlCommand("SELECT IdUsuario, Nombre FROM Usuarios WHERE Correo=@c", con);
                 cmd.Parameters.AddWithValue("@c", correo.Trim());
-                using var r = cmd.ExecuteReader();
-                if (r.Read())
+                using var r = await cmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
                 {
                     int idUsuario = (int)r["IdUsuario"];
                     string nombre = r["Nombre"]?.ToString() ?? "";
@@ -249,7 +249,7 @@ namespace Plataforma_ventas.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult RestablecerPassword(string token, string contrasena, string confirmar)
+        public async Task<IActionResult> RestablecerPassword(string token, string contrasena, string confirmar)
         {
             if (string.IsNullOrEmpty(token)) return RedirectToAction("Login");
             ViewBag.Token = token;
@@ -273,11 +273,11 @@ namespace Plataforma_ventas.Controllers
             }
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
             var cmd = new SqlCommand("UPDATE Usuarios SET Contraseña=@p WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@p", BCrypt.Net.BCrypt.HashPassword(contrasena, 12));
             cmd.Parameters.AddWithValue("@id", idUsuario);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
 
             // Token de un solo uso
             _cache.Remove($"pwdreset:{hash}");
@@ -285,7 +285,7 @@ namespace Plataforma_ventas.Controllers
             // Desbloquear la cuenta si estaba en lockout
             var cmdUser = new SqlCommand("SELECT Usuario FROM Usuarios WHERE IdUsuario=@id", con);
             cmdUser.Parameters.AddWithValue("@id", idUsuario);
-            string? usuario = cmdUser.ExecuteScalar()?.ToString();
+            string? usuario = (await cmdUser.ExecuteScalarAsync())?.ToString();
             if (!string.IsNullOrEmpty(usuario))
             {
                 _cache.Remove($"lockout:{usuario.ToLower()}");
