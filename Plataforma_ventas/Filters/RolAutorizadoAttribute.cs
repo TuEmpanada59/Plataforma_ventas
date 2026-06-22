@@ -19,9 +19,12 @@ namespace Plataforma_ventas.Filters
                 return;
             }
 
-            if (_roles.Length > 0 && !_roles.Contains(rol))
+            // SuperAdministrador tiene acceso a todo lo que tiene Administrador
+            bool esSuperAdmin = rol == "SuperAdministrador";
+
+            if (_roles.Length > 0 && !_roles.Contains(rol) && !esSuperAdmin)
             {
-                context.Result = rol == "Administrador"
+                context.Result = (rol == "Administrador")
                     ? new RedirectToActionResult("Index", "Dashboard", null)
                     : new RedirectToActionResult("Index", "Vendedor", null);
             }

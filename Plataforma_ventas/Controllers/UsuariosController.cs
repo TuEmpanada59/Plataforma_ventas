@@ -8,7 +8,7 @@ namespace Plataforma_ventas.Controllers
     /// Administrator controller for user management:
     /// listing, creating, editing, resetting passwords, and deleting user accounts.
     /// </summary>
-    [RolAutorizado("Administrador")]
+    [RolAutorizado("Administrador", "SuperAdministrador")]
     public class UsuariosController : Controller
     {
         private readonly string _conn;
@@ -74,9 +74,10 @@ namespace Plataforma_ventas.Controllers
 
             ViewBag.Usuarios        = usuarios;
             ViewBag.TotalUsuarios   = usuarios.Count;
-            ViewBag.TotalAdmins     = usuarios.Count(u => u.Rol == "Administrador");
+            ViewBag.TotalAdmins     = usuarios.Count(u => u.Rol == "Administrador" || u.Rol == "SuperAdministrador");
             ViewBag.TotalVendedores = usuarios.Count(u => u.Rol == "Vendedor");
             ViewBag.TotalProyectos  = proyectos.Count;
+            ViewBag.RolActual       = HttpContext.Session.GetString("Rol") ?? "";
             return View();
         }
 
@@ -103,8 +104,11 @@ namespace Plataforma_ventas.Controllers
                 return RedirectToAction("Index");
             }
 
-            // Administrador no requiere proyecto asignado; Vendedor sí
-            string rolFinal = rol == "Administrador" ? "Administrador" : "Vendedor";
+            // Solo el SuperAdministrador puede crear Administradores
+            string rolSesion = HttpContext.Session.GetString("Rol") ?? "";
+            string rolFinal = (rolSesion == "SuperAdministrador" && rol == "Administrador")
+                ? "Administrador"
+                : "Vendedor";
             object proyParam = (rolFinal == "Vendedor" && idProyecto > 0)
                 ? (object)idProyecto
                 : DBNull.Value;
@@ -142,6 +146,12 @@ namespace Plataforma_ventas.Controllers
 
             object proyParam = idProyecto > 0 ? (object)idProyecto : DBNull.Value;
 
+            // Solo el SuperAdministrador puede asignar el rol Administrador
+            string rolSesionEditar = HttpContext.Session.GetString("Rol") ?? "";
+            string rolFinalEditar = rol ?? "Vendedor";
+            if (rolSesionEditar != "SuperAdministrador" && rolFinalEditar == "Administrador")
+                rolFinalEditar = "Vendedor";
+
             var cmd = new SqlCommand(@"
                 UPDATE Usuarios
                 SET Nombre=@n, Apellido=@a, Documento=@d, Celular=@c,
@@ -152,7 +162,7 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@d",    documento ?? "");
             cmd.Parameters.AddWithValue("@c",    celular  ?? "");
             cmd.Parameters.AddWithValue("@e",    correo   ?? "");
-            cmd.Parameters.AddWithValue("@r",    rol      ?? "Vendedor");
+            cmd.Parameters.AddWithValue("@r",    rolFinalEditar);
             cmd.Parameters.AddWithValue("@proy", proyParam);
             cmd.Parameters.AddWithValue("@id",   idUsuario);
             await cmd.ExecuteNonQueryAsync();

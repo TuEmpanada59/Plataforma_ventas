@@ -5,8 +5,10 @@
     string iniciales  = ViewBag.Iniciales as string ?? ((nombre.Length >= 1 ? nombre.Substring(0,1) : "") + (apellido.Length >= 1 ? apellido.Substring(0,1) : "")).ToUpper();
     if (string.IsNullOrEmpty(iniciales)) iniciales = "?";
     var proyectos  = ViewBag.Proyectos as List<(int Id, string Nombre)> ?? new List<(int Id, string Nombre)>();
-    string activeNav = ViewBag.ActiveNav as string ?? "";
-    string tbBread   = ViewBag.TbBread   as string ?? "Inicio";
+    string activeNav  = ViewBag.ActiveNav as string ?? "";
+    string tbBread    = ViewBag.TbBread   as string ?? "Inicio";
+    string rolSesion  = Context.Session.GetString("Rol") ?? "";
+    string rolLabel   = rolSesion == "SuperAdministrador" ? "Super Admin" : "Administrador";
 }
 <!DOCTYPE html>
 <html lang="es">
@@ -90,7 +92,7 @@
       <div class="sb-av">@iniciales</div>
       <div>
         <div style="font-size:12px;font-weight:600">@nombre @apellido</div>
-        <div style="font-size:10px;color:var(--label3)">Administrador</div>
+        <div style="font-size:10px;color:var(--label3)">@rolLabel</div>
       </div>
       <a class="sb-logout" href="/Account/Logout" title="Cerrar sesión">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

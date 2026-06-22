@@ -318,7 +318,8 @@ namespace Plataforma_ventas.Controllers
 
         private IActionResult RedirectSegunRol()
         {
-            return HttpContext.Session.GetString("Rol") == "Administrador"
+            var rol = HttpContext.Session.GetString("Rol");
+            return (rol == "Administrador" || rol == "SuperAdministrador")
                 ? RedirectToAction("Index", "Dashboard")
                 : RedirectToAction("Index", "Vendedor");
         }

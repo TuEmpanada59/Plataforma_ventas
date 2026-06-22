@@ -10,6 +10,7 @@
     int admins      = ViewBag.TotalAdmins     != null ? (int)ViewBag.TotalAdmins     : 0;
     int vendedores  = ViewBag.TotalVendedores != null ? (int)ViewBag.TotalVendedores : 0;
     int totalProy   = ViewBag.TotalProyectos  != null ? (int)ViewBag.TotalProyectos  : 0;
+    bool esSuperAdmin = (ViewBag.RolActual as string) == "SuperAdministrador";
 }
 @section Styles {
 <style>
@@ -49,6 +50,7 @@
     .bdg{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
     .bdg.A{background:rgba(0,118,227,0.1);color:var(--blue)}
     .bdg.V{background:rgba(0,212,161,0.12);color:#00a07a}
+    .bdg.S{background:rgba(130,0,227,0.1);color:#7200c8}
     .proy-bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(255,149,0,0.08);color:#9a5c00;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .btn-sm{border:none;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.18s;white-space:nowrap;}
     .btn-edit{background:rgba(0,118,227,0.1);color:var(--blue);}
@@ -137,6 +139,7 @@
                 </select>
                 <select id="filterRol" onchange="filtrarTabla()">
                     <option value="">Todos los roles</option>
+                    <option value="SuperAdministrador">Super Admin</option>
                     <option value="Administrador">Administrador</option>
                     <option value="Vendedor">Vendedor</option>
                 </select>
@@ -182,7 +185,7 @@
                                 <span style="font-size:12px;color:var(--label3)">—</span>
                             }
                         </td>
-                        <td><span class="bdg @(u.Rol == "Administrador" ? "A" : "V")">@u.Rol</span></td>
+                        <td><span class="bdg @(u.Rol == "SuperAdministrador" ? "S" : u.Rol == "Administrador" ? "A" : "V")">@(u.Rol == "SuperAdministrador" ? "Super Admin" : u.Rol)</span></td>
                         <td style="text-align:center;font-size:15px;font-weight:600;color:var(--blue)">@u.TotalVentas</td>
                         <td>
                             <div class="actions-cell">
@@ -241,10 +244,12 @@
                             <input type="radio" name="rol" id="rolVendedor" value="Vendedor" checked/>
                             <label for="rolVendedor">💼 Vendedor</label>
                         </div>
+                        @if (esSuperAdmin) {
                         <div class="rol-opt">
                             <input type="radio" name="rol" id="rolAdmin" value="Administrador"/>
                             <label for="rolAdmin">🔑 Administrador</label>
                         </div>
+                        }
                     </div>
                 </div>
 
@@ -286,7 +291,9 @@
                     <label>Rol</label>
                     <select name="rol" id="editRol" onchange="toggleProyectoEdit()">
                         <option value="Vendedor">Vendedor</option>
+                        @if (esSuperAdmin) {
                         <option value="Administrador">Administrador</option>
+                        }
                     </select>
                 </div>
                 <div class="field" id="editCampoProyecto">
