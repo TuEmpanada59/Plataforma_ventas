@@ -72,6 +72,11 @@ namespace Plataforma_ventas.Controllers
                         TotalVentas   = (int)reader["TotalVentas"],
                     });
 
+            // El Admin no ve ni puede gestionar SuperAdministradores
+            string rolActual = HttpContext.Session.GetString("Rol") ?? "";
+            if (rolActual != "SuperAdministrador")
+                usuarios = usuarios.Where(u => u.Rol != "SuperAdministrador").ToList();
+
             ViewBag.Usuarios        = usuarios;
             ViewBag.TotalUsuarios   = usuarios.Count;
             ViewBag.TotalAdmins     = usuarios.Count(u => u.Rol == "Administrador" || u.Rol == "SuperAdministrador");
@@ -144,6 +149,20 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
+            // Verificar que el Admin no intente editar a un SuperAdministrador
+            string rolSesionCheck = HttpContext.Session.GetString("Rol") ?? "";
+            if (rolSesionCheck != "SuperAdministrador")
+            {
+                var cmdRolCheck = new SqlCommand("SELECT Rol FROM Usuarios WHERE IdUsuario=@id", con);
+                cmdRolCheck.Parameters.AddWithValue("@id", idUsuario);
+                string? rolObjetivo = (await cmdRolCheck.ExecuteScalarAsync())?.ToString();
+                if (rolObjetivo == "SuperAdministrador")
+                {
+                    TempData["Error"] = "No tienes permisos para editar a un Super Administrador.";
+                    return RedirectToAction("Index");
+                }
+            }
+
             object proyParam = idProyecto > 0 ? (object)idProyecto : DBNull.Value;
 
             // Solo el SuperAdministrador puede asignar el rol Administrador
@@ -210,6 +229,20 @@ namespace Plataforma_ventas.Controllers
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            // Verificar que el Admin no intente eliminar a un SuperAdministrador
+            string rolSesionElim = HttpContext.Session.GetString("Rol") ?? "";
+            if (rolSesionElim != "SuperAdministrador")
+            {
+                var cmdRolCheck = new SqlCommand("SELECT Rol FROM Usuarios WHERE IdUsuario=@id", con);
+                cmdRolCheck.Parameters.AddWithValue("@id", idUsuario);
+                string? rolObjetivo = (await cmdRolCheck.ExecuteScalarAsync())?.ToString();
+                if (rolObjetivo == "SuperAdministrador")
+                {
+                    TempData["Error"] = "No tienes permisos para eliminar a un Super Administrador.";
+                    return RedirectToAction("Index");
+                }
+            }
 
             var cmd = new SqlCommand("DELETE FROM Usuarios WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@id", idUsuario);
