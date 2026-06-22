@@ -32,7 +32,6 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido");
             ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
-            bool esSuperAdmin = (HttpContext.Session.GetString("Rol") ?? "") == "SuperAdministrador";
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
@@ -40,17 +39,9 @@ namespace Plataforma_ventas.Controllers
             var proyectos = new List<(int Id, string Nombre, string Codigo)>();
             var tiposProy = new Dictionary<int, string>();
 
-            // El SuperAdministrador ve todos los proyectos activos;
-            // el Administrador solo los que él mismo cargó.
-            var cmdList = new SqlCommand(esSuperAdmin
-                ? @"SELECT IdProyectos, Nombre, CodigoAcceso, TipProyecto
-                     FROM Proyectos WHERE Activo=1
-                     ORDER BY FechaCarga DESC"
-                : @"SELECT IdProyectos, Nombre, CodigoAcceso, TipProyecto
-                     FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@uid
-                     ORDER BY FechaCarga DESC", con);
-            if (!esSuperAdmin)
-                cmdList.Parameters.AddWithValue("@uid", idAdmin);
+            var cmdList = new SqlCommand(@"SELECT IdProyectos, Nombre, CodigoAcceso, TipProyecto
+                FROM Proyectos WHERE Activo=1
+                ORDER BY FechaCarga DESC", con);
             using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
                 while (await r.ReadAsync())
                 {
