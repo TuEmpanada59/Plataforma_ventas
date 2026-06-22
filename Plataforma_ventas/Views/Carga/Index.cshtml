@@ -38,7 +38,7 @@
     .btn-eliminar{background:rgba(230,57,70,0.1);color:var(--rojo);border:none;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
     .btn-eliminar:hover{background:rgba(230,57,70,0.2);}
     .empty-proy{text-align:center;color:var(--label3);font-size:13px;padding:20px;}
-    .tipo-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+    .tipo-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
     .tipo-btn{padding:12px 8px;border-radius:12px;border:2px solid var(--sep);background:white;font-size:13px;font-weight:600;color:var(--label2);cursor:pointer;text-align:center;transition:all 0.2s;width:100%;}
     .tipo-btn:hover{border-color:var(--blue);color:var(--blue);}
     .tipo-btn.sel{border-color:var(--blue);background:rgba(0,118,227,0.06);color:var(--blue);}
@@ -68,11 +68,20 @@
             <div class="campo">
                 <label>Tipo de proyecto</label>
                 <div class="tipo-row">
-                    <button type="button" class="tipo-btn sel" id="btnApto" onclick="selTipo('APARTAMENTOS')">
+                    <button type="button" class="tipo-btn sel" id="btnAPARTAMENTOS" onclick="selTipo('APARTAMENTOS')">
                         <span class="tipo-btn-ico">🏢</span>Apartamentos
                     </button>
-                    <button type="button" class="tipo-btn" id="btnLote" onclick="selTipo('LOTES')">
+                    <button type="button" class="tipo-btn" id="btnSUITES" onclick="selTipo('SUITES')">
+                        <span class="tipo-btn-ico">🛎</span>Suites
+                    </button>
+                    <button type="button" class="tipo-btn" id="btnLOTES" onclick="selTipo('LOTES')">
                         <span class="tipo-btn-ico">🏕</span>Lotes
+                    </button>
+                    <button type="button" class="tipo-btn" id="btnSALUD" onclick="selTipo('SALUD')">
+                        <span class="tipo-btn-ico">🏥</span>Salud
+                    </button>
+                    <button type="button" class="tipo-btn" id="btnOFICINAS" onclick="selTipo('OFICINAS')">
+                        <span class="tipo-btn-ico">💼</span>Oficinas
                     </button>
                 </div>
                 <input type="hidden" name="tipoProyecto" id="tipoProyecto" value="APARTAMENTOS"/>
@@ -99,7 +108,14 @@
                             @p.Nombre
                             @if (tiposProy.ContainsKey(p.Id)) {
                                 var t = tiposProy[p.Id];
-                                <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;background:@(t=="LOTES"?"rgba(255,149,0,0.1)":"rgba(0,118,227,0.1)");color:@(t=="LOTES"?"#CC7700":"var(--blue)")">@(t == "LOTES" ? "🏕 Lotes" : "🏢 Aptos")</span>
+                                var (ico, lbl, bg, fg) = t switch {
+                                    "LOTES"    => ("🏕", "Lotes",       "rgba(255,149,0,0.1)",   "#CC7700"),
+                                    "SUITES"   => ("🛎", "Suites",      "rgba(88,86,214,0.1)",   "#5856D6"),
+                                    "SALUD"    => ("🏥", "Salud",       "rgba(52,199,89,0.1)",   "#1A7A35"),
+                                    "OFICINAS" => ("💼", "Oficinas",    "rgba(255,59,48,0.1)",   "#C0392B"),
+                                    _          => ("🏢", "Aptos",       "rgba(0,118,227,0.1)",   "var(--blue)")
+                                };
+                                <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;background:@bg;color:@fg">@ico @lbl</span>
                             }
                         </div>
                         <form action="/Carga/EliminarProyecto" method="post" style="margin:0">
@@ -128,10 +144,13 @@
 
 @section Scripts {
 <script>
+    const TIPOS=['APARTAMENTOS','SUITES','LOTES','SALUD','OFICINAS'];
     function selTipo(t){
         document.getElementById('tipoProyecto').value=t;
-        document.getElementById('btnApto').classList.toggle('sel',t==='APARTAMENTOS');
-        document.getElementById('btnLote').classList.toggle('sel',t==='LOTES');
+        TIPOS.forEach(function(x){
+            var btn=document.getElementById('btn'+x);
+            if(btn) btn.classList.toggle('sel',x===t);
+        });
     }
     function copiar(txt){navigator.clipboard.writeText(txt).then(function(){alert('Código copiado: '+txt);});}
     const fileInput=document.getElementById('fileInput'),fileName=document.getElementById('fileName'),dropZone=document.getElementById('dropZone');

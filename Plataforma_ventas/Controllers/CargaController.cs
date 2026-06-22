@@ -10,7 +10,7 @@ namespace Plataforma_ventas.Controllers
     /// new projects with their property inventory, regenerating access codes,
     /// and deleting projects with all associated data.
     /// </summary>
-    [RolAutorizado("Administrador")]
+    [RolAutorizado("Administrador", "SuperAdministrador")]
     public class CargaController : Controller
     {
         private readonly string _conn;
@@ -82,8 +82,18 @@ namespace Plataforma_ventas.Controllers
                 return RedirectToAction("Index");
             }
 
-            if (tipoProyecto != "APARTAMENTOS" && tipoProyecto != "LOTES")
+            if (tipoProyecto != "APARTAMENTOS" && tipoProyecto != "LOTES" &&
+                tipoProyecto != "SUITES" && tipoProyecto != "SALUD" && tipoProyecto != "OFICINAS")
                 tipoProyecto = "APARTAMENTOS";
+
+            // Nombre de la columna principal según el tipo de producto
+            string colNombreUnidad = tipoProyecto switch
+            {
+                "SUITES"   => "SUITE",
+                "SALUD"    => "CONSULTORIO",
+                "OFICINAS" => "OFICINA",
+                _          => "APTO"   // APARTAMENTOS y LOTES
+            };
 
             try
             {
@@ -111,7 +121,7 @@ namespace Plataforma_ventas.Controllers
                 for (int c = 1; c <= totalCols; c++)
                 {
                     var header = ws.Cells[1, c].Text?.Trim().ToUpper() ?? "";
-                    if (header == "APTO") colApto = c;
+                    if (header == colNombreUnidad) colApto = c;
                     if (header == "TIPO1" || header == "TIPO") colTipo = c;
                     if (header == "PISO") colPiso = c;
                     if (header == "METROS") colMetros = c;
@@ -140,6 +150,13 @@ namespace Plataforma_ventas.Controllers
                     if (listaActiva[li]) mapeoListas[slot++] = li;
 
                 int listasDetectadas = slot;
+
+                // Validar que el Excel tenga la columna correcta para el tipo declarado
+                if (colApto < 0)
+                {
+                    TempData["Error"] = $"El archivo no contiene la columna '{colNombreUnidad}' requerida para proyectos de tipo {tipoProyecto}. Verifica que el tipo de proyecto sea el correcto.";
+                    return RedirectToAction("Index");
+                }
 
                 if (colProyecto > 0)
                 {
@@ -228,7 +245,14 @@ namespace Plataforma_ventas.Controllers
                 HttpContext.Session.SetString("ProyectoNombre", nombreProyecto.Trim());
                 HttpContext.Session.SetString("TipProyecto", tipoProyecto);
 
-                string tipoLabel = tipoProyecto == "LOTES" ? "lotes" : "inmuebles";
+                string tipoLabel = tipoProyecto switch
+                {
+                    "LOTES"    => "lotes",
+                    "SUITES"   => "suites",
+                    "SALUD"    => "consultorios",
+                    "OFICINAS" => "oficinas",
+                    _          => "apartamentos"
+                };
                 TempData["Exito"] = $"Proyecto '{nombreProyecto}' cargado con {insertados} {tipoLabel}. Listas detectadas: {listasDetectadas}.";
                 TempData["Codigo"] = codigo;
             }
