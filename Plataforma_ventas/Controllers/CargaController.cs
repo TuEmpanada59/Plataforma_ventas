@@ -157,6 +157,21 @@ namespace Plataforma_ventas.Controllers
                     return RedirectToAction("Index");
                 }
 
+                // Contar las unidades reales (filas con la columna principal no vacía).
+                // ws.Dimension.Rows mide el rango usado de la hoja, no las filas con datos:
+                // un Excel con solo encabezado o con filas "tocadas" pero vacías lo supera.
+                // Por eso se cuentan aquí ANTES de crear el proyecto y se rechaza si son 0.
+                int unidadesValidas = 0;
+                for (int row = 2; row <= totalRows; row++)
+                    if (!string.IsNullOrEmpty(ws.Cells[row, colApto].Text?.Trim()))
+                        unidadesValidas++;
+
+                if (unidadesValidas == 0)
+                {
+                    TempData["Error"] = $"El archivo no contiene ninguna unidad cargada en la columna '{colNombreUnidad}'. Verifica que el Excel tenga datos antes de subirlo.";
+                    return RedirectToAction("Index");
+                }
+
                 if (colProyecto > 0)
                 {
                     var nombreEnExcel = ws.Cells[2, colProyecto].Text?.Trim() ?? "";
