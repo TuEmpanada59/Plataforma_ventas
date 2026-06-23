@@ -319,9 +319,13 @@ namespace Plataforma_ventas.Controllers
                                 };
                                 foreach (var (val, lbl) in stats)
                                 {
+                                    // Shrink font for long monetary strings so they never wrap inside their cell.
+                                    // An A4 page with 28mm margins gives ~154mm total; 5 equal cols ≈ 30mm each.
+                                    // Arial Bold 18pt needs ~3mm/char — strings > 7 chars would overflow.
+                                    float fs = val.Length > 10 ? 11f : val.Length > 7 ? 14f : 18f;
                                     row.RelativeItem().AlignCenter().Column(c =>
                                     {
-                                        c.Item().AlignCenter().Text(val).FontSize(18).Bold().FontColor(QColor.FromHex("#003A70"));
+                                        c.Item().AlignCenter().Text(val).FontSize(fs).Bold().FontColor(QColor.FromHex("#003A70"));
                                         c.Item().AlignCenter().Text(lbl).FontSize(7.5f).FontColor(QColor.FromHex("#666666"));
                                     });
                                 }
