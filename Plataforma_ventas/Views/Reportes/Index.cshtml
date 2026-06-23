@@ -18,8 +18,13 @@
     var tipologias = ViewBag.Tipologias  as List<dynamic> ?? new List<dynamic>();
     var destinos   = ViewBag.Destinos    as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
-    var colombiaTz = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
-    var ahoraCol   = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, colombiaTz);
+    DateTime ahoraCol;
+    try {
+        ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/Bogota"));
+    } catch {
+        try { ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time")); }
+        catch { ahoraCol = DateTime.UtcNow.AddHours(-5); }
+    }
     var esCO       = new System.Globalization.CultureInfo("es-CO");
     double pctV    = total > 0 ? Math.Round((double)vendidos    / total * 100, 1) : 0;
     double pctD    = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;

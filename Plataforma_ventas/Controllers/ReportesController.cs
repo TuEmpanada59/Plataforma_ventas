@@ -264,8 +264,7 @@ namespace Plataforma_ventas.Controllers
             double pctR = total > 0 ? Math.Round((double)reservados / total * 100, 1) : 0;
             double pctP = total > 0 ? Math.Round((double)enProceso / total * 100, 1) : 0;
 
-            var colombiaTz = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
-            var ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, colombiaTz);
+            var ahoraCol = AhoraColombia();
             var esCo = new System.Globalization.CultureInfo("es-CO");
 
             var asist = await CargarEventoAsync(con, idProy);
@@ -1435,6 +1434,23 @@ namespace Plataforma_ventas.Controllers
         }
 
         // ── Helpers ──
+
+        /// <summary>
+        /// Returns the current date/time in Colombia (UTC-5). Resolves the timezone by trying
+        /// the IANA id first ("America/Bogota", Linux/macOS) and falling back to the Windows id
+        /// ("SA Pacific Standard Time"); if neither is available, applies a fixed -5h offset so
+        /// the call never throws regardless of the host OS or ICU configuration.
+        /// </summary>
+        private static DateTime AhoraColombia()
+        {
+            foreach (var id in new[] { "America/Bogota", "SA Pacific Standard Time" })
+            {
+                try { return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(id)); }
+                catch (TimeZoneNotFoundException) { }
+                catch (InvalidTimeZoneException) { }
+            }
+            return DateTime.UtcNow.AddHours(-5);
+        }
 
         private static int JInt(System.Text.Json.JsonElement el, string prop)
         {
