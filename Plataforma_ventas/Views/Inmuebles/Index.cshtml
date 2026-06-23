@@ -161,13 +161,6 @@ else
             <div class="rb-stat"><div class="rb-stat-num" style="color:#5A5AC8">@enProceso</div><div class="rb-stat-lbl">En proceso</div></div>
             <div class="rb-stat"><div class="rb-stat-num" style="color:#CC7700">@reservados</div><div class="rb-stat-lbl">Reservados</div></div>
         </div>
-        <div>
-            <div class="rb-lista">
-                <div class="rb-lista-num">@la</div>
-                <div class="rb-lista-lbl">Lista activa</div>
-            </div>
-            @if (aptsPorLista > 0) { <div class="rb-proxima">Próxima en @proximaLista ventas</div> }
-        </div>
     </div>
     @if (!string.IsNullOrEmpty(torreActual) && torres.Count > 1)
     {

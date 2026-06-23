@@ -177,5 +177,32 @@ namespace Plataforma_ventas.Controllers
             await _hub.Clients.All.ListaActualizada(idProy, listaActualVal);
             return RedirectToAction("Index");
         }
+
+        /// <summary>
+        /// Manually sets the active price list for the whole project (manual mode).
+        /// Switches ModoLista to 'MANUAL' and disables automatic escalation
+        /// (ApartamentosPorLista = 0) so the chosen list stays fixed.
+        /// Broadcasts the new list via SignalR so all clients update in real time.
+        /// Performs an UPDATE (Proyectos) query.
+        /// </summary>
+        /// <param name="lista">List number (1–5) to activate for the project.</param>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CambiarLista(int lista)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            if (lista < 1) lista = 1;
+            if (lista > 5) lista = 5;
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+            var cmd = new SqlCommand(
+                "UPDATE Proyectos SET ListaActual=@l, ModoLista='MANUAL', ApartamentosPorLista=0 WHERE IdProyectos=@id", con);
+            cmd.Parameters.AddWithValue("@l", lista);
+            cmd.Parameters.AddWithValue("@id", idProy);
+            await cmd.ExecuteNonQueryAsync();
+            await _hub.Clients.All.ListaActualizada(idProy, lista);
+            TempData["Exito"] = $"Lista {lista} activada en modo manual. El escalamiento automático quedó desactivado.";
+            return RedirectToAction("Index");
+        }
     }
 }
