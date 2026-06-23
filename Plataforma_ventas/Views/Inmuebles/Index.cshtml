@@ -21,9 +21,14 @@
     var areaActual = ViewBag.AreaActual as string ?? "";
     var grupos = ViewBag.Grupos as List<dynamic> ?? new List<dynamic>();
     var vendedores = ViewBag.Vendedores as Dictionary<int, string> ?? new Dictionary<int, string>();
+    var listasXArea = ViewBag.ListasXArea as Dictionary<string, int> ?? new Dictionary<string, int>();
+    var aptsXArea   = ViewBag.AptsXArea  as Dictionary<string, int> ?? new Dictionary<string, int>();
     var proyHermanos = ViewBag.ProyectosHermanos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
     ViewBag.Iniciales = iniciales;
+    int laEstaArea = la;
+    if (!string.IsNullOrEmpty(areaActual))
+        laEstaArea = listasXArea.ContainsKey(areaActual) ? listasXArea[areaActual] : la;
 }
 @section Styles {
 <style>
@@ -57,7 +62,10 @@
     .area-tipo-int{background:rgba(0,118,227,0.1);color:var(--blue);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
     .area-precio{font-size:17px;font-weight:600;color:var(--azul);margin-bottom:10px;}
     .area-precio-lbl{font-size:10px;color:var(--label3);font-weight:600;text-transform:uppercase;margin-bottom:2px;}
-    .area-lista-badge{display:inline-block;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;}
+    .area-listas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+    .area-lista-chip{font-size:10px;font-weight:600;padding:3px 9px;border-radius:10px;background:var(--fill3);color:var(--label2);border:none;cursor:pointer;transition:all 0.2s;}
+    .area-lista-chip:hover{background:var(--fill2);color:var(--label);}
+    .area-lista-chip.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
     .prog-wrap{margin-bottom:6px;}
     .prog-bar{height:6px;border-radius:10px;background:var(--fill2);overflow:hidden;}
     .prog-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--verde),#1EA851);transition:width 0.4s ease;}
@@ -116,6 +124,16 @@
     .btn-modal-save{padding:9px 18px;border-radius:10px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;cursor:pointer;}
     .btn-editar-precio{width:100%;margin-top:8px;padding:7px 10px;background:rgba(0,118,227,0.08);border:1px solid rgba(0,118,227,0.2);color:var(--blue);border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.2s;}
     .btn-editar-precio:hover{background:rgba(0,118,227,0.16);}
+    .auto-area-box{margin-top:8px;padding:10px;background:rgba(52,199,89,0.06);border:1px solid rgba(52,199,89,0.2);border-radius:10px;}
+    .auto-area-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1EA851;margin-bottom:6px;display:block;}
+    .auto-area-row{display:flex;gap:6px;align-items:center;}
+    .auto-area-input{flex:1;min-width:0;padding:6px 10px;border-radius:8px;border:1px solid rgba(52,199,89,0.3);background:white;font-size:13px;color:var(--label);outline:none;}
+    .auto-area-input:focus{border-color:#34C759;}
+    .auto-area-btn{padding:6px 12px;border-radius:8px;border:none;background:#34C759;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+    .auto-area-btn:hover{background:#1EA851;}
+    .auto-area-off{padding:6px 10px;border-radius:8px;border:none;background:rgba(230,57,70,0.08);color:var(--rojo);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+    .auto-area-off:hover{background:rgba(230,57,70,0.16);}
+    .auto-area-status{font-size:11px;color:#1EA851;margin-top:5px;font-weight:600;}
     @@media(max-width:1200px){.areas-grid{grid-template-columns:repeat(3,1fr)!important;}}
     @@media(max-width:1024px){.areas-grid{grid-template-columns:repeat(2,1fr)!important;}}
     @@media(max-width:700px){
@@ -186,9 +204,11 @@ else
                 var tipoLabel = g.Tipo?.ToString() ?? "";
                 var tipoClass = tipoLabel == "EXT" ? "area-tipo-ext" : "area-tipo-int";
                 var metrosStr = g.Metros.ToString();
+                var laArea  = listasXArea.ContainsKey(metrosStr) ? listasXArea[metrosStr] : la;
+                var aptsArea = aptsXArea.ContainsKey(metrosStr)  ? aptsXArea[metrosStr]  : 0;
                 long p1 = (long)g.PrecioL1; long p2 = (long)g.PrecioL2; long p3 = (long)g.PrecioL3;
                 long p4 = (long)g.PrecioL4; long p5 = (long)g.PrecioL5;
-                long precActArea = la == 1 ? p1 : la == 2 ? p2 : la == 3 ? p3 : la == 4 ? p4 : p5;
+                long precActArea = laArea == 1 ? p1 : laArea == 2 ? p2 : laArea == 3 ? p3 : laArea == 4 ? p4 : p5;
                 if (precActArea == 0) precActArea = (long)g.PrecioActivo;
                 <div class="area-card">
                     <div class="area-card-link" onclick="window.location='/Inmuebles?area=@Uri.EscapeDataString(metrosStr)'">
@@ -196,9 +216,28 @@ else
                             <div class="area-metros">@g.Metros <span style="font-size:13px;font-weight:400;color:var(--label2)">m²</span></div>
                             <span class="@tipoClass">@tipoLabel</span>
                         </div>
-                        <span class="area-lista-badge">Lista @la activa</span>
-                        <div class="area-precio-lbl">Precio lista @la</div>
+                        <div class="area-precio-lbl">Precio lista @laArea</div>
                         <div class="area-precio">$@string.Format("{0:N0}", precActArea)</div>
+                        <div class="area-listas">
+                            @for (int ln = 1; ln <= 5; ln++)
+                            {
+                                long pl = ln == 1 ? p1 : ln == 2 ? p2 : ln == 3 ? p3 : ln == 4 ? p4 : p5;
+                                if (pl > 0)
+                                {
+                                    var chipCls = ln == laArea ? "area-lista-chip activa" : "area-lista-chip";
+                                    <form action="/Inmuebles/CambiarListaArea" method="post" style="display:inline;margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="metros" value="@metrosStr"/>
+                                        <input type="hidden" name="listaActual" value="@ln"/>
+                                        <button type="submit" class="@chipCls"
+                                                onclick="event.stopPropagation()@(ln == laArea ? ";return false;" : "")"
+                                                title="@(ln == laArea ? "Lista activa" : "Activar Lista " + ln)">
+                                            L@(ln): $@string.Format("{0:N0}", pl)
+                                        </button>
+                                    </form>
+                                }
+                            }
+                        </div>
                         <div class="prog-wrap">
                             <div class="prog-bar"><div class="prog-fill @fillCls" style="width:@(porcVend)%"></div></div>
                             <div class="prog-lbl">
@@ -207,9 +246,38 @@ else
                             </div>
                         </div>
                     </div>
-                    <button type="button" class="btn-editar-precio" onclick="abrirModal('@metrosStr',@p1,@p2,@p3,@p4,@p5,@la)">
+                    <button type="button" class="btn-editar-precio" onclick="abrirModal('@metrosStr',@p1,@p2,@p3,@p4,@p5,@laArea)">
                         &#9998; Editar precio de lista
                     </button>
+                    <div class="auto-area-box" onclick="event.stopPropagation()">
+                        <span class="auto-area-lbl">&#9889; Subida automática</span>
+                        <form action="/Inmuebles/ConfigurarAutoArea" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="metros" value="@metrosStr"/>
+                            <div class="auto-area-row">
+                                <input type="number" name="aptsPorLista" class="auto-area-input" min="0"
+                                       value="@(aptsArea > 0 ? aptsArea.ToString() : "")" placeholder="Ej: 5"/>
+                                <button type="submit" class="auto-area-btn">&#10003;</button>
+                                @if (aptsArea > 0)
+                                {
+                                    <form action="/Inmuebles/ConfigurarAutoArea" method="post" style="margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="metros" value="@metrosStr"/>
+                                        <input type="hidden" name="aptsPorLista" value="0"/>
+                                        <button type="submit" class="auto-area-off" title="Desactivar">&#10005;</button>
+                                    </form>
+                                }
+                            </div>
+                        </form>
+                        @if (aptsArea > 0)
+                        {
+                            <div class="auto-area-status">&#10003; Sube cada @aptsArea vendidos · Lista @laArea activa</div>
+                        }
+                        else
+                        {
+                            <div class="auto-area-status" style="color:var(--label2)">&#128274; Modo manual · Lista @laArea fija</div>
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -222,7 +290,7 @@ else
         </div>
         <div class="card">
             <div class="card-head">
-                <span class="card-title">Lista de inmuebles · @areaActual m² · Lista @la</span>
+                <span class="card-title">Lista de inmuebles · @areaActual m² · Lista @laEstaArea</span>
                 <div class="filter-bar">
                     <div class="search-wrap"><span class="search-ico">&#128269;</span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
                     <div class="seg">
@@ -241,14 +309,14 @@ else
                         <thead>
                             <tr>
                                 <th>Apto</th><th>Tipo</th><th>Piso</th><th>Metros</th>
-                                <th>Precio Lista @la</th><th>Torre</th><th>Estado</th><th>Acción</th>
+                                <th>Precio Lista @laEstaArea</th><th>Torre</th><th>Estado</th><th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var i in inmuebles)
                             {
                                 var cls = i.Estado == "DISPONIBLE" ? "D" : i.Estado == "VENDIDO" ? "V" : i.Estado == "EN PROCESO" ? "EP" : "R";
-                                var precioLista = la == 1 ? i.Lista1 : la == 2 ? i.Lista2 : la == 3 ? i.Lista3 : la == 4 ? i.Lista4 : i.Lista5;
+                                var precioLista = laEstaArea == 1 ? i.Lista1 : laEstaArea == 2 ? i.Lista2 : laEstaArea == 3 ? i.Lista3 : laEstaArea == 4 ? i.Lista4 : i.Lista5;
                                 var plLimpio = (precioLista?.ToString() ?? "0").Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
                                 <tr data-estado="@i.Estado">
                                     <td style="font-weight:600">@i.Apto</td>

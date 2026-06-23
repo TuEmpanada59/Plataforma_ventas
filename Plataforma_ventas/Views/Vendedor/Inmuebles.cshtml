@@ -17,6 +17,7 @@
     var areaActual  = ViewBag.AreaActual  as string ?? "";
     var grupos      = ViewBag.Grupos      as List<dynamic> ?? new List<dynamic>();
     var vendedores  = ViewBag.Vendedores  as Dictionary<int,string> ?? new Dictionary<int,string>();
+    var listasXArea = ViewBag.ListasXArea as Dictionary<string,int> ?? new Dictionary<string,int>();
 
     Func<object, long> ParsePrecio = raw => {
         var s = (raw?.ToString() ?? "0").Replace("$","").Replace(".","").Replace(",","").Replace(" ","").Trim();
@@ -124,9 +125,10 @@
             var tipoLabel = g.Tipo?.ToString() ?? "";
             var tipoClass = tipoLabel == "EXT" ? "area-tipo-ext" : "area-tipo-int";
             var metrosStr = g.Metros.ToString();
+            var laArea    = listasXArea.ContainsKey(metrosStr) ? listasXArea[metrosStr] : la;
             long p1=(long)g.PrecioL1; long p2=(long)g.PrecioL2; long p3=(long)g.PrecioL3;
             long p4=(long)g.PrecioL4; long p5=(long)g.PrecioL5;
-            long precActArea = la==1?p1:la==2?p2:la==3?p3:la==4?p4:p5;
+            long precActArea = laArea==1?p1:laArea==2?p2:laArea==3?p3:laArea==4?p4:p5;
             if (precActArea == 0) precActArea = (long)g.PrecioActivo;
             <a href="/Vendedor/Inmuebles?area=@Uri.EscapeDataString(g.Metros)" class="area-card"
                data-metros="@g.Metros"
@@ -137,8 +139,8 @@
                     <div class="area-metros">@g.Metros <span style="font-size:13px;font-weight:400;color:var(--label2)">m²</span></div>
                     <span class="@tipoClass">@tipoLabel</span>
                 </div>
-                <span style="display:inline-block;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;">Lista @la activa</span>
-                <div class="area-precio-lbl">Precio lista @la</div>
+                <span style="display:inline-block;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;">Lista @laArea activa</span>
+                <div class="area-precio-lbl">Precio lista @laArea</div>
                 <div class="area-precio">$@string.Format("{0:N0}", precActArea)</div>
                 <div class="prog-wrap">
                     <div class="prog-bar"><div class="prog-fill @fillCls" style="width:@(porcVend)%"></div></div>
@@ -152,13 +154,14 @@
     </div>
 } else {
     <!-- TABLA FILTRADA POR ÁREA -->
+    var laEstaArea = listasXArea.ContainsKey(areaActual) ? listasXArea[areaActual] : la;
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <a href="/Vendedor/Inmuebles" class="area-volver">← Todas las áreas</a>
         <span style="font-size:15px;font-weight:600;color:var(--label)">@areaActual m² · @inmuebles.Count inmuebles</span>
     </div>
     <div class="card">
         <div class="card-head">
-            <span class="card-title">@areaActual m² · Lista @la</span>
+            <span class="card-title">@areaActual m² · Lista @laEstaArea</span>
             <div class="filter-bar">
                 <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
                 <div class="seg">
@@ -173,7 +176,7 @@
                 <table class="tbl" id="tablaInmuebles">
                     <thead><tr>
                         <th>Apto</th><th>Tipo</th><th>Piso</th><th>Metros</th>
-                        <th class="precio-th">Precio lista @la</th><th>Torre</th><th>Estado</th><th>Acción</th>
+                        <th class="precio-th">Precio lista @laEstaArea</th><th>Torre</th><th>Estado</th><th>Acción</th>
                     </tr></thead>
                     <tbody>
                     @foreach (var i in inmuebles) {
@@ -183,7 +186,7 @@
                         long dl3 = ParsePrecio(i.Lista3);
                         long dl4 = ParsePrecio(i.Lista4);
                         long dl5 = ParsePrecio(i.Lista5);
-                        long precioActivo = la==1?dl1:la==2?dl2:la==3?dl3:la==4?dl4:dl5;
+                        long precioActivo = laEstaArea==1?dl1:laEstaArea==2?dl2:laEstaArea==3?dl3:laEstaArea==4?dl4:dl5;
                         <tr data-estado="@i.Estado" data-id="@i.Id" data-metros="@i.Metros"
                             data-l1="@dl1" data-l2="@dl2" data-l3="@dl3" data-l4="@dl4" data-l5="@dl5">
                             <td style="font-weight:600">@i.Apto</td>
@@ -333,7 +336,9 @@
     });
 
     conn.on("ListaAreaActualizada", function(proyIdEvt, metros, nuevaLista) {
-        // Per-area lists removed — project-level list is the single source of truth
+        if (proyIdEvt !== proyIdSR) return;
+        actualizarLista(nuevaLista, metros);
+        mostrarToast('Área ' + metros + ' m² → Lista ' + nuevaLista, 'info');
     });
 
     conn.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado) {

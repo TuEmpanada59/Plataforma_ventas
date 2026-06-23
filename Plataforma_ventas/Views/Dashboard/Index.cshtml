@@ -169,49 +169,6 @@
     </div>
 </div>
 
-<!-- Control de listas de precios (nivel proyecto) -->
-<div class="listas-panel">
-    <div class="card-head" style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--sep2)">
-        <span class="card-title">Gestión de listas de precios</span>
-        <span style="font-size:11px;color:var(--label3)">@proyActivo · Lista activa: <strong style="color:var(--blue)">@listaActual</strong> de @totalListas</span>
-    </div>
-    <div class="listas-body">
-        <!-- Modo manual -->
-        <div class="lista-section @(modoLista == "AUTO" ? "" : "activo")">
-            <span class="modo-badge manual">&#9995; Modo manual</span>
-            <div style="font-size:13px;font-weight:600;color:var(--label);margin-bottom:3px">Selecciona la lista activa</div>
-            <div style="font-size:11px;color:var(--label3);margin-bottom:12px">El precio se fija en la lista elegida para todo el proyecto.</div>
-            <div class="lista-btns">
-                @for (int n = 1; n <= totalListas; n++)
-                {
-                    <button type="button" class="lista-btn @(n == listaActual ? "current" : "")" onclick="cambiarLista(@n)">
-                        @n<span class="lista-btn-lbl">Lista</span>
-                    </button>
-                }
-            </div>
-            <form id="formCambiarLista" asp-action="CambiarLista" asp-controller="Dashboard" method="post" style="margin:0">
-                @Html.AntiForgeryToken()
-                <input type="hidden" id="listaInput" name="lista" value="@listaActual"/>
-            </form>
-        </div>
-        <!-- Modo automático -->
-        <div class="lista-section @(modoLista == "AUTO" ? "activo" : "")">
-            <span class="modo-badge auto">&#9889; Modo automático</span>
-            <div style="font-size:13px;font-weight:600;color:var(--label);margin-bottom:3px">Subida automática de lista</div>
-            <div style="font-size:11px;color:var(--label3);margin-bottom:12px">La lista sube sola cada cierto número de inmuebles vendidos.</div>
-            <form asp-action="ConfigurarLista" asp-controller="Dashboard" method="post" style="display:flex;gap:8px;align-items:center;margin:0">
-                @Html.AntiForgeryToken()
-                <input type="number" name="apartamentosPorLista" min="1" value="@(aptsPorLista > 0 ? aptsPorLista.ToString() : "")" placeholder="Vender cada (ej: 5)"
-                       style="flex:1;min-width:0;padding:9px 12px;border-radius:10px;border:1px solid var(--sep);background:white;font-size:13px;color:var(--label);outline:none"/>
-                <button type="submit" style="padding:9px 16px;border-radius:10px;border:none;background:#34C759;color:white;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">Activar</button>
-            </form>
-            @if (modoLista == "AUTO" && aptsPorLista > 0)
-            {
-                <div class="alerta-lista">&#9889; Sube cada @aptsPorLista vendidos · Lista @listaActual activa</div>
-            }
-        </div>
-    </div>
-</div>
 
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
