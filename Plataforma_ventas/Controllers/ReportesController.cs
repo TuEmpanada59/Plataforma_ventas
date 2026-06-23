@@ -264,6 +264,12 @@ namespace Plataforma_ventas.Controllers
             double pctR = total > 0 ? Math.Round((double)reservados / total * 100, 1) : 0;
             double pctP = total > 0 ? Math.Round((double)enProceso / total * 100, 1) : 0;
 
+            var colombiaTz = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
+            var ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, colombiaTz);
+            var esCo = new System.Globalization.CultureInfo("es-CO");
+
+            var asist = await CargarEventoAsync(con, idProy);
+
             var pdfBytes = Document.Create(container =>
             {
                 container.Page(page =>
@@ -286,7 +292,7 @@ namespace Plataforma_ventas.Controllers
                             {
                                 c.Item().Text("INFORME TÉCNICO DE VENTAS").FontSize(9).Bold().FontColor(QColor.FromHex("#003A70"));
                                 c.Item().Text($"Proyecto: {proyNombre}").FontSize(8).FontColor(QColor.FromHex("#555555"));
-                                c.Item().Text($"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(7.5f).FontColor(QColor.FromHex("#999999"));
+                                c.Item().Text($"Generado: {ahoraCol:dd/MM/yyyy HH:mm}").FontSize(7.5f).FontColor(QColor.FromHex("#999999"));
                             });
                         });
                         col.Item().PaddingTop(5).LineHorizontal(2f).LineColor(QColor.FromHex("#003A70"));
@@ -298,7 +304,7 @@ namespace Plataforma_ventas.Controllers
                         // ── RESUMEN DEL DÍA ──
                         col.Item().Background(QColor.FromHex("#003A70")).Padding(8).Row(row =>
                         {
-                            row.RelativeItem().Text($"📅  RESUMEN DEL DÍA — {DateTime.Now:dddd, dd/MM/yyyy}".ToUpper())
+                            row.RelativeItem().Text($"RESUMEN DEL DÍA — {ahoraCol.ToString("dddd, dd/MM/yyyy", esCo).ToUpper()}")
                                 .FontSize(8.5f).Bold().FontColor(QColors.White);
                         });
                         col.Item().Background(QColor.FromHex("#EEF4FA")).Border(0.5f).BorderColor(QColor.FromHex("#BBCCDD"))
@@ -531,7 +537,7 @@ namespace Plataforma_ventas.Controllers
                         row.RelativeItem().Column(c =>
                         {
                             c.Item().LineHorizontal(0.5f).LineColor(QColor.FromHex("#CCCCCC"));
-                            c.Item().PaddingTop(3).Text($"Londoño Gómez  ·  {proyNombre}  ·  Informe técnico de ventas  ·  {DateTime.Now:dd/MM/yyyy HH:mm}")
+                            c.Item().PaddingTop(3).Text($"Londoño Gómez  ·  {proyNombre}  ·  Informe técnico de ventas  ·  {ahoraCol:dd/MM/yyyy HH:mm}")
                                 .FontSize(7).FontColor(QColor.FromHex("#999999"));
                         });
                         row.ConstantItem(60).AlignRight().Column(c =>
@@ -547,10 +553,225 @@ namespace Plataforma_ventas.Controllers
                         });
                     });
                 });
+
+                // ── PÁGINA ASISTENCIA (si el cuadro fue guardado) ──
+                if (asist.TablaOk && asist.Dias.Count > 0)
+                {
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.A4.Landscape());
+                        page.Margin(28);
+                        page.DefaultTextStyle(x => x.FontFamily("Arial").FontSize(8));
+
+                        page.Header().Column(col =>
+                        {
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text("LONDOÑO GÓMEZ").FontSize(14).Bold().FontColor(QColor.FromHex("#003A70"));
+                                    c.Item().Text("Sistema de Lanzamientos Inmobiliarios").FontSize(8).FontColor(QColor.FromHex("#666666"));
+                                });
+                                row.ConstantItem(160).AlignRight().Column(c =>
+                                {
+                                    c.Item().Text("CUADRO DE ASISTENCIA").FontSize(9).Bold().FontColor(QColor.FromHex("#003A70"));
+                                    c.Item().Text($"Proyecto: {proyNombre}").FontSize(7.5f).FontColor(QColor.FromHex("#555555"));
+                                    c.Item().Text($"Generado: {ahoraCol:dd/MM/yyyy HH:mm}").FontSize(7).FontColor(QColor.FromHex("#999999"));
+                                });
+                            });
+                            col.Item().PaddingTop(4).LineHorizontal(2f).LineColor(QColor.FromHex("#003A70"));
+                            col.Item().PaddingTop(2).LineHorizontal(0.5f).LineColor(QColor.FromHex("#0077C8"));
+                        });
+
+                        page.Content().PaddingTop(12).Column(col =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(asist.Titulo))
+                                col.Item().PaddingBottom(6).Text(asist.Titulo).FontSize(10).Bold().FontColor(QColor.FromHex("#003A70"));
+
+                            var dias = asist.Dias;
+                            int nDias = dias.Count;
+                            int totalCols = 2 + nDias; // label + N días + TOTAL
+
+                            col.Item().Table(tbl =>
+                            {
+                                tbl.ColumnsDefinition(c =>
+                                {
+                                    c.RelativeColumn(3f); // label
+                                    for (int d = 0; d < nDias; d++) c.RelativeColumn(1.2f);
+                                    c.RelativeColumn(1.4f); // TOTAL
+                                });
+
+                                // Header
+                                tbl.Header(h =>
+                                {
+                                    h.Cell().Background(QColor.FromHex("#003A70")).Padding(4).Text("").FontColor(QColors.White);
+                                    foreach (var dia in dias)
+                                        h.Cell().Background(QColor.FromHex("#003A70")).Padding(4).AlignCenter()
+                                            .Text((string)dia.NombreDia).FontSize(7.5f).Bold().FontColor(QColors.White);
+                                    h.Cell().Background(QColor.FromHex("#003A70")).Padding(4).AlignCenter()
+                                        .Text("TOTAL").FontSize(7.5f).Bold().FontColor(QColors.White);
+                                });
+
+                                bool alt = false;
+                                QColor Bg() { alt = !alt; return alt ? QColor.FromHex("#F5F8FC") : QColors.White; }
+
+                                void FilaInt(string label, Func<dynamic, int> sel)
+                                {
+                                    var bg = Bg();
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                        .Text(label).FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                    int tot = 0;
+                                    foreach (var dia in dias)
+                                    {
+                                        int v = sel(dia); tot += v;
+                                        tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                            .AlignCenter().Text(v.ToString()).FontSize(7.5f);
+                                    }
+                                    tbl.Cell().Background(QColor.FromHex("#E8F0FA")).Border(0.3f).BorderColor(QColor.FromHex("#BBCCDD"))
+                                        .Padding(3).AlignCenter().Text(tot.ToString()).FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                }
+
+                                void FilaPct(string label, Func<dynamic, double> sel, double totPct)
+                                {
+                                    var bg = Bg();
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                        .Text(label).FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                    foreach (var dia in dias)
+                                        tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                            .AlignCenter().Text($"{sel(dia):P0}").FontSize(7.5f);
+                                    tbl.Cell().Background(QColor.FromHex("#E8F0FA")).Border(0.3f).BorderColor(QColor.FromHex("#BBCCDD"))
+                                        .Padding(3).AlignCenter().Text($"{totPct:P0}").FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                }
+
+                                void FilaTorreInt(string label, Func<dynamic, long> sel)
+                                {
+                                    var bg = Bg();
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                        .Text(label).FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                    long tot = 0;
+                                    foreach (var dia in dias)
+                                    {
+                                        long v = 0; foreach (var t in (List<dynamic>)dia.Torres) v += sel(t);
+                                        tot += v;
+                                        tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                            .AlignCenter().Text(v.ToString()).FontSize(7.5f);
+                                    }
+                                    tbl.Cell().Background(QColor.FromHex("#E8F0FA")).Border(0.3f).BorderColor(QColor.FromHex("#BBCCDD"))
+                                        .Padding(3).AlignCenter().Text(tot.ToString()).FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                }
+
+                                void FilaTorreMoney(string label, Func<dynamic, long> sel)
+                                {
+                                    var bg = Bg();
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                        .Text(label).FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                    long tot = 0;
+                                    foreach (var dia in dias)
+                                    {
+                                        long v = 0; foreach (var t in (List<dynamic>)dia.Torres) v += sel(t);
+                                        tot += v;
+                                        tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                            .AlignRight().Text($"${v:N0}").FontSize(7.5f);
+                                    }
+                                    tbl.Cell().Background(QColor.FromHex("#E8F0FA")).Border(0.3f).BorderColor(QColor.FromHex("#BBCCDD"))
+                                        .Padding(3).AlignRight().Text($"${tot:N0}").FontSize(7.5f).Bold().FontColor(QColor.FromHex("#003A70"));
+                                }
+
+                                // Sección tráfico
+                                int sumFam = dias.Sum(d => (int)d.Familias);
+                                int sumAsisteCita = dias.Sum(d => (int)d.AsisteCita);
+                                int sumAgendLucia = dias.Sum(d => (int)d.AgendadosLucia);
+                                int sumAsisteLucia = dias.Sum(d => (int)d.AsisteCitaLucia);
+                                int sumAgendEquipo = dias.Sum(d => (int)d.AgendadosEquipo);
+
+                                // Sección header tráfico
+                                tbl.Cell().ColumnSpan((uint)totalCols).Background(QColor.FromHex("#EEF4FA"))
+                                    .Border(0.5f).BorderColor(QColor.FromHex("#BBCCDD")).Padding(4)
+                                    .Text("TRÁFICO").FontSize(8).Bold().FontColor(QColor.FromHex("#003A70"));
+
+                                FilaInt("Familias", d => (int)d.Familias);
+                                FilaInt("Adultos", d => (int)d.Adultos);
+                                FilaInt("Niños", d => (int)d.Ninos);
+                                FilaInt("Mascotas", d => (int)d.Mascotas);
+                                FilaInt("Asiste con cita", d => (int)d.AsisteCita);
+                                FilaPct("% asiste con cita", d => (int)d.Familias > 0 ? (double)(int)d.AsisteCita / (int)d.Familias : 0,
+                                    sumFam > 0 ? (double)sumAsisteCita / sumFam : 0);
+                                FilaInt("Carros", d => (int)d.Carros);
+                                FilaInt("Motos", d => (int)d.Motos);
+                                FilaInt("Caminando", d => (int)d.Caminando);
+
+                                // Sección torres
+                                tbl.Cell().ColumnSpan((uint)totalCols).Background(QColor.FromHex("#EEF4FA"))
+                                    .Border(0.5f).BorderColor(QColor.FromHex("#BBCCDD")).Padding(4)
+                                    .Text("TORRES / ETAPAS").FontSize(8).Bold().FontColor(QColor.FromHex("#003A70"));
+
+                                FilaTorreInt("Preventas", t => (long)(int)t.Preventas);
+                                FilaTorreMoney("Valor preventa", t => (long)t.ValorPreventa);
+                                FilaTorreInt("Ventas", t => (long)(int)t.Ventas);
+                                FilaTorreMoney("Valor de venta", t => (long)t.ValorVenta);
+                                FilaTorreInt("Opciones (En proceso)", t => (long)(int)t.Opciones);
+                                FilaTorreMoney("Opciones (En pesos)", t => (long)t.ValorOpciones);
+                                FilaTorreInt("Ventas totales unidades", t => (long)((int)t.Preventas + (int)t.Ventas));
+                                FilaTorreMoney("Ventas totales pesos", t => (long)t.ValorPreventa + (long)t.ValorVenta);
+                                FilaTorreInt("Opciones + ventas", t => (long)((int)t.Preventas + (int)t.Ventas + (int)t.Opciones));
+                                FilaTorreMoney("Opciones + ventas (pesos)", t => (long)t.ValorPreventa + (long)t.ValorVenta + (long)t.ValorOpciones);
+
+                                // Sección citas
+                                tbl.Cell().ColumnSpan((uint)totalCols).Background(QColor.FromHex("#EEF4FA"))
+                                    .Border(0.5f).BorderColor(QColor.FromHex("#BBCCDD")).Padding(4)
+                                    .Text("CITAS").FontSize(8).Bold().FontColor(QColor.FromHex("#003A70"));
+
+                                FilaInt("Agendados equipo comercial", d => (int)d.AgendadosEquipo);
+                                FilaInt("Agendados por Lucía", d => (int)d.AgendadosLucia);
+                                FilaInt("Asiste con cita Lucía", d => (int)d.AsisteCitaLucia);
+                                FilaPct("% asistencia Lucía",
+                                    d => (int)d.AgendadosLucia > 0 ? (double)(int)d.AsisteCitaLucia / (int)d.AgendadosLucia : 0,
+                                    sumAgendLucia > 0 ? (double)sumAsisteLucia / sumAgendLucia : 0);
+                                FilaInt("Total agendados", d => (int)d.AgendadosEquipo + (int)d.AgendadosLucia);
+                                FilaPct("% cumplimiento cita",
+                                    d => ((int)d.AgendadosEquipo + (int)d.AgendadosLucia) > 0 ? (double)(int)d.AsisteCitaLucia / ((int)d.AgendadosEquipo + (int)d.AgendadosLucia) : 0,
+                                    (sumAgendEquipo + sumAgendLucia) > 0 ? (double)sumAsisteLucia / (sumAgendEquipo + sumAgendLucia) : 0);
+                                FilaPct("Ventas vs familias",
+                                    d => (int)d.Familias > 0 ? (double)((List<dynamic>)d.Torres).Sum(t => (int)t.Ventas) / (int)d.Familias : 0,
+                                    sumFam > 0 ? (double)dias.SelectMany(d => (List<dynamic>)d.Torres).Sum(t => (int)t.Ventas) / sumFam : 0);
+                            });
+
+                            if (!string.IsNullOrWhiteSpace(asist.Observaciones))
+                            {
+                                col.Item().PaddingTop(10).Text("Observaciones").FontSize(8).Bold().FontColor(QColor.FromHex("#003A70"));
+                                col.Item().PaddingTop(4).Background(QColor.FromHex("#F8FAFD"))
+                                    .Border(0.5f).BorderColor(QColor.FromHex("#DDDDDD"))
+                                    .Padding(8).Text(asist.Observaciones).FontSize(7.5f).FontColor(QColor.FromHex("#333333"));
+                            }
+                        });
+
+                        page.Footer().PaddingTop(8).Row(row =>
+                        {
+                            row.RelativeItem().Column(c =>
+                            {
+                                c.Item().LineHorizontal(0.5f).LineColor(QColor.FromHex("#CCCCCC"));
+                                c.Item().PaddingTop(3).Text($"Londoño Gómez  ·  {proyNombre}  ·  Cuadro de asistencia  ·  {ahoraCol:dd/MM/yyyy HH:mm}")
+                                    .FontSize(7).FontColor(QColor.FromHex("#999999"));
+                            });
+                            row.ConstantItem(60).AlignRight().Column(c =>
+                            {
+                                c.Item().LineHorizontal(0.5f).LineColor(QColor.FromHex("#CCCCCC"));
+                                c.Item().PaddingTop(3).AlignRight().Text(x =>
+                                {
+                                    x.Span("Pág. ").FontSize(7).FontColor(QColor.FromHex("#999999"));
+                                    x.CurrentPageNumber().FontSize(7).Bold().FontColor(QColor.FromHex("#003A70"));
+                                    x.Span(" / ").FontSize(7).FontColor(QColor.FromHex("#999999"));
+                                    x.TotalPages().FontSize(7).Bold().FontColor(QColor.FromHex("#003A70"));
+                                });
+                            });
+                        });
+                    });
+                }
+
             }).GeneratePdf();
 
             return File(pdfBytes, "application/pdf",
-                $"Informe_Tecnico_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
+                $"Informe_Tecnico_{proyNombre.Replace(" ", "_")}_{ahoraCol:yyyyMMdd_HHmm}.pdf");
         }
 
         /// <summary>

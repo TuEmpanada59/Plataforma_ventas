@@ -18,6 +18,9 @@
     var tipologias = ViewBag.Tipologias  as List<dynamic> ?? new List<dynamic>();
     var destinos   = ViewBag.Destinos    as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
+    var colombiaTz = TimeZoneInfo.FindSystemTimeZoneById("America/Bogota");
+    var ahoraCol   = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, colombiaTz);
+    var esCO       = new System.Globalization.CultureInfo("es-CO");
     double pctV    = total > 0 ? Math.Round((double)vendidos    / total * 100, 1) : 0;
     double pctD    = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
     double pctR    = total > 0 ? Math.Round((double)reservados  / total * 100, 1) : 0;
@@ -62,7 +65,7 @@
     .hoy-left p{font-size:13px;color:rgba(255,255,255,0.7);}
     .hoy-stats{display:flex;gap:20px;flex-wrap:wrap;}
     .hoy-stat{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 16px;}
-    .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;}
+    .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;white-space:nowrap;}
     .hoy-stat-lbl{font-size:10px;color:rgba(255,255,255,0.65);margin-top:1px;font-weight:500;}
     .mapa-wrap{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;padding:14px;}
     .mapa-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;transition:background 0.15s;}
@@ -121,7 +124,7 @@
 <div class="hoy-banner">
     <div class="hoy-left">
         <h2>📅 Informe del día</h2>
-        <p>@DateTime.Now.ToString("dddd, dd MMMM yyyy") · @proyActivo</p>
+        <p>@System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(ahoraCol.ToString("dddd, dd 'de' MMMM 'de' yyyy", esCO)) · @proyActivo</p>
     </div>
     <div class="hoy-stats">
         <div class="hoy-stat"><div class="hoy-stat-num">@ventasHoy</div><div class="hoy-stat-lbl">Ventas hoy</div></div>
