@@ -136,22 +136,6 @@ namespace Plataforma_ventas.Controllers
             ViewBag.ListaActual = listaActual;
             ViewBag.AptsPorLista = aptsPorLista;
 
-            // Listas por área
-            var listasXArea = new Dictionary<string, int>();
-            var aptsXArea = new Dictionary<string, int>();
-            var cmdPAL = new SqlCommand(
-                "SELECT Metros, ListaActual, AptsPorLista FROM ProyectoAreaListas WHERE IdProyecto=@id", con);
-            cmdPAL.Parameters.AddWithValue("@id", idProy);
-            using (var rPAL = (SqlDataReader)await cmdPAL.ExecuteReaderAsync())
-                while (await rPAL.ReadAsync())
-                {
-                    var metros = rPAL["Metros"]?.ToString() ?? "";
-                    listasXArea[metros] = rPAL["ListaActual"] == DBNull.Value ? 1 : (int)rPAL["ListaActual"];
-                    aptsXArea[metros] = rPAL["AptsPorLista"] == DBNull.Value ? 0 : (int)rPAL["AptsPorLista"];
-                }
-            ViewBag.ListasXArea = listasXArea;
-            ViewBag.AptsXArea = aptsXArea;
-
             // Inmuebles
             var lista = new List<dynamic>();
             var cmd = new SqlCommand(@"
@@ -283,18 +267,7 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
-            // Read metros and price data (does not change estado)
-            var cmdMetros = new SqlCommand("SELECT Metros FROM Inmuebles WHERE IdInmuebles=@id", con);
-            cmdMetros.Parameters.AddWithValue("@id", idInmueble);
-            var metros = (await cmdMetros.ExecuteScalarAsync())?.ToString() ?? "";
-
-            var cmdLista = new SqlCommand(@"
-                SELECT ISNULL(pal.ListaActual, p.ListaActual) AS ListaActual
-                FROM Proyectos p
-                LEFT JOIN ProyectoAreaListas pal
-                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
-                WHERE p.IdProyectos = @proy", con);
-            cmdLista.Parameters.AddWithValue("@metros", metros);
+            var cmdLista = new SqlCommand("SELECT ListaActual FROM Proyectos WHERE IdProyectos=@proy", con);
             cmdLista.Parameters.AddWithValue("@proy", idProy);
             int listaActual = (int)((await cmdLista.ExecuteScalarAsync()) ?? 1);
 
@@ -473,15 +446,9 @@ namespace Plataforma_ventas.Controllers
             long precioFijo = rCheck["PrecioReserva"] == DBNull.Value ? precioVenta : (long)rCheck["PrecioReserva"];
             rCheck.Close();
 
-            var cmdLista = new SqlCommand(@"
-                SELECT ISNULL(pal.ListaActual, p.ListaActual) AS ListaActual
-                FROM Proyectos p
-                LEFT JOIN ProyectoAreaListas pal
-                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
-                WHERE p.IdProyectos = @proy", con);
-            cmdLista.Parameters.AddWithValue("@metros", metros);
-            cmdLista.Parameters.AddWithValue("@proy", idProy);
-            int listaAplicada = (int)((await cmdLista.ExecuteScalarAsync()) ?? 1);
+            var cmdListaApl = new SqlCommand("SELECT ListaActual FROM Proyectos WHERE IdProyectos=@proy", con);
+            cmdListaApl.Parameters.AddWithValue("@proy", idProy);
+            int listaAplicada = (int)((await cmdListaApl.ExecuteScalarAsync()) ?? 1);
 
             int idCliente;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
@@ -874,48 +841,6 @@ namespace Plataforma_ventas.Controllers
                 }
             }
             else rC.Close();
-
-            // Escalamiento por área
-            var cmdMetros = new SqlCommand(
-                "SELECT Metros FROM Inmuebles WHERE IdInmuebles=@id", con);
-            cmdMetros.Parameters.AddWithValue("@id", idInmueble);
-            var metrosArea = (await cmdMetros.ExecuteScalarAsync())?.ToString() ?? "";
-            if (!string.IsNullOrEmpty(metrosArea))
-            {
-                var cmdPAL = new SqlCommand(@"SELECT ListaActual, AptsPorLista FROM ProyectoAreaListas
-                    WHERE IdProyecto=@proy AND Metros=@metros", con);
-                cmdPAL.Parameters.AddWithValue("@proy", idProy);
-                cmdPAL.Parameters.AddWithValue("@metros", metrosArea);
-                using var rPAL = (SqlDataReader)await cmdPAL.ExecuteReaderAsync();
-                if (await rPAL.ReadAsync())
-                {
-                    int laArea = rPAL["ListaActual"] == DBNull.Value ? 1 : (int)rPAL["ListaActual"];
-                    int aptsArea = rPAL["AptsPorLista"] == DBNull.Value ? 0 : (int)rPAL["AptsPorLista"];
-                    rPAL.Close();
-                    if (aptsArea > 0)
-                    {
-                        var cmdVArea = new SqlCommand(@"SELECT COUNT(*) FROM Ventas v
-                            INNER JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
-                            WHERE v.IdProyecto=@proy AND i.Metros=@metros AND v.Estado='ACTIVA'", con);
-                        cmdVArea.Parameters.AddWithValue("@proy", idProy);
-                        cmdVArea.Parameters.AddWithValue("@metros", metrosArea);
-                        int vendidosArea = (int)(await cmdVArea.ExecuteScalarAsync())!;
-                        int nuevaListaArea = (vendidosArea / aptsArea) + 1;
-                        if (nuevaListaArea > laArea && nuevaListaArea <= 5 && await ListaConPrecios(nuevaListaArea, metrosArea))
-                        {
-                            var cmdUpArea = new SqlCommand(@"UPDATE ProyectoAreaListas
-                                SET ListaActual=@lista WHERE IdProyecto=@proy AND Metros=@metros", con);
-                            cmdUpArea.Parameters.AddWithValue("@lista", nuevaListaArea);
-                            cmdUpArea.Parameters.AddWithValue("@proy", idProy);
-                            cmdUpArea.Parameters.AddWithValue("@metros", metrosArea);
-                            await cmdUpArea.ExecuteNonQueryAsync();
-                            await _hub.Clients.All.ListaAreaActualizada(idProy, metrosArea, nuevaListaArea);
-                            TempData["Exito"] = $"¡Venta registrada! ⚡ El área {metrosArea} m² subió a Lista {nuevaListaArea}.";
-                            return RedirectToAction("Index");
-                        }
-                    }
-                }
-            }
 
             TempData["Exito"] = "¡Venta registrada exitosamente!";
             return RedirectToAction("Index");

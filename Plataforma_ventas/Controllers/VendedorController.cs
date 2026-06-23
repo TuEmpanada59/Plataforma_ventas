@@ -167,21 +167,6 @@ namespace Plataforma_ventas.Controllers
             int listaActual = resLista != null && resLista != DBNull.Value ? (int)resLista : 1;
             ViewBag.ListaActual = listaActual;
 
-            var listasXArea = new Dictionary<string, int>();
-            var aptsXArea = new Dictionary<string, int>();
-            var cmdPAL = new SqlCommand(
-                "SELECT Metros, ListaActual, AptsPorLista FROM ProyectoAreaListas WHERE IdProyecto=@id", con);
-            cmdPAL.Parameters.AddWithValue("@id", idProy);
-            using (var rPAL = (SqlDataReader)await cmdPAL.ExecuteReaderAsync())
-                while (await rPAL.ReadAsync())
-                {
-                    var metros = rPAL["Metros"]?.ToString() ?? "";
-                    listasXArea[metros] = rPAL["ListaActual"] == DBNull.Value ? 1 : (int)rPAL["ListaActual"];
-                    aptsXArea[metros] = rPAL["AptsPorLista"] == DBNull.Value ? 0 : (int)rPAL["AptsPorLista"];
-                }
-            ViewBag.ListasXArea = listasXArea;
-            ViewBag.AptsXArea = aptsXArea;
-
             var lista = new List<dynamic>();
             var cmd = new SqlCommand(@"
                 SELECT IdInmuebles,Apto,Tipo,Piso,Metros,
@@ -341,19 +326,7 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
-            // Fetch metros and current list before reserving (read-only, no state change yet)
-            var cmdMetros = new SqlCommand("SELECT Metros FROM Inmuebles WHERE IdInmuebles=@id", con);
-            cmdMetros.Parameters.AddWithValue("@id", idInmueble);
-            var metros = (await cmdMetros.ExecuteScalarAsync())?.ToString() ?? "";
-
-            // Lista activa del área
-            var cmdLista = new SqlCommand(@"
-                SELECT ISNULL(pal.ListaActual, p.ListaActual) AS ListaActual
-                FROM Proyectos p
-                LEFT JOIN ProyectoAreaListas pal
-                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
-                WHERE p.IdProyectos = @proy", con);
-            cmdLista.Parameters.AddWithValue("@metros", metros);
+            var cmdLista = new SqlCommand("SELECT ListaActual FROM Proyectos WHERE IdProyectos=@proy", con);
             cmdLista.Parameters.AddWithValue("@proy", idProy);
             int listaActual = (int)((await cmdLista.ExecuteScalarAsync()) ?? 1);
 
@@ -538,16 +511,9 @@ namespace Plataforma_ventas.Controllers
             long precioFijo = rCheck["PrecioReserva"] == DBNull.Value ? precioVenta : (long)rCheck["PrecioReserva"];
             rCheck.Close();
 
-            // Lista activa del área al momento de confirmar
-            var cmdLista = new SqlCommand(@"
-                SELECT ISNULL(pal.ListaActual, p.ListaActual) AS ListaActual
-                FROM Proyectos p
-                LEFT JOIN ProyectoAreaListas pal
-                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
-                WHERE p.IdProyectos = @proy", con);
-            cmdLista.Parameters.AddWithValue("@metros", metros);
-            cmdLista.Parameters.AddWithValue("@proy", idProy);
-            int listaAplicada = (int)((await cmdLista.ExecuteScalarAsync()) ?? 1);
+            var cmdListaApl = new SqlCommand("SELECT ListaActual FROM Proyectos WHERE IdProyectos=@proy", con);
+            cmdListaApl.Parameters.AddWithValue("@proy", idProy);
+            int listaAplicada = (int)((await cmdListaApl.ExecuteScalarAsync()) ?? 1);
 
             // Cliente
             int idCliente;
