@@ -150,26 +150,54 @@ namespace Plataforma_ventas.Controllers
 
                 int listasDetectadas = slot;
 
-                // Validar que el Excel tenga la columna correcta para el tipo declarado
+                // ── Validaciones de columnas obligatorias ──────────────────────────────
                 if (colApto < 0)
                 {
                     TempData["Error"] = $"El archivo no contiene la columna '{colNombreUnidad}' requerida para proyectos de tipo {tipoProyecto}. Verifica que el tipo de proyecto sea el correcto.";
                     return RedirectToAction("Index");
                 }
-
-                if (colProyecto > 0)
+                if (colMetros < 0)
                 {
-                    var nombreEnExcel = ws.Cells[2, colProyecto].Text?.Trim() ?? "";
-                    if (!string.IsNullOrEmpty(nombreEnExcel))
+                    TempData["Error"] = "El archivo debe incluir la columna METROS.";
+                    return RedirectToAction("Index");
+                }
+                if (colProyecto < 0)
+                {
+                    TempData["Error"] = "El archivo debe incluir la columna PROYECTO con el nombre del proyecto.";
+                    return RedirectToAction("Index");
+                }
+
+                // Validar que el nombre en la columna PROYECTO coincida con el ingresado
+                var nombreEnExcel = ws.Cells[2, colProyecto].Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(nombreEnExcel))
+                {
+                    var baseIngresado = nombreProyecto.Trim().Split(' ')[0].ToUpper();
+                    var baseExcel = nombreEnExcel.Split(' ')[0].ToUpper();
+                    if (!baseExcel.Equals(baseIngresado, StringComparison.OrdinalIgnoreCase))
                     {
-                        var baseIngresado = nombreProyecto.Trim().Split(' ')[0].ToUpper();
-                        var baseExcel = nombreEnExcel.Split(' ')[0].ToUpper();
-                        if (!baseExcel.Equals(baseIngresado, StringComparison.OrdinalIgnoreCase))
-                        {
-                            TempData["Error"] = $"El Excel pertenece al proyecto '{nombreEnExcel}', no coincide con '{nombreProyecto}'. Verifica el nombre ingresado.";
-                            return RedirectToAction("Index");
-                        }
+                        TempData["Error"] = $"El Excel pertenece al proyecto '{nombreEnExcel}', no coincide con '{nombreProyecto}'. Verifica el nombre ingresado.";
+                        return RedirectToAction("Index");
                     }
+                }
+
+                // ── Contar filas válidas ANTES de tocar la BD ──────────────────────────
+                // Una fila es válida si tiene: unidad + metros + al menos un precio > 0
+                int filasValidas = 0;
+                for (int row = 2; row <= totalRows; row++)
+                {
+                    var unidad = ws.Cells[row, colApto].Text?.Trim();
+                    var metros = ws.Cells[row, colMetros].Text?.Trim();
+                    if (string.IsNullOrEmpty(unidad) || string.IsNullOrEmpty(metros)) continue;
+                    bool tieneListaPrecio = false;
+                    for (int li = 0; li < 10 && !tieneListaPrecio; li++)
+                        if (colListas[li] > 0 && ParsearPrecio(ws.Cells[row, colListas[li]].Text) > 0)
+                            tieneListaPrecio = true;
+                    if (tieneListaPrecio) filasValidas++;
+                }
+                if (filasValidas == 0)
+                {
+                    TempData["Error"] = $"El archivo no contiene inmuebles válidos. Cada inmueble debe tener {colNombreUnidad}, METROS y al menos un precio en una columna LISTA.";
+                    return RedirectToAction("Index");
                 }
 
                 using var con = new SqlConnection(_conn);
@@ -187,10 +215,13 @@ namespace Plataforma_ventas.Controllers
 
                 string codigo = GenerarCodigo(nombreProyecto);
 
+                // ── Transacción: proyecto + inmuebles + áreas ──────────────────────────
+                using var tx = con.BeginTransaction();
+
                 var cmdProy = new SqlCommand(@"INSERT INTO Proyectos
                     (Nombre, FechaCarga, Activo, ListaActual, IdAdminCreador, CodigoAcceso, TipProyecto)
                     OUTPUT INSERTED.IdProyectos
-                    VALUES (@n, GETDATE(), 1, 1, @admin, @codigo, @tipo)", con);
+                    VALUES (@n, GETDATE(), 1, 1, @admin, @codigo, @tipo)", con, tx);
                 cmdProy.Parameters.AddWithValue("@n", nombreProyecto.Trim());
                 cmdProy.Parameters.AddWithValue("@admin", idAdmin);
                 cmdProy.Parameters.AddWithValue("@codigo", codigo);
@@ -200,7 +231,7 @@ namespace Plataforma_ventas.Controllers
                 int insertados = 0;
                 for (int row = 2; row <= totalRows; row++)
                 {
-                    var apto = ws.Cells[row, colApto > 0 ? colApto : 1].Text?.Trim();
+                    var apto = ws.Cells[row, colApto].Text?.Trim();
                     if (string.IsNullOrEmpty(apto)) continue;
 
                     long GetLista(int s) =>
@@ -210,13 +241,13 @@ namespace Plataforma_ventas.Controllers
 
                     var cmdInm = new SqlCommand(@"INSERT INTO Inmuebles
                         (IdProyecto,Apto,Tipo,Piso,Metros,Lista1,Lista2,Lista3,Lista4,Lista5,Estado,Torre)
-                        VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre)", con);
+                        VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre)", con, tx);
 
                     cmdInm.Parameters.AddWithValue("@proy", idProyecto);
                     cmdInm.Parameters.AddWithValue("@apto", apto);
                     cmdInm.Parameters.AddWithValue("@tipo", colTipo > 0 ? ws.Cells[row, colTipo].Text?.Trim() ?? "" : "");
                     cmdInm.Parameters.AddWithValue("@piso", colPiso > 0 ? ws.Cells[row, colPiso].Text?.Trim() ?? "" : "");
-                    cmdInm.Parameters.AddWithValue("@metros", colMetros > 0 ? ws.Cells[row, colMetros].Text?.Trim() ?? "" : "");
+                    cmdInm.Parameters.AddWithValue("@metros", ws.Cells[row, colMetros].Text?.Trim() ?? "");
                     cmdInm.Parameters.AddWithValue("@l1", GetLista(0));
                     cmdInm.Parameters.AddWithValue("@l2", GetLista(1));
                     cmdInm.Parameters.AddWithValue("@l3", GetLista(2));
@@ -236,9 +267,11 @@ namespace Plataforma_ventas.Controllers
                     INSERT INTO ProyectoAreaListas (IdProyecto, Metros, ListaActual)
                     SELECT DISTINCT @proy, Metros, 1
                     FROM Inmuebles
-                    WHERE IdProyecto = @proy AND Metros IS NOT NULL AND Metros != ''", con);
+                    WHERE IdProyecto = @proy AND Metros IS NOT NULL AND Metros != ''", con, tx);
                 cmdAreas.Parameters.AddWithValue("@proy", idProyecto);
                 await cmdAreas.ExecuteNonQueryAsync();
+
+                tx.Commit();
 
                 HttpContext.Session.SetString("ProyectoId", idProyecto.ToString());
                 HttpContext.Session.SetString("ProyectoNombre", nombreProyecto.Trim());
@@ -257,6 +290,7 @@ namespace Plataforma_ventas.Controllers
             }
             catch (Exception ex)
             {
+                // using var tx hace rollback automático al hacer Dispose sin Commit previo
                 TempData["Error"] = "Error al procesar el archivo: " + ex.Message;
             }
 
