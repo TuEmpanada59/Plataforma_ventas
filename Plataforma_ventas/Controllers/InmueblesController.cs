@@ -696,7 +696,7 @@ namespace Plataforma_ventas.Controllers
                 MERGE ProyectoAreaListas AS target
                 USING (SELECT @proy AS IdProyecto, @metros AS Metros) AS source
                 ON target.IdProyecto = source.IdProyecto AND target.Metros = source.Metros
-                WHEN MATCHED THEN UPDATE SET ListaActual = @lista
+                WHEN MATCHED THEN UPDATE SET ListaActual = @lista, AptsPorLista = 0
                 WHEN NOT MATCHED THEN INSERT (IdProyecto, Metros, ListaActual, AptsPorLista)
                     VALUES (@proy, @metros, @lista, 0);", con);
             cmd.Parameters.AddWithValue("@proy", idProy);
@@ -704,7 +704,7 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@lista", listaActual);
             await cmd.ExecuteNonQueryAsync();
             await _hub.Clients.All.ListaAreaActualizada(idProy, metros ?? "", listaActual);
-            TempData["Exito"] = $"Lista del área {metros} m² actualizada a Lista {listaActual}.";
+            TempData["Exito"] = $"Lista del área {metros} m² fijada en Lista {listaActual} (modo manual). El escalamiento automático quedó desactivado para esta área.";
             return RedirectToAction("Index");
         }
 
@@ -820,6 +820,26 @@ namespace Plataforma_ventas.Controllers
 
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
 
+            // Verifica que una lista tenga al menos un precio > 0 antes de escalar hacia ella.
+            // Evita que el auto-escalamiento mueva a una lista sin precios cargados.
+            async Task<bool> ListaConPrecios(int numLista, string? metrosArea)
+            {
+                var col = numLista switch { 1 => "Lista1", 2 => "Lista2", 3 => "Lista3", 4 => "Lista4", _ => "Lista5" };
+                string sql = metrosArea == null
+                    ? $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy"
+                    : $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy AND Metros=@metros";
+                var cmdP = new SqlCommand(sql, con);
+                cmdP.Parameters.AddWithValue("@proy", idProy);
+                if (metrosArea != null) cmdP.Parameters.AddWithValue("@metros", metrosArea);
+                using (var rP = (SqlDataReader)await cmdP.ExecuteReaderAsync())
+                    while (await rP.ReadAsync())
+                    {
+                        var limpio = (rP[0]?.ToString() ?? "0").Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
+                        if (long.TryParse(limpio, out long v) && v > 0) return true;
+                    }
+                return false;
+            }
+
             // Escalamiento global del proyecto
             var cmdConfig = new SqlCommand(
                 "SELECT ListaActual, ApartamentosPorLista FROM Proyectos WHERE IdProyectos=@id", con);
@@ -839,7 +859,7 @@ namespace Plataforma_ventas.Controllers
                     if (totalVendidos > 0 && totalVendidos % aptsPorLista == 0)
                     {
                         int nuevaLista = Math.Min(5, listaActual + 1);
-                        if (nuevaLista > listaActual)
+                        if (nuevaLista > listaActual && await ListaConPrecios(nuevaLista, null))
                         {
                             var cmdS = new SqlCommand(
                                 "UPDATE Proyectos SET ListaActual=@l WHERE IdProyectos=@id", con);
@@ -881,7 +901,7 @@ namespace Plataforma_ventas.Controllers
                         cmdVArea.Parameters.AddWithValue("@metros", metrosArea);
                         int vendidosArea = (int)(await cmdVArea.ExecuteScalarAsync())!;
                         int nuevaListaArea = (vendidosArea / aptsArea) + 1;
-                        if (nuevaListaArea > laArea && nuevaListaArea <= 5)
+                        if (nuevaListaArea > laArea && nuevaListaArea <= 5 && await ListaConPrecios(nuevaListaArea, metrosArea))
                         {
                             var cmdUpArea = new SqlCommand(@"UPDATE ProyectoAreaListas
                                 SET ListaActual=@lista WHERE IdProyecto=@proy AND Metros=@metros", con);
