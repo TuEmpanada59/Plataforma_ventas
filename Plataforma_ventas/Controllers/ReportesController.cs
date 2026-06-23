@@ -554,7 +554,10 @@ namespace Plataforma_ventas.Controllers
         }
 
         /// <summary>
-        /// Generates a colour-coded Excel map of all properties with area column.
+        /// Generates a colour-coded Excel workbook of the property map. The first sheet
+        /// ("Mapa general") is a classified report of every area together (global summary
+        /// plus a per-area breakdown by estado). Then one sheet per loaded area (Metros)
+        /// shows ALL of its apartments laid out by torre/piso, colour-coded by estado.
         /// Performs a SELECT query for all properties in the active project.
         /// </summary>
         public async Task<IActionResult> GenerarMapa()
@@ -566,7 +569,7 @@ namespace Plataforma_ventas.Controllers
             await con.OpenAsync();
 
             var inmuebles = new List<dynamic>();
-            var cmd = new SqlCommand("SELECT Apto,Piso,Torre,Tipo,Metros,Estado FROM Inmuebles WHERE IdProyecto=@id ORDER BY Torre,Piso DESC,Apto", con);
+            var cmd = new SqlCommand("SELECT Apto,Piso,Torre,Tipo,Metros,Estado FROM Inmuebles WHERE IdProyecto=@id ORDER BY Metros,Torre,Piso DESC,Apto", con);
             cmd.Parameters.AddWithValue("@id", idProy);
             using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
                 while (await reader.ReadAsync())
@@ -574,77 +577,245 @@ namespace Plataforma_ventas.Controllers
 
             ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
             using var package = new ExcelPackage();
-            var ws = package.Workbook.Worksheets.Add("Mapa de ventas");
 
-            var torres = inmuebles.Select(i => (string)i.Torre).Distinct().OrderBy(t => t).ToList();
-            int startRow = 1;
-
-            foreach (var torre in torres)
+            // ── Helpers locales ──
+            DColor EstadoColor(string e) => e switch
             {
-                var inmsT = inmuebles.Where(i => i.Torre == torre).ToList();
-                var tipos = inmsT.Select(i => (string)i.Tipo).Distinct().OrderBy(t => t).ToList();
-                var pisos = inmsT.Select(i => i.Piso).Distinct()
-                    .OrderByDescending(p => { int.TryParse(p?.ToString(), out int n); return n; }).ToList();
+                "VENDIDO" => DColor.FromArgb(230, 57, 70),
+                "RESERVADO" => DColor.FromArgb(255, 149, 0),
+                "EN PROCESO" => DColor.FromArgb(90, 90, 200),
+                _ => DColor.FromArgb(52, 199, 89)
+            };
+            DColor EstadoTinte(string e) => e switch
+            {
+                "VENDIDO" => DColor.FromArgb(250, 224, 227),
+                "RESERVADO" => DColor.FromArgb(255, 238, 214),
+                "EN PROCESO" => DColor.FromArgb(228, 228, 247),
+                _ => DColor.FromArgb(223, 246, 230)
+            };
+            int PisoNum(string p) { int.TryParse(p, out int n); return n; }
+            double AreaNum(string m)
+            {
+                double.TryParse((m ?? "").Replace(",", "."), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out double d);
+                return d;
+            }
+            var bordeGris = DColor.FromArgb(200, 200, 200);
+            void Borde(ExcelRange c) => c.Style.Border.BorderAround(ExcelBorderStyle.Thin, bordeGris);
 
-                ws.Cells[startRow, 1].Value = $"{proyNombre} — Torre {torre}";
-                ws.Cells[startRow, 1].Style.Font.Bold = true;
-                ws.Cells[startRow, 1].Style.Font.Size = 13;
-                ws.Cells[startRow, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
-                ws.Cells[startRow, 1, startRow, tipos.Count + 2].Merge = true;
-                startRow++;
-
-                ws.Cells[startRow, 1].Value = "Piso"; StyleHeader(ws.Cells[startRow, 1]);
-                for (int t = 0; t < tipos.Count; t++) { ws.Cells[startRow, t + 2].Value = tipos[t]; StyleHeader(ws.Cells[startRow, t + 2]); }
-                ws.Cells[startRow, tipos.Count + 2].Value = "Área m²"; StyleHeader(ws.Cells[startRow, tipos.Count + 2]);
-                startRow++;
-
-                foreach (var piso in pisos)
+            var usados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string NombreHoja(string baseName)
+            {
+                var invalid = new[] { '\\', '/', '?', '*', '[', ']', ':' };
+                var clean = new string((baseName ?? "").Select(c => invalid.Contains(c) ? ' ' : c).ToArray()).Trim();
+                if (clean.Length > 31) clean = clean.Substring(0, 31);
+                if (string.IsNullOrWhiteSpace(clean)) clean = "Hoja";
+                var final = clean; int k = 1;
+                while (usados.Contains(final))
                 {
-                    ws.Cells[startRow, 1].Value = piso;
-                    ws.Cells[startRow, 1].Style.Font.Bold = true;
-                    ws.Cells[startRow, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-                    ws.Cells[startRow, 1].Style.Border.BorderAround(ExcelBorderStyle.Thin, DColor.FromArgb(200, 200, 200));
-
-                    var inmPiso = inmsT.FirstOrDefault(i => i.Piso == piso);
-                    ws.Cells[startRow, tipos.Count + 2].Value = inmPiso?.Metros ?? "";
-                    ws.Cells[startRow, tipos.Count + 2].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-                    ws.Cells[startRow, tipos.Count + 2].Style.Border.BorderAround(ExcelBorderStyle.Thin, DColor.FromArgb(200, 200, 200));
-
-                    for (int t = 0; t < tipos.Count; t++)
-                    {
-                        var inm = inmsT.FirstOrDefault(i => i.Piso == piso && i.Tipo == tipos[t]);
-                        var cell = ws.Cells[startRow, t + 2];
-                        if (inm != null)
-                        {
-                            string estado = inm.Estado;
-                            cell.Value = estado;
-                            cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-                            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                            cell.Style.Font.Bold = true;
-                            cell.Style.Font.Color.SetColor(DColor.White);
-                            cell.Style.Fill.BackgroundColor.SetColor(estado switch { "VENDIDO" => DColor.FromArgb(230, 57, 70), "RESERVADO" => DColor.FromArgb(255, 149, 0), "EN PROCESO" => DColor.FromArgb(90, 90, 200), _ => DColor.FromArgb(52, 199, 89) });
-                        }
-                        else { cell.Value = "—"; cell.Style.Font.Color.SetColor(DColor.LightGray); }
-                        cell.Style.Border.BorderAround(ExcelBorderStyle.Thin, DColor.FromArgb(200, 200, 200));
-                    }
-                    startRow++;
+                    var suf = " (" + (++k) + ")";
+                    final = clean.Substring(0, Math.Min(clean.Length, 31 - suf.Length)) + suf;
                 }
-
-                startRow++;
-                ws.Cells[startRow, 1].Value = "RESUMEN"; ws.Cells[startRow, 1].Style.Font.Bold = true;
-                ws.Cells[startRow, 2].Value = $"Disponibles: {inmsT.Count(i => i.Estado == "DISPONIBLE")}";
-                ws.Cells[startRow, 3].Value = $"Vendidos: {inmsT.Count(i => i.Estado == "VENDIDO")}";
-                ws.Cells[startRow, 4].Value = $"Reservados: {inmsT.Count(i => i.Estado == "RESERVADO")}";
-                ws.Cells[startRow, 5].Value = $"En proceso: {inmsT.Count(i => i.Estado == "EN PROCESO")}";
-                startRow += 3;
+                usados.Add(final);
+                return final;
             }
 
-            ws.Cells[startRow, 1].Value = "LEYENDA"; ws.Cells[startRow, 1].Style.Font.Bold = true; startRow++;
-            foreach (var (lbl, color) in new[] { ("DISPONIBLE", DColor.FromArgb(52, 199, 89)), ("VENDIDO", DColor.FromArgb(230, 57, 70)), ("RESERVADO", DColor.FromArgb(255, 149, 0)), ("EN PROCESO", DColor.FromArgb(90, 90, 200)) })
-            { var c = ws.Cells[startRow, 1]; c.Value = lbl; c.Style.Fill.PatternType = ExcelFillStyle.Solid; c.Style.Fill.BackgroundColor.SetColor(color); c.Style.Font.Color.SetColor(DColor.White); c.Style.Font.Bold = true; c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; startRow++; }
+            string[] estados = { "DISPONIBLE", "VENDIDO", "RESERVADO", "EN PROCESO" };
+            var areas = inmuebles.Select(i => (string)i.Metros).Distinct().OrderBy(AreaNum).ToList();
 
-            for (int col = 1; col <= ws.Dimension.End.Column; col++) ws.Column(col).AutoFit();
-            ws.Column(1).Width = 10;
+            // ════════════════════ HOJA 1 · MAPA GENERAL ════════════════════
+            var wsMain = package.Workbook.Worksheets.Add(NombreHoja("Mapa general"));
+            int r = 1;
+            wsMain.Cells[r, 1].Value = $"{proyNombre} — Mapa general de inmuebles";
+            wsMain.Cells[r, 1].Style.Font.Bold = true;
+            wsMain.Cells[r, 1].Style.Font.Size = 15;
+            wsMain.Cells[r, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+            wsMain.Cells[r, 1, r, 8].Merge = true;
+            r++;
+            wsMain.Cells[r, 1].Value = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}  ·  {inmuebles.Count} inmuebles  ·  {areas.Count} áreas";
+            wsMain.Cells[r, 1].Style.Font.Color.SetColor(DColor.FromArgb(110, 110, 110));
+            wsMain.Cells[r, 1, r, 8].Merge = true;
+            r += 2;
+
+            // Resumen global por estado (cajas de color)
+            for (int e = 0; e < estados.Length; e++)
+            {
+                int cnt = inmuebles.Count(i => i.Estado == estados[e]);
+                var box = wsMain.Cells[r, 1 + e * 2, r, 2 + e * 2];
+                box.Merge = true;
+                box.Value = $"{estados[e]}: {cnt}";
+                box.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                box.Style.Fill.BackgroundColor.SetColor(EstadoColor(estados[e]));
+                box.Style.Font.Color.SetColor(DColor.White);
+                box.Style.Font.Bold = true;
+                box.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+            }
+            r += 2;
+
+            // Tabla clasificada por área
+            var headersMain = new[] { "Área m²", "Tipos", "Total", "Disponibles", "Vendidos", "Reservados", "En proceso", "% Vendido" };
+            for (int i = 0; i < headersMain.Length; i++) { wsMain.Cells[r, i + 1].Value = headersMain[i]; StyleHeader(wsMain.Cells[r, i + 1]); }
+            // Tintar encabezados de estado con su color
+            wsMain.Cells[r, 4].Style.Fill.BackgroundColor.SetColor(EstadoColor("DISPONIBLE"));
+            wsMain.Cells[r, 5].Style.Fill.BackgroundColor.SetColor(EstadoColor("VENDIDO"));
+            wsMain.Cells[r, 6].Style.Fill.BackgroundColor.SetColor(EstadoColor("RESERVADO"));
+            wsMain.Cells[r, 7].Style.Fill.BackgroundColor.SetColor(EstadoColor("EN PROCESO"));
+            r++;
+
+            foreach (var metros in areas)
+            {
+                var inmsA = inmuebles.Where(i => i.Metros == metros).ToList();
+                var tipos = string.Join(", ", inmsA.Select(i => (string)i.Tipo).Where(t => !string.IsNullOrEmpty(t)).Distinct().OrderBy(t => t));
+                int tot = inmsA.Count;
+                int disp = inmsA.Count(i => i.Estado == "DISPONIBLE");
+                int vend = inmsA.Count(i => i.Estado == "VENDIDO");
+                int res = inmsA.Count(i => i.Estado == "RESERVADO");
+                int proc = inmsA.Count(i => i.Estado == "EN PROCESO");
+                int pctV = tot > 0 ? (int)Math.Round((double)vend / tot * 100) : 0;
+
+                wsMain.Cells[r, 1].Value = metros; wsMain.Cells[r, 1].Style.Font.Bold = true; Borde(wsMain.Cells[r, 1]);
+                wsMain.Cells[r, 2].Value = tipos; Borde(wsMain.Cells[r, 2]);
+                wsMain.Cells[r, 3].Value = tot; wsMain.Cells[r, 3].Style.Font.Bold = true; Borde(wsMain.Cells[r, 3]);
+                var celdas = new[] { (4, disp, "DISPONIBLE"), (5, vend, "VENDIDO"), (6, res, "RESERVADO"), (7, proc, "EN PROCESO") };
+                foreach (var (colE, val, estE) in celdas)
+                {
+                    var c = wsMain.Cells[r, colE];
+                    c.Value = val;
+                    c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    c.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    c.Style.Fill.BackgroundColor.SetColor(EstadoTinte(estE));
+                    Borde(c);
+                }
+                wsMain.Cells[r, 8].Value = $"{pctV}%"; wsMain.Cells[r, 8].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; Borde(wsMain.Cells[r, 8]);
+                r++;
+            }
+            // Fila de totales
+            wsMain.Cells[r, 1].Value = "TOTAL"; wsMain.Cells[r, 1].Style.Font.Bold = true;
+            wsMain.Cells[r, 2].Value = "";
+            wsMain.Cells[r, 3].Value = inmuebles.Count; wsMain.Cells[r, 3].Style.Font.Bold = true;
+            wsMain.Cells[r, 4].Value = inmuebles.Count(i => i.Estado == "DISPONIBLE");
+            wsMain.Cells[r, 5].Value = inmuebles.Count(i => i.Estado == "VENDIDO");
+            wsMain.Cells[r, 6].Value = inmuebles.Count(i => i.Estado == "RESERVADO");
+            wsMain.Cells[r, 7].Value = inmuebles.Count(i => i.Estado == "EN PROCESO");
+            int pctVTot = inmuebles.Count > 0 ? (int)Math.Round((double)inmuebles.Count(i => i.Estado == "VENDIDO") / inmuebles.Count * 100) : 0;
+            wsMain.Cells[r, 8].Value = $"{pctVTot}%";
+            for (int c = 1; c <= 8; c++)
+            {
+                wsMain.Cells[r, c].Style.Font.Bold = true;
+                wsMain.Cells[r, c].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                wsMain.Cells[r, c].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(232, 240, 248));
+                wsMain.Cells[r, c].Style.HorizontalAlignment = c >= 3 ? ExcelHorizontalAlignment.Center : ExcelHorizontalAlignment.Left;
+                Borde(wsMain.Cells[r, c]);
+            }
+            r += 2;
+
+            // Leyenda
+            wsMain.Cells[r, 1].Value = "LEYENDA"; wsMain.Cells[r, 1].Style.Font.Bold = true; r++;
+            foreach (var est in estados)
+            {
+                var c = wsMain.Cells[r, 1];
+                c.Value = est;
+                c.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                c.Style.Fill.BackgroundColor.SetColor(EstadoColor(est));
+                c.Style.Font.Color.SetColor(DColor.White);
+                c.Style.Font.Bold = true;
+                c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                r++;
+            }
+            for (int col = 1; col <= 8; col++) wsMain.Column(col).AutoFit();
+            wsMain.Column(2).Width = Math.Max(wsMain.Column(2).Width, 16);
+
+            // ════════════════════ UNA HOJA POR ÁREA ════════════════════
+            foreach (var metros in areas)
+            {
+                var inmsA = inmuebles.Where(i => i.Metros == metros).ToList();
+                var ws = package.Workbook.Worksheets.Add(NombreHoja($"Área {metros}"));
+                int ar = 1;
+
+                ws.Cells[ar, 1].Value = $"{proyNombre} — Área {metros} m²";
+                ws.Cells[ar, 1].Style.Font.Bold = true;
+                ws.Cells[ar, 1].Style.Font.Size = 14;
+                ws.Cells[ar, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+                ws.Cells[ar, 1, ar, 8].Merge = true;
+                ar++;
+                ws.Cells[ar, 1].Value = $"{inmsA.Count} inmuebles  ·  Disponibles: {inmsA.Count(i => i.Estado == "DISPONIBLE")}  ·  Vendidos: {inmsA.Count(i => i.Estado == "VENDIDO")}  ·  Reservados: {inmsA.Count(i => i.Estado == "RESERVADO")}  ·  En proceso: {inmsA.Count(i => i.Estado == "EN PROCESO")}";
+                ws.Cells[ar, 1].Style.Font.Color.SetColor(DColor.FromArgb(110, 110, 110));
+                ws.Cells[ar, 1, ar, 8].Merge = true;
+                ar += 2;
+
+                var torres = inmsA.Select(i => (string)i.Torre).Distinct().OrderBy(t => t).ToList();
+                foreach (var torre in torres)
+                {
+                    var inmsT = inmsA.Where(i => i.Torre == torre).ToList();
+                    if (inmsT.Count == 0) continue;
+                    var pisos = inmsT.Select(i => (string)i.Piso).Distinct().OrderByDescending(PisoNum).ToList();
+                    int maxU = pisos.Max(p => inmsT.Count(i => (string)i.Piso == p));
+                    int anchoBloque = 1 + maxU;
+
+                    ws.Cells[ar, 1].Value = string.IsNullOrEmpty(torre) ? "Torre única" : $"Torre {torre}";
+                    ws.Cells[ar, 1].Style.Font.Bold = true;
+                    ws.Cells[ar, 1].Style.Font.Size = 12;
+                    ws.Cells[ar, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+                    ws.Cells[ar, 1, ar, anchoBloque].Merge = true;
+                    ar++;
+
+                    ws.Cells[ar, 1].Value = "Piso"; StyleHeader(ws.Cells[ar, 1]);
+                    var hUnid = ws.Cells[ar, 2, ar, anchoBloque];
+                    hUnid.Merge = true; hUnid.Value = "Unidades"; StyleHeader(hUnid);
+                    ar++;
+
+                    foreach (var piso in pisos)
+                    {
+                        ws.Cells[ar, 1].Value = piso;
+                        ws.Cells[ar, 1].Style.Font.Bold = true;
+                        ws.Cells[ar, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                        Borde(ws.Cells[ar, 1]);
+
+                        var unidades = inmsT.Where(i => (string)i.Piso == piso).OrderBy(i => (string)i.Apto).ToList();
+                        for (int u = 0; u < maxU; u++)
+                        {
+                            var cell = ws.Cells[ar, 2 + u];
+                            if (u < unidades.Count)
+                            {
+                                string estado = unidades[u].Estado;
+                                cell.Value = (string)unidades[u].Apto;
+                                cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                                cell.Style.Fill.BackgroundColor.SetColor(EstadoColor(estado));
+                                cell.Style.Font.Bold = true;
+                                cell.Style.Font.Color.SetColor(DColor.White);
+                            }
+                            else
+                            {
+                                cell.Value = "—";
+                                cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                                cell.Style.Font.Color.SetColor(DColor.LightGray);
+                            }
+                            Borde(cell);
+                        }
+                        ar++;
+                    }
+                    ar++; // espacio entre torres
+                }
+
+                // Leyenda por hoja de área
+                ws.Cells[ar, 1].Value = "LEYENDA"; ws.Cells[ar, 1].Style.Font.Bold = true; ar++;
+                foreach (var est in estados)
+                {
+                    var c = ws.Cells[ar, 1];
+                    c.Value = est;
+                    c.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    c.Style.Fill.BackgroundColor.SetColor(EstadoColor(est));
+                    c.Style.Font.Color.SetColor(DColor.White);
+                    c.Style.Font.Bold = true;
+                    c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    ar++;
+                }
+
+                if (ws.Dimension != null)
+                    for (int col = 1; col <= ws.Dimension.End.Column; col++) ws.Column(col).AutoFit();
+                ws.Column(1).Width = 8;
+            }
 
             return File(package.GetAsByteArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 $"Mapa_Ventas_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd}.xlsx");
