@@ -289,12 +289,17 @@
             <div class="modal-grid">
                 <div class="field">
                     <label>Rol</label>
-                    <select name="rol" id="editRol" onchange="toggleProyectoEdit()">
+                    <input type="hidden" name="rol" id="editRolSubmit" value="Vendedor"/>
+                    <select id="editRol" onchange="toggleProyectoEdit()">
                         <option value="Vendedor">Vendedor</option>
                         @if (esSuperAdmin) {
                         <option value="Administrador">Administrador</option>
                         }
                     </select>
+                    <div id="editRolReadonly" style="display:none;margin-top:6px">
+                        <span class="bdg A" style="font-size:13px;padding:5px 12px">Administrador</span>
+                        <div style="font-size:11px;color:var(--label3);margin-top:4px">No puedes cambiar el rol de otro administrador</div>
+                    </div>
                 </div>
                 <div class="field" id="editCampoProyecto">
                     <label>Proyecto asignado</label>
@@ -332,20 +337,40 @@
 
 @section Scripts {
 <script>
+    var esSuperAdmin = @(esSuperAdmin ? "true" : "false");
+
     function abrirEditar(id,nombre,apellido,documento,celular,correo,rol,idProy){
-        document.getElementById('editId').value       = id;
-        document.getElementById('editNombre').value   = nombre;
-        document.getElementById('editApellido').value = apellido;
-        document.getElementById('editDocumento').value= documento;
-        document.getElementById('editCelular').value  = celular;
-        document.getElementById('editCorreo').value   = correo;
-        document.getElementById('editRol').value      = rol;
-        document.getElementById('editProyecto').value = idProy || 0;
+        document.getElementById('editId').value        = id;
+        document.getElementById('editNombre').value    = nombre;
+        document.getElementById('editApellido').value  = apellido;
+        document.getElementById('editDocumento').value = documento;
+        document.getElementById('editCelular').value   = celular;
+        document.getElementById('editCorreo').value    = correo;
+        document.getElementById('editProyecto').value  = idProy || 0;
+
+        var selectRol  = document.getElementById('editRol');
+        var hiddenRol  = document.getElementById('editRolSubmit');
+        var roReadonly = document.getElementById('editRolReadonly');
+
+        if (!esSuperAdmin && rol === 'Administrador') {
+            // Modo solo lectura: no puede cambiar el rol de otro admin
+            selectRol.style.display  = 'none';
+            roReadonly.style.display = '';
+            hiddenRol.value = 'Administrador';
+        } else {
+            selectRol.style.display  = '';
+            roReadonly.style.display = 'none';
+            selectRol.value = rol;
+            hiddenRol.value = rol;
+        }
         toggleProyectoEdit();
         document.getElementById('modalEditar').classList.add('open');
     }
     function toggleProyectoEdit(){
-        var rol   = document.getElementById('editRol').value;
+        var rol   = document.getElementById('editRol').value || document.getElementById('editRolSubmit').value;
+        document.getElementById('editRolSubmit').value = document.getElementById('editRol').style.display !== 'none'
+            ? document.getElementById('editRol').value
+            : document.getElementById('editRolSubmit').value;
         var campo = document.getElementById('editCampoProyecto');
         campo.style.opacity = rol==='Administrador' ? '0.4' : '1';
     }

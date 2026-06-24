@@ -28,6 +28,14 @@ namespace Plataforma_ventas.Hubs
         /// <param name="nuevoEstado">New estado string (e.g. "EN PROCESO", "RESERVADO", "VENDIDO", "DISPONIBLE").</param>
         [HubMethodName("InmuebleActualizado")]
         Task InmuebleActualizado(int idProyecto, int idInmueble, string nuevoEstado);
+
+        /// <summary>Notifies all clients that a list price was edited for a specific area.</summary>
+        /// <param name="idProyecto">Project identifier.</param>
+        /// <param name="metros">Area size label (e.g. "60").</param>
+        /// <param name="numLista">List number (1–5) whose price changed.</param>
+        /// <param name="nuevoPrecio">New price value.</param>
+        [HubMethodName("PrecioAreaActualizado")]
+        Task PrecioAreaActualizado(int idProyecto, string metros, int numLista, long nuevoPrecio);
     }
 
     /// <summary>

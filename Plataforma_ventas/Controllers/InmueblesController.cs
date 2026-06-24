@@ -740,6 +740,7 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@proy", idProy);
             cmd.Parameters.AddWithValue("@metros", metros ?? "");
             await cmd.ExecuteNonQueryAsync();
+            await _hub.Clients.All.PrecioAreaActualizado(idProy, metros ?? "", numLista, nuevoPrecio);
             TempData["Exito"] = $"Precios de Lista {numLista} para {metros} m² actualizados.";
             return RedirectToAction("Index");
         }

@@ -150,12 +150,13 @@ namespace Plataforma_ventas.Controllers
             await con.OpenAsync();
 
             // Verificar que el Admin no intente editar a un SuperAdministrador
-            string rolSesionCheck = HttpContext.Session.GetString("Rol") ?? "";
-            if (rolSesionCheck != "SuperAdministrador")
+            string rolSesion = HttpContext.Session.GetString("Rol") ?? "";
+            string? rolObjetivo = null;
+            if (rolSesion != "SuperAdministrador")
             {
                 var cmdRolCheck = new SqlCommand("SELECT Rol FROM Usuarios WHERE IdUsuario=@id", con);
                 cmdRolCheck.Parameters.AddWithValue("@id", idUsuario);
-                string? rolObjetivo = (await cmdRolCheck.ExecuteScalarAsync())?.ToString();
+                rolObjetivo = (await cmdRolCheck.ExecuteScalarAsync())?.ToString();
                 if (rolObjetivo == "SuperAdministrador")
                 {
                     TempData["Error"] = "No tienes permisos para editar a un Super Administrador.";
@@ -165,11 +166,15 @@ namespace Plataforma_ventas.Controllers
 
             object proyParam = idProyecto > 0 ? (object)idProyecto : DBNull.Value;
 
-            // Solo el SuperAdministrador puede asignar el rol Administrador
-            string rolSesionEditar = HttpContext.Session.GetString("Rol") ?? "";
+            // Solo el SuperAdministrador puede cambiar roles
             string rolFinalEditar = rol ?? "Vendedor";
-            if (rolSesionEditar != "SuperAdministrador" && rolFinalEditar == "Administrador")
-                rolFinalEditar = "Vendedor";
+            if (rolSesion != "SuperAdministrador")
+            {
+                // No puede asignar rol Administrador
+                if (rolFinalEditar == "Administrador") rolFinalEditar = "Vendedor";
+                // No puede degradar a un Administrador existente
+                if (rolObjetivo == "Administrador") rolFinalEditar = "Administrador";
+            }
 
             var cmd = new SqlCommand(@"
                 UPDATE Usuarios

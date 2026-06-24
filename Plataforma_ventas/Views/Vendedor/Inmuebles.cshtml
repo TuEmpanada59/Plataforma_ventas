@@ -131,7 +131,7 @@
             long precActArea = laArea==1?p1:laArea==2?p2:laArea==3?p3:laArea==4?p4:p5;
             if (precActArea == 0) precActArea = (long)g.PrecioActivo;
             <a href="/Vendedor/Inmuebles?area=@Uri.EscapeDataString(g.Metros)" class="area-card"
-               data-metros="@g.Metros"
+               data-metros="@g.Metros" data-lista-activa="@laArea"
                data-l1="@p1" data-l2="@p2" data-l3="@p3" data-l4="@p4" data-l5="@p5"
                data-disp="@g.Disponibles" data-vend="@g.Vendidos"
                data-proc="@g.EnProceso" data-res="@g.Reservados" data-total="@g.Total">
@@ -139,7 +139,7 @@
                     <div class="area-metros">@g.Metros <span style="font-size:13px;font-weight:400;color:var(--label2)">m²</span></div>
                     <span class="@tipoClass">@tipoLabel</span>
                 </div>
-                <span style="display:inline-block;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;">Lista @laArea activa</span>
+                <span class="area-lista-badge" style="display:inline-block;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;">Lista @laArea activa</span>
                 <div class="area-precio-lbl">Precio lista @laArea</div>
                 <div class="area-precio">$@string.Format("{0:N0}", precActArea)</div>
                 <div class="prog-wrap">
@@ -188,6 +188,7 @@
                         long dl5 = ParsePrecio(i.Lista5);
                         long precioActivo = laEstaArea==1?dl1:laEstaArea==2?dl2:laEstaArea==3?dl3:laEstaArea==4?dl4:dl5;
                         <tr data-estado="@i.Estado" data-id="@i.Id" data-metros="@i.Metros"
+                            data-lista-activa="@laEstaArea"
                             data-l1="@dl1" data-l2="@dl2" data-l3="@dl3" data-l4="@dl4" data-l5="@dl5">
                             <td style="font-weight:600">@i.Apto</td>
                             <td>
@@ -331,14 +332,37 @@
 
     conn.on("ListaActualizada", function(proyIdEvt, nuevaLista) {
         if (proyIdEvt !== proyIdSR) return;
+        document.querySelectorAll('.area-card').forEach(function(c){ c.dataset.listaActiva = nuevaLista; });
+        document.querySelectorAll('#tablaInmuebles tbody tr').forEach(function(r){ r.dataset.listaActiva = nuevaLista; });
         actualizarLista(nuevaLista, null);
         mostrarToast('Lista del proyecto actualizada a ' + nuevaLista, 'info');
     });
 
     conn.on("ListaAreaActualizada", function(proyIdEvt, metros, nuevaLista) {
         if (proyIdEvt !== proyIdSR) return;
+        document.querySelectorAll('.area-card[data-metros="' + metros + '"]').forEach(function(c){ c.dataset.listaActiva = nuevaLista; });
+        document.querySelectorAll('#tablaInmuebles tbody tr[data-metros="' + metros + '"]').forEach(function(r){ r.dataset.listaActiva = nuevaLista; });
         actualizarLista(nuevaLista, metros);
         mostrarToast('Área ' + metros + ' m² → Lista ' + nuevaLista, 'info');
+    });
+
+    conn.on("PrecioAreaActualizado", function(proyIdEvt, metros, numLista, nuevoPrecio) {
+        if (proyIdEvt !== proyIdSR) return;
+        document.querySelectorAll('.area-card[data-metros="' + metros + '"]').forEach(function(card) {
+            card.dataset['l' + numLista] = nuevoPrecio;
+            if (parseInt(card.dataset.listaActiva || 1) === numLista) {
+                var priceEl = card.querySelector('.area-precio');
+                if (priceEl) priceEl.textContent = fmtPrecio(nuevoPrecio);
+            }
+        });
+        document.querySelectorAll('#tablaInmuebles tbody tr[data-metros="' + metros + '"]').forEach(function(tr) {
+            tr.dataset['l' + numLista] = nuevoPrecio;
+            if (parseInt(tr.dataset.listaActiva || 1) === numLista) {
+                var td = tr.querySelector('.precio-col');
+                if (td) td.textContent = fmtPrecio(nuevoPrecio);
+            }
+        });
+        mostrarToast('💰 Precio Lista ' + numLista + ' actualizado en ' + metros + ' m²', 'info');
     });
 
     conn.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado) {
