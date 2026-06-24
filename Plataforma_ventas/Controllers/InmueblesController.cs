@@ -482,6 +482,17 @@ namespace Plataforma_ventas.Controllers
             cmdListaApl.Parameters.AddWithValue("@proy", idProy);
             int listaAplicada = (int)((await cmdListaApl.ExecuteScalarAsync()) ?? 1);
 
+            if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
+            {
+                TempData["Error"] = "Debes seleccionar un cliente existente o registrar uno nuevo.";
+                return RedirectToAction("ContinuarVenta", new { id = idInmueble });
+            }
+            if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
+            {
+                TempData["Error"] = "El nombre y el documento del cliente son obligatorios.";
+                return RedirectToAction("ContinuarVenta", new { id = idInmueble });
+            }
+
             int idCliente;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
                 idCliente = idClienteExistente.Value;
@@ -777,6 +788,17 @@ namespace Plataforma_ventas.Controllers
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
+            {
+                TempData["Error"] = "Debes seleccionar un cliente existente o registrar uno nuevo.";
+                return RedirectToAction("RegistrarVenta", new { id = idInmueble });
+            }
+            if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
+            {
+                TempData["Error"] = "El nombre y el documento del cliente son obligatorios.";
+                return RedirectToAction("RegistrarVenta", new { id = idInmueble });
+            }
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();

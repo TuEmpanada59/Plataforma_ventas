@@ -64,6 +64,11 @@
     .ios-btn:hover{background:var(--mid);}
     .ios-btn.ghost{background:var(--fill3);color:var(--label);box-shadow:none;border:1px solid var(--sep);}
     .ios-btn.ghost:hover{background:rgba(120,120,128,0.14);}
+    .cc-card{display:flex;align-items:center;gap:10px;background:rgba(0,118,227,0.06);border:1px solid rgba(0,118,227,0.2);border-radius:10px;padding:10px 14px;margin-top:10px;}
+    .cc-ico{font-size:20px;}
+    .cc-nombre{font-size:14px;font-weight:600;color:var(--label);}
+    .cc-doc{font-size:12px;color:var(--label2);}
+    .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
     @@media(max-width:700px){.destino-grid{grid-template-columns:1fr!important;}.form-grid{grid-template-columns:1fr!important;}}
 </style>
 }
@@ -149,15 +154,23 @@
                 </button>
             </div>
             <div class="tab-pane active" id="tab-existente">
+                <div class="field" style="margin-bottom:10px">
+                    <label>Buscar por cédula o nombre</label>
+                    <input type="text" id="buscaCedula" placeholder="Escribe cédula o nombre..." oninput="filtrarClientes(this.value)" autocomplete="off"/>
+                </div>
                 <div class="field">
                     <label>Seleccionar cliente</label>
-                    <select name="idClienteExistente">
+                    <select name="idClienteExistente" id="selCliente" onchange="mostrarTarjetaCliente()">
                         <option value="0">&#8212; Selecciona un cliente &#8212;</option>
                         @foreach (var c in clientes)
                         {
                             <option value="@c.Id">@c.Nombre &#8212; @c.Documento</option>
                         }
                     </select>
+                </div>
+                <div id="clienteCard" class="cc-card" style="display:none">
+                    <div class="cc-ico">&#128100;</div>
+                    <div><div class="cc-nombre"></div><div class="cc-doc"></div></div>
                 </div>
             </div>
             <div class="tab-pane" id="tab-nuevo">
@@ -181,6 +194,51 @@
 
 @section Scripts {
 <script>
+    let _optsCliente = [];
+    document.addEventListener('DOMContentLoaded', function() {
+        const sel = document.getElementById('selCliente');
+        if (sel) _optsCliente = Array.from(sel.options).map(o => ({val: o.value, txt: o.text}));
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const tipo = document.getElementById('tipoCliente').value;
+            if (tipo === 'existente') {
+                const s = document.getElementById('selCliente');
+                if (!s || s.value === '0') { e.preventDefault(); mostrarErrorCliente('Debes seleccionar un cliente existente o registrar uno nuevo.'); }
+            } else {
+                const n = document.querySelector('[name="clienteNombre"]');
+                const d = document.querySelector('[name="clienteDocumento"]');
+                if (!n?.value?.trim() || !d?.value?.trim()) { e.preventDefault(); mostrarErrorCliente('El nombre y el documento del cliente son obligatorios.'); }
+            }
+        });
+    });
+    function filtrarClientes(q) {
+        const sel = document.getElementById('selCliente');
+        const lower = q.toLowerCase();
+        sel.innerHTML = '';
+        const filtered = _optsCliente.filter(o => o.val === '0' || o.txt.toLowerCase().includes(lower));
+        filtered.forEach(o => sel.add(new Option(o.txt, o.val)));
+        const real = filtered.filter(o => o.val !== '0');
+        sel.value = real.length === 1 ? real[0].val : '0';
+        mostrarTarjetaCliente();
+    }
+    function mostrarTarjetaCliente() {
+        const sel = document.getElementById('selCliente');
+        const card = document.getElementById('clienteCard');
+        if (!card) return;
+        if (!sel || sel.value === '0') { card.style.display = 'none'; return; }
+        const txt = sel.options[sel.selectedIndex].text;
+        const idx = txt.indexOf(' — ');
+        card.querySelector('.cc-nombre').textContent = idx > -1 ? txt.substring(0, idx) : txt;
+        card.querySelector('.cc-doc').textContent = idx > -1 ? txt.substring(idx + 3) : '';
+        card.style.display = 'flex';
+        const err = document.getElementById('errCliente');
+        if (err) err.style.display = 'none';
+    }
+    function mostrarErrorCliente(msg) {
+        let div = document.getElementById('errCliente');
+        if (!div) { div = document.createElement('div'); div.id = 'errCliente'; div.className = 'alerta-error'; document.getElementById('tab-existente').appendChild(div); }
+        div.style.display = 'block'; div.textContent = '❌ ' + msg;
+        div.scrollIntoView({behavior:'smooth', block:'center'});
+    }
     function selDestino(val,el){
         document.getElementById('destinoInput').value=val;
         document.querySelectorAll('.destino-opt').forEach(x=>x.classList.remove('sel'));
@@ -191,6 +249,8 @@
         document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-'+tab).classList.add('active');
+        const err = document.getElementById('errCliente');
+        if (err) err.style.display = 'none';
     }
 </script>
 }
