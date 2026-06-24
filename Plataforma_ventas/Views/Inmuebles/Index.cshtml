@@ -174,10 +174,10 @@ else
             <div class="rb-sub">@total inmuebles en total</div>
         </div>
         <div class="rb-stats">
-            <div class="rb-stat"><div class="rb-stat-num">@disponibles</div><div class="rb-stat-lbl">Disponibles</div></div>
-            <div class="rb-stat"><div class="rb-stat-num">@vendidos</div><div class="rb-stat-lbl">Vendidos</div></div>
-            <div class="rb-stat"><div class="rb-stat-num">@enProceso</div><div class="rb-stat-lbl">En proceso</div></div>
-            <div class="rb-stat"><div class="rb-stat-num">@reservados</div><div class="rb-stat-lbl">Reservados</div></div>
+            <div class="rb-stat"><div class="rb-stat-num" id="kpi-disp">@disponibles</div><div class="rb-stat-lbl">Disponibles</div></div>
+            <div class="rb-stat"><div class="rb-stat-num" id="kpi-vend">@vendidos</div><div class="rb-stat-lbl">Vendidos</div></div>
+            <div class="rb-stat"><div class="rb-stat-num" id="kpi-proc">@enProceso</div><div class="rb-stat-lbl">En proceso</div></div>
+            <div class="rb-stat"><div class="rb-stat-num" id="kpi-res">@reservados</div><div class="rb-stat-lbl">Reservados</div></div>
         </div>
     </div>
     @if (!string.IsNullOrEmpty(torreActual) && torres.Count > 1)
@@ -318,7 +318,7 @@ else
                                 var cls = i.Estado == "DISPONIBLE" ? "D" : i.Estado == "VENDIDO" ? "V" : i.Estado == "EN PROCESO" ? "EP" : "R";
                                 var precioLista = laEstaArea == 1 ? i.Lista1 : laEstaArea == 2 ? i.Lista2 : laEstaArea == 3 ? i.Lista3 : laEstaArea == 4 ? i.Lista4 : i.Lista5;
                                 var plLimpio = (precioLista?.ToString() ?? "0").Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
-                                <tr data-estado="@i.Estado">
+                                <tr data-estado="@i.Estado" data-id="@i.Id">
                                     <td style="font-weight:600">@i.Apto</td>
                                     <td>
                                         @if (i.Tipo == "EXT") {
@@ -331,14 +331,14 @@ else
                                     <td>@i.Metros m²</td>
                                     <td style="font-weight:500;color:var(--azul)">$@(string.Format("{0:N0}", long.TryParse(plLimpio, out long lp) ? lp : 0))</td>
                                     <td>@i.Torre</td>
-                                    <td>
+                                    <td class="estado-td">
                                         <span class="bdg @cls">@i.Estado</span>
                                         @if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso > 0) {
                                             var nomVend = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Vendedor";
                                             <br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">@nomVend</span>
                                         }
                                     </td>
-                                    <td>
+                                    <td class="accion-td">
                                         @if (i.Estado == "DISPONIBLE") {
                                             <form action="/Inmuebles/TomarInmueble" method="post" style="display:inline">
                                                 @Html.AntiForgeryToken()
@@ -437,5 +437,107 @@ else
         var ov=document.getElementById('modalEditar');
         if(ov&&e.target===ov)cerrarModal();
     });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script>
+    var proyIdSR = @((int)(ViewBag.ProyectoId ?? 0));
+    var kpiDisp = @disponibles;
+    var kpiProc = @enProceso;
+    var kpiRes  = @reservados;
+    var kpiVend = @vendidos;
+
+    function getToken() {
+        var inp = document.querySelector('input[name="__RequestVerificationToken"]');
+        return inp ? inp.value : '';
+    }
+    function actualizarKpisDOM() {
+        var el;
+        el = document.getElementById('kpi-disp'); if (el) el.textContent = kpiDisp;
+        el = document.getElementById('kpi-proc'); if (el) el.textContent = kpiProc;
+        el = document.getElementById('kpi-res');  if (el) el.textContent = kpiRes;
+        el = document.getElementById('kpi-vend'); if (el) el.textContent = kpiVend;
+    }
+    function mostrarToast(msg, tipo) {
+        var t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:'+(tipo==='exito'?'#1EA851':'var(--blue)')+';color:white;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:opacity 0.3s;';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(function(){ t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 300); }, 3200);
+    }
+
+    var connAdmin = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
+
+    connAdmin.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado) {
+        if (proyIdEvt !== proyIdSR) return;
+
+        var tr = document.querySelector('#tablaInmuebles tbody tr[data-id="' + idInmueble + '"]');
+        if (tr) {
+            var estadoAnterior = tr.dataset.estado;
+            if (estadoAnterior === 'DISPONIBLE')  kpiDisp--;
+            else if (estadoAnterior === 'EN PROCESO') kpiProc--;
+            else if (estadoAnterior === 'RESERVADO')  kpiRes--;
+            else if (estadoAnterior === 'VENDIDO')    kpiVend--;
+            if (nuevoEstado === 'DISPONIBLE')   kpiDisp++;
+            else if (nuevoEstado === 'EN PROCESO') kpiProc++;
+            else if (nuevoEstado === 'RESERVADO')  kpiRes++;
+            else if (nuevoEstado === 'VENDIDO')    kpiVend++;
+            actualizarKpisDOM();
+
+            tr.dataset.estado = nuevoEstado;
+            var cls = nuevoEstado==='DISPONIBLE'?'D':nuevoEstado==='VENDIDO'?'V':nuevoEstado==='EN PROCESO'?'EP':'R';
+
+            var estadoTd = tr.querySelector('.estado-td');
+            if (estadoTd) {
+                estadoTd.innerHTML = '<span class="bdg ' + cls + '">' + nuevoEstado + '</span>' +
+                    (nuevoEstado === 'EN PROCESO' ? '<br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">En proceso</span>' : '');
+            }
+
+            var accionTd = tr.querySelector('.accion-td');
+            if (accionTd) {
+                var tok = getToken();
+                if (nuevoEstado === 'DISPONIBLE') {
+                    accionTd.innerHTML =
+                        '<form action="/Inmuebles/TomarInmueble" method="post" style="display:inline">' +
+                        '<input type="hidden" name="__RequestVerificationToken" value="' + tok + '"/>' +
+                        '<input type="hidden" name="idInmueble" value="' + idInmueble + '"/>' +
+                        '<button type="submit" class="btn-accion btn-vender">Vender</button></form>' +
+                        '<form action="/Inmuebles/ReservarInmueble" method="post" style="display:inline">' +
+                        '<input type="hidden" name="__RequestVerificationToken" value="' + tok + '"/>' +
+                        '<input type="hidden" name="idInmueble" value="' + idInmueble + '"/>' +
+                        '<button type="submit" class="btn-accion btn-reservar" onclick="return confirm(\'¿Reservar este inmueble?\')">Reservar</button></form>';
+                } else if (nuevoEstado === 'EN PROCESO') {
+                    accionTd.innerHTML =
+                        '<form action="/Inmuebles/CancelarProceso" method="post" style="display:inline">' +
+                        '<input type="hidden" name="__RequestVerificationToken" value="' + tok + '"/>' +
+                        '<input type="hidden" name="idInmueble" value="' + idInmueble + '"/>' +
+                        '<button type="submit" class="btn-accion btn-liberar" onclick="return confirm(\'¿Cancelar este proceso?\')">Cancelar</button></form>';
+                } else if (nuevoEstado === 'RESERVADO') {
+                    accionTd.innerHTML =
+                        '<form action="/Inmuebles/LiberarReserva" method="post" style="display:inline">' +
+                        '<input type="hidden" name="__RequestVerificationToken" value="' + tok + '"/>' +
+                        '<input type="hidden" name="idInmueble" value="' + idInmueble + '"/>' +
+                        '<button type="submit" class="btn-accion btn-liberar" onclick="return confirm(\'¿Liberar esta reserva?\')">Liberar</button></form>';
+                } else {
+                    accionTd.innerHTML = '<span style="color:var(--label3);font-size:12px">—</span>';
+                }
+            }
+
+            tr.style.transition = 'background 0.4s';
+            tr.style.background = 'rgba(0,118,227,0.07)';
+            setTimeout(function(){ tr.style.background = ''; tr.style.transition = ''; }, 1400);
+        }
+
+        var ico = nuevoEstado==='DISPONIBLE'?'✅':nuevoEstado==='VENDIDO'?'🔑':nuevoEstado==='EN PROCESO'?'⏳':'🔒';
+        mostrarToast(ico + ' Inmueble actualizado: ' + nuevoEstado, 'info');
+    });
+
+    connAdmin.on("ListaActualizada", function(proyIdEvt, nuevaLista) {
+        if (proyIdEvt !== proyIdSR) return;
+        var th = document.querySelector('#tablaInmuebles thead th:nth-child(5)');
+        if (th) th.textContent = 'Precio Lista ' + nuevaLista;
+        mostrarToast('Lista del proyecto actualizada a ' + nuevaLista, 'info');
+    });
+
+    connAdmin.start().catch(function(err){ console.error('SignalR admin:', err); });
 </script>
 }

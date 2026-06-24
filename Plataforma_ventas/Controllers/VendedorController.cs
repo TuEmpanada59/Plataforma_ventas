@@ -556,12 +556,12 @@ namespace Plataforma_ventas.Controllers
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("ContinuarVenta", new { id = idInmueble });
+                return RedirectToAction("ContinuarVenta", new { idInmueble });
             }
             if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("ContinuarVenta", new { id = idInmueble });
+                return RedirectToAction("ContinuarVenta", new { idInmueble });
             }
 
             // Cliente
@@ -699,12 +699,12 @@ namespace Plataforma_ventas.Controllers
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("RegistrarVenta", new { id = idInmueble });
+                return RedirectToAction("RegistrarVenta", new { idInmueble });
             }
             if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("RegistrarVenta", new { id = idInmueble });
+                return RedirectToAction("RegistrarVenta", new { idInmueble });
             }
 
             using var con = new SqlConnection(_conn);

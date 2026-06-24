@@ -100,6 +100,7 @@ namespace Plataforma_ventas.Controllers
             var proyIdStr = HttpContext.Session.GetString("ProyectoId") ?? "0";
             ViewBag.ProyectoActivo = proyNombre;
             int idProy = int.TryParse(proyIdStr, out int pid) ? pid : 0;
+            ViewBag.ProyectoId = idProy;
             if (idProy == 0) return RedirectToAction("Proyectos");
 
             using var con = new SqlConnection(_conn);
@@ -485,12 +486,12 @@ namespace Plataforma_ventas.Controllers
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("ContinuarVenta", new { id = idInmueble });
+                return RedirectToAction("ContinuarVenta", new { idInmueble });
             }
             if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("ContinuarVenta", new { id = idInmueble });
+                return RedirectToAction("ContinuarVenta", new { idInmueble });
             }
 
             int idCliente;
@@ -792,12 +793,12 @@ namespace Plataforma_ventas.Controllers
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("RegistrarVenta", new { id = idInmueble });
+                return RedirectToAction("RegistrarVenta", new { idInmueble });
             }
             if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
-                return RedirectToAction("RegistrarVenta", new { id = idInmueble });
+                return RedirectToAction("RegistrarVenta", new { idInmueble });
             }
 
             using var con = new SqlConnection(_conn);
