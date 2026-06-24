@@ -221,11 +221,11 @@
                                         <button type="submit" class="btn-reservar" onclick="return confirm('¿Reservar?')">Reservar</button>
                                     </form>
                                 } else if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso == miId) {
-                                    <span class="tag-yo">Tú lo tienes</span>
+                                    <a href="/Vendedor/RegistrarVenta?idInmueble=@i.Id" class="btn-vender" style="display:inline-flex;align-items:center;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;margin-right:4px">Continuar</a>
                                     <form action="/Vendedor/CancelarProceso" method="post" style="margin:0;display:inline">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="idInmueble" value="@i.Id"/>
-                                        <button type="submit" class="btn-cancelar">Cancelar</button>
+                                        <button type="submit" class="btn-cancelar" onclick="return confirm('¿Cancelar? El inmueble volverá a estar disponible.')">Cancelar</button>
                                     </form>
                                 } else if (i.Estado == "EN PROCESO") {
                                     var nomVend2 = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Otro vendedor";

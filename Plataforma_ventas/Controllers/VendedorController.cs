@@ -311,6 +311,11 @@ namespace Plataforma_ventas.Controllers
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+            var cmdMetros = new SqlCommand(
+                "SELECT Metros FROM Inmuebles WHERE IdInmuebles=@id AND IdVendedorEnProceso=@uid", con);
+            cmdMetros.Parameters.AddWithValue("@id", idInmueble);
+            cmdMetros.Parameters.AddWithValue("@uid", idUsuario);
+            string? metros = (await cmdMetros.ExecuteScalarAsync())?.ToString();
             var cmd = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='DISPONIBLE', IdVendedorEnProceso=NULL, FechaEnProceso=NULL
                 WHERE IdInmuebles=@id AND IdVendedorEnProceso=@uid", con);
@@ -318,6 +323,8 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@uid", idUsuario);
             await cmd.ExecuteNonQueryAsync();
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE");
+            if (!string.IsNullOrEmpty(metros))
+                return RedirectToAction("Inmuebles", new { area = metros });
             return RedirectToAction("Inmuebles");
         }
 
@@ -548,12 +555,12 @@ namespace Plataforma_ventas.Controllers
             // Validar datos del cliente
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
-                TempData["Error"] = "Debes seleccionar un cliente existente o registrar uno nuevo.";
+                TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
                 return RedirectToAction("ContinuarVenta", new { id = idInmueble });
             }
             if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
             {
-                TempData["Error"] = "El nombre y el documento del cliente son obligatorios.";
+                TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
                 return RedirectToAction("ContinuarVenta", new { id = idInmueble });
             }
 
@@ -691,12 +698,12 @@ namespace Plataforma_ventas.Controllers
 
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
-                TempData["Error"] = "Debes seleccionar un cliente existente o registrar uno nuevo.";
+                TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
                 return RedirectToAction("RegistrarVenta", new { id = idInmueble });
             }
             if (tipoCliente != "existente" && (string.IsNullOrWhiteSpace(clienteNombre) || string.IsNullOrWhiteSpace(clienteDocumento)))
             {
-                TempData["Error"] = "El nombre y el documento del cliente son obligatorios.";
+                TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
                 return RedirectToAction("RegistrarVenta", new { id = idInmueble });
             }
 

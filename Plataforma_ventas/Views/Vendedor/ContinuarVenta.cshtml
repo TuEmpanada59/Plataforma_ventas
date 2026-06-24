@@ -179,6 +179,9 @@
         </div>
     </div>
 
+    <div id="errClienteContenedor" style="display:none;margin-bottom:10px">
+        <div id="errCliente" class="alerta-error"></div>
+    </div>
     <div class="btn-row">
         <a href="/Vendedor/MisReservas" class="ios-btn ghost">← Volver</a>
         <button type="submit" class="ios-btn">✓ Confirmar venta</button>
@@ -195,11 +198,11 @@
             const tipo = document.getElementById('tipoCliente').value;
             if (tipo === 'existente') {
                 const s = document.getElementById('selCliente');
-                if (!s || s.value === '0') { e.preventDefault(); mostrarErrorCliente('Debes seleccionar un cliente existente o registrar uno nuevo.'); }
+                if (!s || s.value === '0') { e.preventDefault(); mostrarErrorCliente(); }
             } else {
                 const n = document.querySelector('[name="clienteNombre"]');
                 const d = document.querySelector('[name="clienteDocumento"]');
-                if (!n?.value?.trim() || !d?.value?.trim()) { e.preventDefault(); mostrarErrorCliente('El nombre y el documento del cliente son obligatorios.'); }
+                if (!n?.value?.trim() || !d?.value?.trim()) { e.preventDefault(); mostrarErrorCliente(); }
             }
         });
     });
@@ -223,14 +226,13 @@
         card.querySelector('.cc-nombre').textContent = idx > -1 ? txt.substring(0, idx) : txt;
         card.querySelector('.cc-doc').textContent = idx > -1 ? txt.substring(idx + 3) : '';
         card.style.display = 'flex';
-        const err = document.getElementById('errCliente');
-        if (err) err.style.display = 'none';
+        document.getElementById('errClienteContenedor').style.display = 'none';
     }
-    function mostrarErrorCliente(msg) {
-        let div = document.getElementById('errCliente');
-        if (!div) { div = document.createElement('div'); div.id = 'errCliente'; div.className = 'alerta-error'; document.getElementById('tab-existente').appendChild(div); }
-        div.style.display = 'block'; div.textContent = '❌ ' + msg;
-        div.scrollIntoView({behavior:'smooth', block:'center'});
+    function mostrarErrorCliente() {
+        const wrapper = document.getElementById('errClienteContenedor');
+        document.getElementById('errCliente').textContent = '❌ Por favor ingrese los datos del cliente para continuar con la venta.';
+        wrapper.style.display = 'block';
+        wrapper.scrollIntoView({behavior:'smooth', block:'center'});
     }
     function selDestino(val,el){document.getElementById('destinoInput').value=val;document.querySelectorAll('.destino-opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');}
     function setTab(tab,btn){
@@ -238,8 +240,7 @@
         document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-'+tab).classList.add('active');
-        const err = document.getElementById('errCliente');
-        if (err) err.style.display = 'none';
+        document.getElementById('errClienteContenedor').style.display = 'none';
     }
 </script>
 }
