@@ -94,21 +94,21 @@
             <h2>¡Hola, @nombre!</h2>
             <p>Proyecto activo: <strong style="color:white">@proyActivo</strong> · @disponibles inmuebles disponibles</p>
         </div>
-        <div class="wb-ico"></div>
+        <div class="wb-ico">@Iconos.Edificio("#ffffff", 46, 0.28)</div>
     </div>
 
     <div class="kpi-row">
-        <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles proyecto</div></div>
-        <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Libre</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-        <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
-        <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
+        <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3")</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles proyecto</div></div>
+        <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851")</div><span class="kpi-tag">Libre</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+        <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#E08600")</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
+        <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Persona("#E63946")</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
     </div>
 
     <div class="action-row">
         <div class="action-card">
             <div class="ac-head">
                 <span class="ac-title">Inmuebles disponibles</span>
-                <div class="ac-ico" style="background:rgba(52,199,89,0.1)"></div>
+                <div class="ac-ico" style="background:rgba(52,199,89,0.1)">@Iconos.Check("#1EA851")</div>
             </div>
             <div class="ac-stat" style="color:#1EA851">@disponibles</div>
             <div class="ac-sub">inmuebles listos para vender en @proyActivo</div>
@@ -117,7 +117,7 @@
         <div class="action-card">
             <div class="ac-head">
                 <span class="ac-title">Mis ventas</span>
-                <div class="ac-ico" style="background:rgba(0,118,227,0.1)"></div>
+                <div class="ac-ico" style="background:rgba(0,118,227,0.1)">@Iconos.Dolar("#0076E3")</div>
             </div>
             <div class="ac-stat" style="color:var(--blue)">@misVentas</div>
             <div class="ac-sub">ventas registradas por ti en este proyecto</div>

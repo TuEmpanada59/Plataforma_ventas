@@ -108,11 +108,11 @@
 
 <!-- KPIs globales -->
 <div class="kpi-row">
-    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Total</span></div><div class="kpi-num" id="kpi-total">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Disponibles</span></div><div class="kpi-num" id="kpi-disp">@disponibles</div><div class="kpi-lbl">Para venta</div></div>
-    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">En proceso</span></div><div class="kpi-num" id="kpi-proc">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
-    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Reservados</span></div><div class="kpi-num" id="kpi-res">@reservados</div><div class="kpi-lbl">Bloqueados</div></div>
-    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Vendidos</span></div><div class="kpi-num" id="kpi-vend">@vendidos</div><div class="kpi-lbl">Cerrados</div></div>
+    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3")</div><span class="kpi-tag">Total</span></div><div class="kpi-num" id="kpi-total">@total</div><div class="kpi-lbl">Inmuebles</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851")</div><span class="kpi-tag">Disponibles</span></div><div class="kpi-num" id="kpi-disp">@disponibles</div><div class="kpi-lbl">Para venta</div></div>
+    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Reloj("#5A5AC8")</div><span class="kpi-tag">En proceso</span></div><div class="kpi-num" id="kpi-proc">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
+    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Candado("#E08600")</div><span class="kpi-tag">Reservados</span></div><div class="kpi-num" id="kpi-res">@reservados</div><div class="kpi-lbl">Bloqueados</div></div>
+    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#E63946")</div><span class="kpi-tag">Vendidos</span></div><div class="kpi-num" id="kpi-vend">@vendidos</div><div class="kpi-lbl">Cerrados</div></div>
 </div>
 
 @if (string.IsNullOrEmpty(areaActual)) {
@@ -248,7 +248,7 @@
                 </table>
             </div>
         } else {
-            <div class="empty"><div class="empty-ico"></div><div class="empty-txt">No hay inmuebles disponibles en esta área</div></div>
+            <div class="empty"><div class="empty-ico">@Iconos.Edificio("#8E8E93", 40, 0.18)</div><div class="empty-txt">No hay inmuebles disponibles en esta área</div></div>
         }
     </div>
 }

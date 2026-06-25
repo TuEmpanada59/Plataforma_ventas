@@ -103,7 +103,7 @@
 
     <!-- Precio -->
     <div class="form-card">
-        <div class="form-card-head"><span class="form-card-title">Precio de venta</span></div>
+        <div class="form-card-head">@Iconos.Dolar("#0076E3", 20) <span class="form-card-title">Precio de venta</span></div>
         <div class="form-body">
             <div class="lista-activa-card">
                 <div class="la-left">
@@ -127,19 +127,23 @@
 
     <!-- Destino -->
     <div class="form-card">
-        <div class="form-card-head"><span class="form-card-title">Destino del inmueble</span></div>
+        <div class="form-card-head">@Iconos.Mapa("#1EA851", 20) <span class="form-card-title">Destino del inmueble</span></div>
         <div class="form-body">
             <div class="destino-grid">
                 <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
+                    <div class="destino-ico">@Iconos.Casa("#0076E3", 20)</div>
                     <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
+                    <div class="destino-ico">@Iconos.Grafico("#1EA851", 20)</div>
                     <div><div class="destino-txt">Inversión para reventa</div><div class="destino-sub">Plusvalía a futuro</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
+                    <div class="destino-ico">@Iconos.Llave("#E08600", 20)</div>
                     <div><div class="destino-txt">Inversión para arriendo</div><div class="destino-sub">Renta mensual</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
+                    <div class="destino-ico">@Iconos.Lista("#5A5AC8", 20)</div>
                     <div><div class="destino-txt">Cesión de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
                 </div>
             </div>
@@ -148,7 +152,7 @@
 
     <!-- Cliente -->
     <div class="form-card">
-        <div class="form-card-head"><span class="form-card-title">Cliente</span></div>
+        <div class="form-card-head">@Iconos.Persona("#0076E3", 20) <span class="form-card-title">Cliente</span></div>
         <div class="form-body">
             <div class="tab-row">
                 <button type="button" class="tab-btn active" onclick="document.getElementById('tipoCliente').value='existente';setTab('existente',this)">Cliente existente</button>
@@ -167,7 +171,7 @@
                     </select>
                 </div>
                 <div id="clienteCard" class="cc-card" style="display:none">
-                    <div class="cc-ico"></div>
+                    <div class="cc-ico">@Iconos.Persona("#0076E3", 20)</div>
                     <div><div class="cc-nombre"></div><div class="cc-doc"></div></div>
                 </div>
             </div>
