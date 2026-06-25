@@ -56,7 +56,7 @@
 </style>
 }
 
-@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
+@if (TempData["Exito"] != null) { <div class="alerta-exito">@TempData["Exito"]</div> }
 
 <!-- Hero -->
 <div class="hero">
@@ -74,7 +74,7 @@
 <div class="row2">
     <!-- Panel editar -->
     <div class="card">
-        <div class="card-head"><span class="card-title">✏️ Editar información</span></div>
+        <div class="card-head"><span class="card-title">Editar información</span></div>
         <div class="card-body">
             <form action="/Clientes/Editar" method="post">
                 @Html.AntiForgeryToken()
@@ -95,7 +95,7 @@
 
     <!-- Historial compras -->
     <div class="card">
-        <div class="card-head"><span class="card-title">🏠 Historial de compras</span><span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@totalC</span></div>
+        <div class="card-head"><span class="card-title">Historial de compras</span><span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@totalC</span></div>
         @if (compras.Count > 0) {
             <div class="tbl-wrap">
                 <table class="tbl">

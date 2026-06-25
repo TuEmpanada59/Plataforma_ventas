@@ -41,12 +41,12 @@
 </style>
 }
 
-@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
-@if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
+@if (TempData["Exito"] != null) { <div class="alerta-exito">@TempData["Exito"]</div> }
+@if (TempData["Error"] != null) { <div class="alerta-error">@TempData["Error"]</div> }
 
 <div class="res-banner">
     <div>
-        <div class="res-banner-title">🔒 Mis reservas</div>
+        <div class="res-banner-title">Mis reservas</div>
         <div class="res-banner-sub">Inmuebles que reservaste con precio bloqueado</div>
     </div>
     <div class="res-count">
@@ -110,7 +110,7 @@
     else
     {
         <div class="empty">
-            <div class="empty-ico">🔒</div>
+            <div class="empty-ico"></div>
             <div class="empty-txt">No tienes inmuebles reservados</div>
         </div>
     }

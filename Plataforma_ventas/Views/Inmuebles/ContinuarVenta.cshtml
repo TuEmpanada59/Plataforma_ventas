@@ -77,7 +77,7 @@
 <div class="inm-card">
     <div class="inm-info">
         <h2>Apto @apto</h2>
-        <p>Torre @torre &middot; @tipo &middot; @metros m&sup2; &middot; Reservado por &#128100; @vendedor</p>
+        <p>Torre @torre &middot; @tipo &middot; @metros m&sup2; &middot; Reservado por @vendedor</p>
     </div>
     <div class="inm-datos">
         <div class="inm-dato"><div class="inm-dato-val">@torre</div><div class="inm-dato-lbl">Torre</div></div>
@@ -95,11 +95,11 @@
 
     <!-- Precio bloqueado -->
     <div class="form-card">
-        <div class="form-card-head"><span style="font-size:18px">&#128274;</span><span class="form-card-title">Precio bloqueado al reservar</span></div>
+        <div class="form-card-head"><span class="form-card-title">Precio bloqueado al reservar</span></div>
         <div class="form-body">
             <div class="precio-lock-card">
                 <div class="pl-left">
-                    <div class="pl-badge">&#128274;</div>
+                    <div class="pl-badge"></div>
                     <div>
                         <div class="pl-info-lbl">Precio garantizado</div>
                         <div class="pl-info-val">Este precio fue comprometido con el cliente</div>
@@ -116,23 +116,19 @@
 
     <!-- Destino -->
     <div class="form-card">
-        <div class="form-card-head"><span style="font-size:18px">&#127991;</span><span class="form-card-title">Destino del inmueble</span></div>
+        <div class="form-card-head"><span class="form-card-title">Destino del inmueble</span></div>
         <div class="form-body">
             <div class="destino-grid">
                 <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
-                    <span class="destino-ico">&#127968;</span>
                     <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
-                    <span class="destino-ico">&#128200;</span>
                     <div><div class="destino-txt">Inversi&#243;n para reventa</div><div class="destino-sub">Plusval&#237;a a futuro</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
-                    <span class="destino-ico">&#128273;</span>
                     <div><div class="destino-txt">Inversi&#243;n para arriendo</div><div class="destino-sub">Renta mensual</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
-                    <span class="destino-ico">&#128203;</span>
                     <div><div class="destino-txt">Cesi&#243;n de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
                 </div>
             </div>
@@ -141,7 +137,7 @@
 
     <!-- Cliente -->
     <div class="form-card">
-        <div class="form-card-head"><span style="font-size:18px">&#128100;</span><span class="form-card-title">Cliente</span></div>
+        <div class="form-card-head"><span class="form-card-title">Cliente</span></div>
         <div class="form-body">
             <div class="tab-row">
                 <button type="button" class="tab-btn active"
@@ -169,7 +165,7 @@
                     </select>
                 </div>
                 <div id="clienteCard" class="cc-card" style="display:none">
-                    <div class="cc-ico">&#128100;</div>
+                    <div class="cc-ico"></div>
                     <div><div class="cc-nombre"></div><div class="cc-doc"></div></div>
                 </div>
             </div>
@@ -237,7 +233,7 @@
     }
     function mostrarErrorCliente() {
         const wrapper = document.getElementById('errClienteContenedor');
-        document.getElementById('errCliente').textContent = '❌ Por favor ingrese los datos del cliente para continuar con la venta.';
+        document.getElementById('errCliente').textContent = 'Por favor ingrese los datos del cliente para continuar con la venta.';
         wrapper.style.display = 'block';
         wrapper.scrollIntoView({behavior:'smooth', block:'center'});
     }

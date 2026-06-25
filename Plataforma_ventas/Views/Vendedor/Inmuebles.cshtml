@@ -103,16 +103,16 @@
 </style>
 }
 
-@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
-@if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
+@if (TempData["Exito"] != null) { <div class="alerta-exito">@TempData["Exito"]</div> }
+@if (TempData["Error"] != null) { <div class="alerta-error">@TempData["Error"]</div> }
 
 <!-- KPIs globales -->
 <div class="kpi-row">
-    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num" id="kpi-total">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">Disponibles</span></div><div class="kpi-num" id="kpi-disp">@disponibles</div><div class="kpi-lbl">Para venta</div></div>
-    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">⏳</div><span class="kpi-tag">En proceso</span></div><div class="kpi-num" id="kpi-proc">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
-    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">🔒</div><span class="kpi-tag">Reservados</span></div><div class="kpi-num" id="kpi-res">@reservados</div><div class="kpi-lbl">Bloqueados</div></div>
-    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">Vendidos</span></div><div class="kpi-num" id="kpi-vend">@vendidos</div><div class="kpi-lbl">Cerrados</div></div>
+    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Total</span></div><div class="kpi-num" id="kpi-total">@total</div><div class="kpi-lbl">Inmuebles</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Disponibles</span></div><div class="kpi-num" id="kpi-disp">@disponibles</div><div class="kpi-lbl">Para venta</div></div>
+    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">En proceso</span></div><div class="kpi-num" id="kpi-proc">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
+    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Reservados</span></div><div class="kpi-num" id="kpi-res">@reservados</div><div class="kpi-lbl">Bloqueados</div></div>
+    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico"></div><span class="kpi-tag">Vendidos</span></div><div class="kpi-num" id="kpi-vend">@vendidos</div><div class="kpi-lbl">Cerrados</div></div>
 </div>
 
 @if (string.IsNullOrEmpty(areaActual)) {
@@ -163,7 +163,7 @@
         <div class="card-head">
             <span class="card-title">@areaActual m² · Lista @laEstaArea</span>
             <div class="filter-bar">
-                <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
+                <div class="search-wrap"><span class="search-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
                 <div class="seg">
                     <button class="seg-btn active" onclick="setFiltro('todos',this)">Todos</button>
                     <button class="seg-btn" onclick="setFiltro('DISPONIBLE',this)">Disponibles</button>
@@ -206,7 +206,7 @@
                                 <span class="bdg @cls">@i.Estado</span>
                                 @if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso > 0) {
                                     var nomVend = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Vendedor";
-                                    <br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">👤 @nomVend</span>
+                                    <br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">@nomVend</span>
                                 }
                             </td>
                             <td class="accion-td">
@@ -230,7 +230,7 @@
                                     </form>
                                 } else if (i.Estado == "EN PROCESO") {
                                     var nomVend2 = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Otro vendedor";
-                                    <span class="tag-otro">⏳ @nomVend2</span>
+                                    <span class="tag-otro">@nomVend2</span>
                                 } else if (i.Estado == "RESERVADO" && i.IdVendedorReserva == miId) {
                                     <span class="tag-yo">Tú lo reservaste</span>
                                     <form action="/Vendedor/LiberarReserva" method="post" style="margin:0;display:inline">
@@ -248,7 +248,7 @@
                 </table>
             </div>
         } else {
-            <div class="empty"><div class="empty-ico">🏢</div><div class="empty-txt">No hay inmuebles disponibles en esta área</div></div>
+            <div class="empty"><div class="empty-ico"></div><div class="empty-txt">No hay inmuebles disponibles en esta área</div></div>
         }
     </div>
 }
@@ -362,7 +362,7 @@
                 if (td) td.textContent = fmtPrecio(nuevoPrecio);
             }
         });
-        mostrarToast('💰 Precio Lista ' + numLista + ' actualizado en ' + metros + ' m²', 'info');
+        mostrarToast('Precio Lista ' + numLista + ' actualizado en ' + metros + ' m²', 'info');
     });
 
     conn.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado) {
@@ -390,7 +390,7 @@
             var estadoTd = tr.querySelector('.estado-td');
             if (estadoTd) {
                 estadoTd.innerHTML = '<span class="bdg ' + cls + '">' + nuevoEstado + '</span>' +
-                    (nuevoEstado === 'EN PROCESO' ? '<br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">⏳ En proceso</span>' : '');
+                    (nuevoEstado === 'EN PROCESO' ? '<br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">En proceso</span>' : '');
             }
 
             // Update action cell
@@ -408,7 +408,7 @@
                         '<input type="hidden" name="idInmueble" value="' + idInmueble + '"/>' +
                         '<button type="submit" class="btn-reservar" onclick="return confirm(\'¿Reservar?\')">Reservar</button></form>';
                 } else if (nuevoEstado === 'EN PROCESO') {
-                    accionTd.innerHTML = '<span class="tag-otro">⏳ En proceso</span>';
+                    accionTd.innerHTML = '<span class="tag-otro">En proceso</span>';
                 } else {
                     accionTd.innerHTML = '<span style="color:var(--label3);font-size:12px">—</span>';
                 }
@@ -426,8 +426,7 @@
             // (full per-area counts update on next page load or area visit)
         }
 
-        var ico = nuevoEstado==='DISPONIBLE'?'✅':nuevoEstado==='VENDIDO'?'🔑':nuevoEstado==='EN PROCESO'?'⏳':'🔒';
-        mostrarToast(ico + ' Inmueble actualizado: ' + nuevoEstado, 'info');
+        mostrarToast('Inmueble actualizado: ' + nuevoEstado, 'info');
     });
 
     conn.start().catch(function(err){ console.error('SignalR:', err); });

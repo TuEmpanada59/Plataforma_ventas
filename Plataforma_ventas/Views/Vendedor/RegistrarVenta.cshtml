@@ -69,8 +69,8 @@
 </style>
 }
 
-@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
-@if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
+@if (TempData["Exito"] != null) { <div class="alerta-exito">@TempData["Exito"]</div> }
+@if (TempData["Error"] != null) { <div class="alerta-error">@TempData["Error"]</div> }
 <!-- Info del inmueble -->
 <div class="inm-card">
     <div class="inm-info">
@@ -93,7 +93,7 @@
 
     <!-- Lista activa — solo lectura -->
     <div class="form-card" style="margin-bottom:14px">
-        <div class="form-card-head"><span style="font-size:18px">💰</span><span class="form-card-title">Precio de venta</span></div>
+        <div class="form-card-head"><span class="form-card-title">Precio de venta</span></div>
         <div class="form-body">
             <div style="background:linear-gradient(135deg,rgba(0,118,227,0.08),rgba(0,118,227,0.05));border:2px solid rgba(0,118,227,0.25);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
                 <div style="display:flex;align-items:center;gap:14px;">
@@ -117,24 +117,20 @@
 
     <!-- Destino del inmueble -->
     <div class="form-card" style="margin-bottom:14px">
-        <div class="form-card-head"><span style="font-size:18px">🏷️</span><span class="form-card-title">Destino del inmueble</span></div>
+        <div class="form-card-head"><span class="form-card-title">Destino del inmueble</span></div>
         <div class="form-body">
             <input type="hidden" name="destino" id="destinoInput" value="Vivienda"/>
             <div class="destino-grid">
                 <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
-                    <span class="destino-ico">🏠</span>
                     <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
-                    <span class="destino-ico">📈</span>
                     <div><div class="destino-txt">Inversión para reventa</div><div class="destino-sub">Plusvalía a futuro</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
-                    <span class="destino-ico">🔑</span>
                     <div><div class="destino-txt">Inversión para arriendo</div><div class="destino-sub">Renta mensual</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
-                    <span class="destino-ico">📋</span>
                     <div><div class="destino-txt">Cesión de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
                 </div>
             </div>
@@ -143,7 +139,7 @@
 
     <!-- Cliente -->
     <div class="form-card">
-        <div class="form-card-head"><span style="font-size:18px">👤</span><span class="form-card-title">Cliente</span></div>
+        <div class="form-card-head"><span class="form-card-title">Cliente</span></div>
         <div class="form-body">
             <div class="tab-row">
                 <button type="button" class="tab-btn active" onclick="setTab('existente',this)">Cliente existente</button>
@@ -166,7 +162,7 @@
                     </select>
                 </div>
                 <div id="clienteCard" class="cc-card" style="display:none">
-                    <div class="cc-ico">&#128100;</div>
+                    <div class="cc-ico"></div>
                     <div><div class="cc-nombre"></div><div class="cc-doc"></div></div>
                 </div>
             </div>
@@ -241,7 +237,7 @@
     function mostrarErrorCliente() {
         const wrapper = document.getElementById('errClienteContenedor');
         const div = document.getElementById('errCliente');
-        div.textContent = '❌ Por favor ingrese los datos del cliente para continuar con la venta.';
+        div.textContent = 'Por favor ingrese los datos del cliente para continuar con la venta.';
         wrapper.style.display = 'block';
         wrapper.scrollIntoView({behavior:'smooth', block:'center'});
     }

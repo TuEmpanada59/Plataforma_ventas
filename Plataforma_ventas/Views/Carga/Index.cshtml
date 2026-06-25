@@ -52,12 +52,12 @@
 <div class="view-inner">
     <!-- Card subir Excel -->
     <div class="upload-card">
-        <div class="upload-icon">📊</div>
+        <div class="upload-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
         <div class="upload-title">Cargar proyecto desde Excel</div>
         <div class="upload-sub">Sube el archivo con los inmuebles del proyecto</div>
 
-        @if (TempData["Error"] != null) { <div class="alerta">⚠ @TempData["Error"]</div> }
-        @if (TempData["Exito"] != null) { <div class="exito">✓ @TempData["Exito"]</div> }
+        @if (TempData["Error"] != null) { <div class="alerta">@TempData["Error"]</div> }
+        @if (TempData["Exito"] != null) { <div class="exito">@TempData["Exito"]</div> }
 
         <form asp-action="Subir" asp-controller="Carga" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
@@ -69,26 +69,26 @@
                 <label>Tipo de proyecto</label>
                 <div class="tipo-row">
                     <button type="button" class="tipo-btn sel" id="btnAPARTAMENTOS" onclick="selTipo('APARTAMENTOS')">
-                        <span class="tipo-btn-ico">🏢</span>Apartamentos
+                        Apartamentos
                     </button>
                     <button type="button" class="tipo-btn" id="btnSUITES" onclick="selTipo('SUITES')">
-                        <span class="tipo-btn-ico">🛎</span>Suites
+                        Suites
                     </button>
                     <button type="button" class="tipo-btn" id="btnLOTES" onclick="selTipo('LOTES')">
-                        <span class="tipo-btn-ico">🏕</span>Lotes
+                        Lotes
                     </button>
                     <button type="button" class="tipo-btn" id="btnSALUD" onclick="selTipo('SALUD')">
-                        <span class="tipo-btn-ico">🏥</span>Salud
+                        Salud
                     </button>
                     <button type="button" class="tipo-btn" id="btnOFICINAS" onclick="selTipo('OFICINAS')">
-                        <span class="tipo-btn-ico">💼</span>Oficinas
+                        Oficinas
                     </button>
                 </div>
                 <input type="hidden" name="tipoProyecto" id="tipoProyecto" value="APARTAMENTOS"/>
             </div>
             <div class="drop-zone" id="dropZone">
                 <input type="file" name="archivo" accept=".xlsx,.xls" id="fileInput" required/>
-                <div class="drop-ico">📁</div>
+                <div class="drop-ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--label2)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
                 <div class="drop-txt">Arrastra el Excel aquí o haz clic</div>
                 <div class="drop-sub">Formatos: .xlsx, .xls</div>
                 <div class="drop-name" id="fileName"></div>
@@ -99,7 +99,7 @@
 
     <!-- Card proyectos cargados -->
     <div class="proyectos-card">
-        <div class="proy-card-title">🏗 Proyectos cargados <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">@proyectos.Count</span></div>
+        <div class="proy-card-title">Proyectos cargados <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">@proyectos.Count</span></div>
         @if (proyectos.Count > 0) {
             foreach (var p in proyectos) {
                 <div class="proy-item" style="flex-direction:column;align-items:flex-start;gap:6px;">
@@ -108,20 +108,20 @@
                             @p.Nombre
                             @if (tiposProy.ContainsKey(p.Id)) {
                                 var t = tiposProy[p.Id];
-                                var (ico, lbl, bg, fg) = t switch {
-                                    "LOTES"    => ("🏕", "Lotes",       "rgba(255,149,0,0.1)",   "#CC7700"),
-                                    "SUITES"   => ("🛎", "Suites",      "rgba(88,86,214,0.1)",   "#5856D6"),
-                                    "SALUD"    => ("🏥", "Salud",       "rgba(52,199,89,0.1)",   "#1A7A35"),
-                                    "OFICINAS" => ("💼", "Oficinas",    "rgba(255,59,48,0.1)",   "#C0392B"),
-                                    _          => ("🏢", "Aptos",       "rgba(0,118,227,0.1)",   "var(--blue)")
+                                var (lbl, bg, fg) = t switch {
+                                    "LOTES"    => ("Lotes",    "rgba(255,149,0,0.1)",   "#CC7700"),
+                                    "SUITES"   => ("Suites",   "rgba(88,86,214,0.1)",   "#5856D6"),
+                                    "SALUD"    => ("Salud",    "rgba(52,199,89,0.1)",   "#1A7A35"),
+                                    "OFICINAS" => ("Oficinas", "rgba(255,59,48,0.1)",   "#C0392B"),
+                                    _          => ("Aptos",    "rgba(0,118,227,0.1)",   "var(--blue)")
                                 };
-                                <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;background:@bg;color:@fg">@ico @lbl</span>
+                                <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;background:@bg;color:@fg">@lbl</span>
                             }
                         </div>
                         <form action="/Carga/EliminarProyecto" method="post" style="margin:0">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="idProyecto" value="@p.Id"/>
-                            <button type="submit" class="btn-eliminar" onclick="return confirm('¿Eliminar @p.Nombre?')">🗑</button>
+                            <button type="submit" class="btn-eliminar" onclick="return confirm('¿Eliminar @p.Nombre?')">Quitar</button>
                         </form>
                     </div>
                 </div>
@@ -144,9 +144,9 @@
     }
     function copiar(txt){navigator.clipboard.writeText(txt).then(function(){alert('Código copiado: '+txt);});}
     const fileInput=document.getElementById('fileInput'),fileName=document.getElementById('fileName'),dropZone=document.getElementById('dropZone');
-    fileInput.addEventListener('change',()=>{if(fileInput.files.length>0){fileName.textContent='✓ '+fileInput.files[0].name;fileName.style.display='block';}});
+    fileInput.addEventListener('change',()=>{if(fileInput.files.length>0){fileName.textContent=fileInput.files[0].name;fileName.style.display='block';}});
     dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('dragover');});
     dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('dragover');fileInput.files=e.dataTransfer.files;fileName.textContent='✓ '+e.dataTransfer.files[0].name;fileName.style.display='block';});
+    dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('dragover');fileInput.files=e.dataTransfer.files;fileName.textContent=e.dataTransfer.files[0].name;fileName.style.display='block';});
 </script>
 }

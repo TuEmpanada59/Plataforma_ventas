@@ -59,12 +59,12 @@
     <a href="/Reportes/Asistencia" class="tab-btn active">Cuadro de asistencia</a>
 </div>
 
-@if (TempData["AsistExito"] != null) { <div class="alerta-exito">✅ @TempData["AsistExito"]</div> }
-@if (TempData["AsistError"] != null) { <div class="alerta-error">❌ @TempData["AsistError"]</div> }
+@if (TempData["AsistExito"] != null) { <div class="alerta-exito">@TempData["AsistExito"]</div> }
+@if (TempData["AsistError"] != null) { <div class="alerta-error">@TempData["AsistError"]</div> }
 
 @if (!tablaCreadaOk) {
     <div class="setup-card">
-        <div style="font-size:17px;font-weight:700;color:#CC7700;margin-bottom:8px;">⚠️ Tablas de asistencia no encontradas</div>
+        <div style="font-size:17px;font-weight:700;color:#CC7700;margin-bottom:8px;">Tablas de asistencia no encontradas</div>
         <p style="font-size:13px;color:var(--label2);margin-bottom:16px;">
             Ejecuta el script <strong>Scripts/Asistencias.sql</strong> en tu base de datos <strong>Lanzamientos</strong>
             (crea las tablas <code>AsistenciaEvento</code>, <code>AsistenciaDia</code> y <code>AsistenciaTorre</code>).
@@ -78,7 +78,7 @@
 
         <!-- DATOS GENERALES -->
         <div class="card" style="margin-bottom:14px;">
-            <div class="card-head"><span class="card-title">📋 Datos del lanzamiento — @proyActivo</span></div>
+            <div class="card-head"><span class="card-title">Datos del lanzamiento — @proyActivo</span></div>
             <div class="card-body">
                 <div class="fg" style="margin-bottom:12px;">
                     <label>Título del cuadro</label>
@@ -90,7 +90,7 @@
         <!-- DÍAS -->
         <div class="card" style="margin-bottom:14px;">
             <div class="card-head">
-                <span class="card-title">🗓️ Días del lanzamiento</span>
+                <span class="card-title">Días del lanzamiento</span>
                 <button type="button" class="btn btn-soft" onclick="agregarDia()">＋ Agregar día</button>
             </div>
             <div class="card-body">
@@ -100,7 +100,7 @@
 
         <!-- OBSERVACIONES -->
         <div class="card" style="margin-bottom:14px;">
-            <div class="card-head"><span class="card-title">📝 Observaciones</span></div>
+            <div class="card-head"><span class="card-title">Observaciones</span></div>
             <div class="card-body">
                 <div class="fg">
                     <label>Texto libre (se incluye tal cual en el Excel)</label>
@@ -110,14 +110,14 @@
         </div>
 
         <div style="display:flex;gap:10px;margin-bottom:18px;">
-            <button type="submit" class="btn btn-azul">💾 Guardar cuadro</button>
-            <a href="/Reportes/ExportarAsistencia" class="ios-btn verde">⬇ Exportar a Excel</a>
+            <button type="submit" class="btn btn-azul">Guardar cuadro</button>
+            <a href="/Reportes/ExportarAsistencia" class="ios-btn verde">Exportar a Excel</a>
         </div>
     </form>
 
     <!-- RESUMEN EN VIVO -->
     <div class="card">
-        <div class="card-head"><span class="card-title">📊 Vista previa del cuadro</span></div>
+        <div class="card-head"><span class="card-title">Vista previa del cuadro</span></div>
         <div style="overflow-x:auto;padding:6px 0;">
             <table class="tbl" id="resumenTabla"><tbody></tbody></table>
         </div>
@@ -137,7 +137,7 @@ function diaTemplate(idx) {
         <span class="dia-title">Día <span class="dia-num">${idx+1}</span> <span class="dia-nombre" style="color:var(--label3);font-weight:500"></span></span>
         <div style="display:flex;gap:8px;align-items:end;">
           <div class="fg"><label>Fecha</label><input type="date" class="f-fecha" onchange="onFechaChange(this)"/></div>
-          <button type="button" class="btn-del" onclick="eliminarDia(this)">🗑 Quitar día</button>
+          <button type="button" class="btn-del" onclick="eliminarDia(this)">Quitar día</button>
         </div>
       </div>
 
