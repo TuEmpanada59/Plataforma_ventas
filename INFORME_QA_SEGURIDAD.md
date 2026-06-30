@@ -228,12 +228,24 @@ public class PoliticaPasswordTests
 
 ---
 
-## 8. Checklist mínimo para producción
-- [ ] **C-1** Rotar credencial SQL, sacarla de git, usar Key Vault/env, `.gitignore`.
-- [ ] **C-2** Guardia atómica + verificación de propietario en `ConfirmarVenta` (vendedor y admin) + transacción.
-- [ ] **C-3** Derivar precio/lista en servidor al confirmar.
-- [ ] **A-1** `Cookie.SecurePolicy = Always`.
-- [ ] **A-2** DataProtection persistente (Blob+KeyVault).
-- [ ] **A-3** Sesión 20–30 min, alinear banner.
-- [ ] **M-1..M-6** según prioridad.
-- [ ] `dotnet list package --vulnerable` y `dotnet test` en CI.
+## 8. Checklist para producción — estado de remediación
+
+**Aplicado en código en esta entrega:**
+- [x] **C-1** Secreto sacado de `appsettings.json` (ahora LocalDB para dev). `.gitignore` actualizado para `appsettings.Development/Production.json`. ⚠️ **Pendiente manual:** *rotar* la contraseña `slezcano` (sigue en el historial de git) y configurar la cadena real por variable de entorno/Key Vault en producción.
+- [x] **C-2** Guardia atómica (`WHERE Estado=... AND IdVendedorEnProceso/Reserva=@uid`) + verificación de filas + **transacción** en `ConfirmarVenta` y `ConfirmarVentaReserva` (vendedor y admin). Admin además acotado por `IdProyecto`.
+- [x] **C-3** Precio y lista **derivados en el servidor** al confirmar (se ignora lo enviado por el formulario). Reserva usa el precio bloqueado.
+- [x] **A-1** `Cookie.SecurePolicy = Always` en cookie de sesión y de autenticación.
+- [x] **A-3** Sesión reducida a **20 min** (alineada con banner y doc), con expiración deslizante.
+- [x] **M-1** `destino` validado contra lista blanca (`Texto.DestinoVenta`).
+- [x] **M-2** Carga de Excel validada por extensión `.xlsx` y tamaño máx. 10 MB.
+
+**Pendiente (requiere infraestructura o decisión de producto — no se cambia a ciegas):**
+- [ ] **C-1 (rotación)** Rotar la credencial y purgar del historial (`git filter-repo`/BFG).
+- [ ] **A-2** DataProtection persistente (Azure Blob + Key Vault) — requiere paquetes NuGet y config de Azure.
+- [ ] **M-3** Fijar `AllowedHosts` al dominio real en producción.
+- [ ] **M-4** Filtrar el listado de clientes por proyecto/vendedor (decisión de negocio).
+- [ ] **M-5** Quitar `'unsafe-inline'` de la CSP migrando JS a archivos con `nonce`.
+- [ ] **M-6** CAPTCHA/limitación por IP adicional en login.
+- [ ] `dotnet list package --vulnerable` y `dotnet test` en CI (A06).
+
+> **Nota:** el entorno de la auditoría no tiene SDK .NET, por lo que los cambios **no se compilaron aquí**. Antes de desplegar: ejecutar `dotnet build` y `dotnet test`, y validar el flujo de venta en un entorno con BD.

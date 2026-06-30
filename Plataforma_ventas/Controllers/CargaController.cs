@@ -75,6 +75,18 @@ namespace Plataforma_ventas.Controllers
                 TempData["Error"] = "Debes seleccionar un archivo Excel.";
                 return RedirectToAction("Index");
             }
+            // Validación de tipo y tamaño (defensa contra DoS por memoria / archivos no válidos).
+            const long maxBytes = 10 * 1024 * 1024; // 10 MB
+            if (archivo.Length > maxBytes)
+            {
+                TempData["Error"] = "El archivo supera el tamaño máximo permitido (10 MB).";
+                return RedirectToAction("Index");
+            }
+            if (Path.GetExtension(archivo.FileName).ToLowerInvariant() != ".xlsx")
+            {
+                TempData["Error"] = "El archivo debe ser un Excel con extensión .xlsx.";
+                return RedirectToAction("Index");
+            }
             if (string.IsNullOrWhiteSpace(nombreProyecto))
             {
                 TempData["Error"] = "Debes ingresar el nombre del proyecto.";
