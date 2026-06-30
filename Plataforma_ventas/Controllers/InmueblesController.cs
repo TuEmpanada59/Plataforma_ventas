@@ -505,7 +505,7 @@ namespace Plataforma_ventas.Controllers
                     VALUES (@n,@a,@d,@c,@e,@dir)", con);
                 cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
                 cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
-                cmdCli.Parameters.AddWithValue("@d", clienteDocumento ?? "");
+                cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
                 cmdCli.Parameters.AddWithValue("@c", clienteCelular ?? "");
                 cmdCli.Parameters.AddWithValue("@e", clienteCorreo ?? "");
                 cmdCli.Parameters.AddWithValue("@dir", clienteDireccion ?? "");
@@ -658,10 +658,20 @@ namespace Plataforma_ventas.Controllers
                 Lista5 = r2["Lista5"]?.ToString() ?? "",
                 Torre = r2["Torre"]?.ToString() ?? "",
             };
+            string metros = r2["Metros"]?.ToString() ?? "";
             r2.Close();
 
-            var cmdProy = new SqlCommand(
-                "SELECT ListaActual, ApartamentosPorLista FROM Proyectos WHERE IdProyectos=@id", con);
+            // La lista activa es la del ÁREA del inmueble (ProyectoAreaListas), con
+            // respaldo a la lista global del proyecto. Debe coincidir con la grilla
+            // de inmuebles y con la reserva, para no aplicar una lista distinta al vender.
+            var cmdProy = new SqlCommand(@"
+                SELECT ISNULL(pal.ListaActual, p.ListaActual) AS ListaActual,
+                       p.ApartamentosPorLista
+                FROM Proyectos p
+                LEFT JOIN ProyectoAreaListas pal
+                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
+                WHERE p.IdProyectos = @id", con);
+            cmdProy.Parameters.AddWithValue("@metros", metros);
             cmdProy.Parameters.AddWithValue("@id", idProy);
             using var rP = (SqlDataReader)await cmdProy.ExecuteReaderAsync();
             int listaActual = 1, aptsPorLista = 0;
@@ -816,7 +826,7 @@ namespace Plataforma_ventas.Controllers
                     VALUES (@n,@a,@d,@c,@e,@dir)", con);
                 cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
                 cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
-                cmdCli.Parameters.AddWithValue("@d", clienteDocumento ?? "");
+                cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
                 cmdCli.Parameters.AddWithValue("@c", clienteCelular ?? "");
                 cmdCli.Parameters.AddWithValue("@e", clienteCorreo ?? "");
                 cmdCli.Parameters.AddWithValue("@dir", clienteDireccion ?? "");

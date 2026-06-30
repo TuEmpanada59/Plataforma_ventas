@@ -179,7 +179,7 @@
                 <div class="form-grid">
                     <div class="field"><label>Nombre</label><input type="text" name="clienteNombre" placeholder="Nombre"/></div>
                     <div class="field"><label>Apellido</label><input type="text" name="clienteApellido" placeholder="Apellido"/></div>
-                    <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT"/></div>
+                    <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT" inputmode="numeric" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
                     <div class="field"><label>Celular</label><input type="text" name="clienteCelular" placeholder="Celular"/></div>
                     <div class="field full"><label>Correo</label><input type="email" name="clienteCorreo" placeholder="correo@email.com"/></div>
                     <div class="field full"><label>Dirección</label><input type="text" name="clienteDireccion" placeholder="Dirección de residencia"/></div>

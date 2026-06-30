@@ -81,7 +81,7 @@
                 <input type="hidden" name="idCliente" value="@cli.Id"/>
                 <div class="field-row"><div class="field-lbl">Nombre</div><input class="field-input" type="text" name="nombre" value="@cli.Nombre"/></div>
                 <div class="field-row"><div class="field-lbl">Apellido</div><input class="field-input" type="text" name="apellido" value="@cli.Apellido"/></div>
-                <div class="field-row"><div class="field-lbl">Documento</div><input class="field-input" type="text" name="documento" value="@cli.Documento"/></div>
+                <div class="field-row"><div class="field-lbl">Documento</div><input class="field-input" type="text" name="documento" value="@cli.Documento" inputmode="numeric" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
                 <div class="field-row"><div class="field-lbl">Celular</div><input class="field-input" type="text" name="celular" value="@cli.Celular"/></div>
                 <div class="field-row"><div class="field-lbl">Correo</div><input class="field-input" type="email" name="correo" value="@cli.Correo"/></div>
                 <div class="field-row"><div class="field-lbl">Dirección</div><input class="field-input" type="text" name="direccion" value="@cli.Direccion"/></div>

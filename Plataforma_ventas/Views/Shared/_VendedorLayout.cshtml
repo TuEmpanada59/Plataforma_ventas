@@ -8,6 +8,8 @@
     string tbBread    = ViewBag.TbBread   as string ?? "Inicio";
     int misVentas     = ViewBag.MisVentas   != null ? (int)ViewBag.MisVentas   : 0;
     int misClientes   = ViewBag.MisClientes != null ? (int)ViewBag.MisClientes : 0;
+    // Sin proyecto asignado: se bloquea la navegación (solo queda disponible cerrar sesión).
+    bool sinProyecto  = !(int.TryParse(Context.Session.GetString("ProyectoId"), out int pidLay) && pidLay > 0);
 }
 <!DOCTYPE html>
 <html lang="es">
@@ -15,6 +17,8 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>@(ViewData["Title"] ?? "Londoño Gómez")</title>
+  <link rel="icon" type="image/svg+xml" href="~/favicon.svg"/>
+  <link rel="alternate icon" href="~/favicon.ico"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="~/css/platform.css" asp-append-version="true"/>
   <style>
@@ -51,21 +55,33 @@
     </div>
 
     <div class="sb-sec">Mi espacio</div>
-    <a class="nav-item @(activeNav=="vendedor-inicio"?"active":"")" href="/Vendedor">
-      <div class="nav-ico"><img src="~/Images/icons/inicio.svg" width="18" height="18" alt=""/></div>Inicio
-    </a>
-    <a class="nav-item @(activeNav=="vendedor-inmuebles"?"active":"")" href="/Vendedor/Inmuebles">
-      <div class="nav-ico"><img src="~/Images/icons/proyectos.svg" width="18" height="18" alt=""/></div>Inmuebles
-    </a>
-    <a class="nav-item @(activeNav=="vendedor-reservas"?"active":"")" href="/Vendedor/MisReservas">
-      <div class="nav-ico"><img src="~/Images/icons/reservas.svg" width="18" height="18" alt=""/></div>Mis reservas
-    </a>
-    <a class="nav-item @(activeNav=="vendedor-ventas"?"active":"")" href="/Vendedor/MisVentas">
-      <div class="nav-ico"><img src="~/Images/icons/ventas.svg" width="18" height="18" alt=""/></div>Mis ventas
-    </a>
-    <a class="nav-item @(activeNav=="vendedor-perfil"?"active":"")" href="/Vendedor/Perfil">
-      <div class="nav-ico"><img src="~/Images/icons/clientes.svg" width="18" height="18" alt=""/></div>Mi perfil
-    </a>
+    @if (sinProyecto)
+    {
+      <a class="nav-item active" href="/Vendedor">
+        <div class="nav-ico"><img src="~/Images/icons/inicio.svg" width="18" height="18" alt=""/></div>Inicio
+      </a>
+      <div style="margin:8px 12px;padding:10px 12px;background:rgba(255,149,0,0.08);border:1px solid rgba(255,149,0,0.25);border-radius:10px;font-size:11px;line-height:1.4;color:var(--label2);">
+        Sin proyecto asignado. Pídele al Administrador que te asigne uno para habilitar la navegación.
+      </div>
+    }
+    else
+    {
+      <a class="nav-item @(activeNav=="vendedor-inicio"?"active":"")" href="/Vendedor">
+        <div class="nav-ico"><img src="~/Images/icons/inicio.svg" width="18" height="18" alt=""/></div>Inicio
+      </a>
+      <a class="nav-item @(activeNav=="vendedor-inmuebles"?"active":"")" href="/Vendedor/Inmuebles">
+        <div class="nav-ico"><img src="~/Images/icons/proyectos.svg" width="18" height="18" alt=""/></div>Inmuebles
+      </a>
+      <a class="nav-item @(activeNav=="vendedor-reservas"?"active":"")" href="/Vendedor/MisReservas">
+        <div class="nav-ico"><img src="~/Images/icons/reservas.svg" width="18" height="18" alt=""/></div>Mis reservas
+      </a>
+      <a class="nav-item @(activeNav=="vendedor-ventas"?"active":"")" href="/Vendedor/MisVentas">
+        <div class="nav-ico"><img src="~/Images/icons/ventas.svg" width="18" height="18" alt=""/></div>Mis ventas
+      </a>
+      <a class="nav-item @(activeNav=="vendedor-perfil"?"active":"")" href="/Vendedor/Perfil">
+        <div class="nav-ico"><img src="~/Images/icons/clientes.svg" width="18" height="18" alt=""/></div>Mi perfil
+      </a>
+    }
 
     <div class="sb-footer">
       <div class="sb-av2">@iniciales</div>
