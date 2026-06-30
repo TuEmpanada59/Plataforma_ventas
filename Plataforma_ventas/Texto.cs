@@ -17,4 +17,26 @@ public static class Texto
             if (c >= '0' && c <= '9') sb.Append(c);
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Convierte un precio almacenado como texto (con $, puntos, comas o espacios)
+    /// en un entero largo. Devuelve 0 si no es parseable. Fuente única de verdad
+    /// para el precio, evitando confiar en valores enviados por el cliente.
+    /// </summary>
+    public static long ParsearPrecio(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return 0;
+        var limpio = raw.Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
+        return long.TryParse(limpio, out long v) ? v : 0;
+    }
+
+    private static readonly string[] DestinosPermitidos =
+        { "Vivienda", "Inversión para reventa", "Inversión para arriendo", "Cesión de derechos" };
+
+    /// <summary>
+    /// Valida el destino de una venta contra la lista blanca. Si no coincide,
+    /// devuelve "Vivienda" (valor por defecto), evitando datos arbitrarios.
+    /// </summary>
+    public static string DestinoVenta(string? destino)
+        => System.Array.IndexOf(DestinosPermitidos, destino) >= 0 ? destino! : "Vivienda";
 }

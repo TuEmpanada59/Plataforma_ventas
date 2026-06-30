@@ -457,32 +457,6 @@ namespace Plataforma_ventas.Controllers
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
 
-            using var con = new SqlConnection(_conn);
-            await con.OpenAsync();
-
-            var cmdCheck = new SqlCommand(
-                "SELECT Metros, PrecioReserva FROM Inmuebles WHERE IdInmuebles=@id AND Estado='RESERVADO'", con);
-            cmdCheck.Parameters.AddWithValue("@id", idInmueble);
-            using var rCheck = (SqlDataReader)await cmdCheck.ExecuteReaderAsync();
-            if (!await rCheck.ReadAsync())
-            {
-                TempData["Error"] = "Este inmueble ya no está reservado.";
-                return RedirectToAction("Reservas");
-            }
-            var metros = rCheck["Metros"]?.ToString() ?? "";
-            long precioFijo = rCheck["PrecioReserva"] == DBNull.Value ? precioVenta : (long)rCheck["PrecioReserva"];
-            rCheck.Close();
-
-            var cmdListaApl = new SqlCommand(@"
-                SELECT ISNULL(pal.ListaActual, p.ListaActual) AS ListaActual
-                FROM Proyectos p
-                LEFT JOIN ProyectoAreaListas pal
-                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
-                WHERE p.IdProyectos = @proy", con);
-            cmdListaApl.Parameters.AddWithValue("@metros", metros);
-            cmdListaApl.Parameters.AddWithValue("@proy", idProy);
-            int listaAplicada = (int)((await cmdListaApl.ExecuteScalarAsync()) ?? 1);
-
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
                 TempData["Error"] = "Por favor ingrese los datos del cliente para continuar con la venta.";
@@ -494,6 +468,42 @@ namespace Plataforma_ventas.Controllers
                 return RedirectToAction("ContinuarVenta", new { idInmueble });
             }
 
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+            using var tx = (SqlTransaction)await con.BeginTransactionAsync();
+
+            // Verificar reserva dentro del proyecto activo y leer el precio bloqueado.
+            string metros = ""; long precioFijo = 0;
+            var cmdCheck = new SqlCommand(
+                "SELECT Metros, PrecioReserva FROM Inmuebles WHERE IdInmuebles=@id AND Estado='RESERVADO' AND IdProyecto=@proy", con, tx);
+            cmdCheck.Parameters.AddWithValue("@id", idInmueble);
+            cmdCheck.Parameters.AddWithValue("@proy", idProy);
+            using (var rCheck = (SqlDataReader)await cmdCheck.ExecuteReaderAsync())
+            {
+                if (!await rCheck.ReadAsync())
+                {
+                    TempData["Error"] = "Este inmueble ya no está reservado.";
+                    return RedirectToAction("Reservas");
+                }
+                metros = rCheck["Metros"]?.ToString() ?? "";
+                precioFijo = rCheck["PrecioReserva"] == DBNull.Value ? 0 : (long)rCheck["PrecioReserva"];
+            }
+            if (precioFijo <= 0)
+            {
+                TempData["Error"] = "La reserva no tiene un precio bloqueado válido.";
+                return RedirectToAction("Reservas");
+            }
+
+            var cmdListaApl = new SqlCommand(@"
+                SELECT ISNULL(pal.ListaActual, p.ListaActual) AS ListaActual
+                FROM Proyectos p
+                LEFT JOIN ProyectoAreaListas pal
+                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
+                WHERE p.IdProyectos = @proy", con, tx);
+            cmdListaApl.Parameters.AddWithValue("@metros", metros);
+            cmdListaApl.Parameters.AddWithValue("@proy", idProy);
+            int listaAplicada = Convert.ToInt32((await cmdListaApl.ExecuteScalarAsync()) ?? 1);
+
             int idCliente;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
                 idCliente = idClienteExistente.Value;
@@ -502,7 +512,7 @@ namespace Plataforma_ventas.Controllers
                 var cmdCli = new SqlCommand(@"INSERT INTO Clientes
                     (Nombre,Apellido,Documento,Celular,Correo,Direccion)
                     OUTPUT INSERTED.IdCliente
-                    VALUES (@n,@a,@d,@c,@e,@dir)", con);
+                    VALUES (@n,@a,@d,@c,@e,@dir)", con, tx);
                 cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
                 cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
                 cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
@@ -512,24 +522,32 @@ namespace Plataforma_ventas.Controllers
                 idCliente = (int)(await cmdCli.ExecuteScalarAsync())!;
             }
 
+            // Marcar vendido de forma ATÓMICA (verifica reserva + proyecto).
+            var cmdInm = new SqlCommand(@"UPDATE Inmuebles
+                SET Estado='VENDIDO', IdVendedorReserva=NULL,
+                    PrecioReserva=NULL, FechaReserva=NULL
+                WHERE IdInmuebles=@id AND Estado='RESERVADO' AND IdProyecto=@proy", con, tx);
+            cmdInm.Parameters.AddWithValue("@id", idInmueble);
+            cmdInm.Parameters.AddWithValue("@proy", idProy);
+            if (await cmdInm.ExecuteNonQueryAsync() == 0)
+            {
+                TempData["Error"] = "Esta reserva ya no está disponible.";
+                return RedirectToAction("Reservas");
+            }
+
             var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
                 (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado)
-                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con);
+                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con, tx);
             cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
             cmdVenta.Parameters.AddWithValue("@cli", idCliente);
             cmdVenta.Parameters.AddWithValue("@usr", idUsuario);
             cmdVenta.Parameters.AddWithValue("@proy", idProy);
             cmdVenta.Parameters.AddWithValue("@lista", listaAplicada);
             cmdVenta.Parameters.AddWithValue("@precio", precioFijo);
-            cmdVenta.Parameters.AddWithValue("@destino", destino ?? "Vivienda");
+            cmdVenta.Parameters.AddWithValue("@destino", Texto.DestinoVenta(destino));
             await cmdVenta.ExecuteNonQueryAsync();
 
-            var cmdInm = new SqlCommand(@"UPDATE Inmuebles
-                SET Estado='VENDIDO', IdVendedorReserva=NULL,
-                    PrecioReserva=NULL, FechaReserva=NULL
-                WHERE IdInmuebles=@id", con);
-            cmdInm.Parameters.AddWithValue("@id", idInmueble);
-            await cmdInm.ExecuteNonQueryAsync();
+            await tx.CommitAsync();
 
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
             TempData["Exito"] = $"¡Venta confirmada! Precio aplicado: ${string.Format("{0:N0}", precioFijo)}";
@@ -793,8 +811,8 @@ namespace Plataforma_ventas.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ConfirmarVenta(int idInmueble, int listaAplicada, long precioVenta,
-            string accion, int? idClienteExistente, string tipoCliente, string destino,
+        public async Task<IActionResult> ConfirmarVenta(int idInmueble, string accion,
+            int? idClienteExistente, string tipoCliente, string destino,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
@@ -814,6 +832,46 @@ namespace Plataforma_ventas.Controllers
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+            // Transacción: cambio de estado + registro de venta atómicos.
+            using var tx = (SqlTransaction)await con.BeginTransactionAsync();
+
+            // 1. Verificar estado + propietario (admin que tomó el inmueble) dentro del proyecto.
+            string metros = ""; var listasRaw = new string[5];
+            var cmdSel = new SqlCommand(@"SELECT Metros, Lista1,Lista2,Lista3,Lista4,Lista5,
+                Estado, IdVendedorEnProceso FROM Inmuebles
+                WHERE IdInmuebles=@id AND IdProyecto=@proy", con, tx);
+            cmdSel.Parameters.AddWithValue("@id", idInmueble);
+            cmdSel.Parameters.AddWithValue("@proy", idProy);
+            using (var rs = (SqlDataReader)await cmdSel.ExecuteReaderAsync())
+            {
+                if (!await rs.ReadAsync() || rs["Estado"]?.ToString() != "EN PROCESO"
+                    || rs["IdVendedorEnProceso"] == DBNull.Value
+                    || (int)rs["IdVendedorEnProceso"] != idUsuario)
+                {
+                    TempData["Error"] = "Este inmueble ya no está disponible para venta.";
+                    return RedirectToAction("Index");
+                }
+                metros = rs["Metros"]?.ToString() ?? "";
+                for (int i = 0; i < 5; i++) listasRaw[i] = rs[$"Lista{i + 1}"]?.ToString() ?? "";
+            }
+
+            // 2. Lista activa del ÁREA y precio derivados en el servidor.
+            var cmdLa = new SqlCommand(@"
+                SELECT ISNULL(pal.ListaActual, p.ListaActual)
+                FROM Proyectos p
+                LEFT JOIN ProyectoAreaListas pal
+                    ON pal.IdProyecto = p.IdProyectos AND pal.Metros = @metros
+                WHERE p.IdProyectos = @proy", con, tx);
+            cmdLa.Parameters.AddWithValue("@metros", metros);
+            cmdLa.Parameters.AddWithValue("@proy", idProy);
+            int listaAplicada = Convert.ToInt32((await cmdLa.ExecuteScalarAsync()) ?? 1);
+            if (listaAplicada < 1 || listaAplicada > 5) listaAplicada = 1;
+            long precioVenta = Texto.ParsearPrecio(listasRaw[listaAplicada - 1]);
+            if (precioVenta <= 0)
+            {
+                TempData["Error"] = "El inmueble no tiene un precio válido en la lista activa.";
+                return RedirectToAction("RegistrarVenta", new { idInmueble });
+            }
 
             int idCliente;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
@@ -823,7 +881,7 @@ namespace Plataforma_ventas.Controllers
                 var cmdCli = new SqlCommand(@"INSERT INTO Clientes
                     (Nombre,Apellido,Documento,Celular,Correo,Direccion)
                     OUTPUT INSERTED.IdCliente
-                    VALUES (@n,@a,@d,@c,@e,@dir)", con);
+                    VALUES (@n,@a,@d,@c,@e,@dir)", con, tx);
                 cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
                 cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
                 cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
@@ -833,23 +891,32 @@ namespace Plataforma_ventas.Controllers
                 idCliente = (int)(await cmdCli.ExecuteScalarAsync())!;
             }
 
+            // 3. Marcar VENDIDO de forma ATÓMICA con verificación de estado y propietario.
+            var cmdInm2 = new SqlCommand(@"UPDATE Inmuebles
+                SET Estado='VENDIDO', IdVendedorEnProceso=NULL, FechaEnProceso=NULL
+                WHERE IdInmuebles=@id AND Estado='EN PROCESO' AND IdVendedorEnProceso=@uid", con, tx);
+            cmdInm2.Parameters.AddWithValue("@id", idInmueble);
+            cmdInm2.Parameters.AddWithValue("@uid", idUsuario);
+            if (await cmdInm2.ExecuteNonQueryAsync() == 0)
+            {
+                TempData["Error"] = "Este inmueble ya no está disponible para venta.";
+                return RedirectToAction("Index");
+            }
+
+            // 4. Registrar la venta con precio/lista del servidor y destino validado.
             var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
                 (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado)
-                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con);
+                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con, tx);
             cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
             cmdVenta.Parameters.AddWithValue("@cli", idCliente);
             cmdVenta.Parameters.AddWithValue("@usr", idUsuario);
             cmdVenta.Parameters.AddWithValue("@proy", idProy);
             cmdVenta.Parameters.AddWithValue("@lista", listaAplicada);
             cmdVenta.Parameters.AddWithValue("@precio", precioVenta);
-            cmdVenta.Parameters.AddWithValue("@destino", destino ?? "Vivienda");
+            cmdVenta.Parameters.AddWithValue("@destino", Texto.DestinoVenta(destino));
             await cmdVenta.ExecuteNonQueryAsync();
 
-            var cmdInm2 = new SqlCommand(@"UPDATE Inmuebles
-                SET Estado='VENDIDO', IdVendedorEnProceso=NULL, FechaEnProceso=NULL
-                WHERE IdInmuebles=@id", con);
-            cmdInm2.Parameters.AddWithValue("@id", idInmueble);
-            await cmdInm2.ExecuteNonQueryAsync();
+            await tx.CommitAsync();
 
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
 
