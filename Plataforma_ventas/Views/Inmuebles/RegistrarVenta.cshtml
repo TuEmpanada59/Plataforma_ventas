@@ -76,6 +76,7 @@
     .cc-nombre{font-size:14px;font-weight:600;color:var(--label);}
     .cc-doc{font-size:12px;color:var(--label2);}
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
+    .disabled-block{opacity:0.45;pointer-events:none;filter:grayscale(0.25);transition:opacity 0.2s;}
     @@media(max-width:700px){.destino-grid{grid-template-columns:1fr!important;}.form-grid{grid-template-columns:1fr!important;}}
 </style>
 }
@@ -150,8 +151,24 @@
         </div>
     </div>
 
-    <!-- Cliente -->
+    <!-- Verificación SAGRILAFT -->
     <div class="form-card">
+        <div class="form-card-head">@Iconos.Documento("#CC7700", 20) <span class="form-card-title">Verificación SAGRILAFT</span></div>
+        <div class="form-body">
+            <p style="font-size:13px;color:var(--label2);margin-bottom:12px">¿Ya fue consultado el cliente en SAGRILAFT?</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button type="button" class="ios-btn" onclick="sagrilaftRespuesta(true)">Sí, ya fue consultado</button>
+                <button type="button" class="ios-btn ghost" onclick="sagrilaftRespuesta(false)">No, aún no</button>
+            </div>
+            <div id="sagrilaftAviso" class="alerta-error" style="display:none;margin-top:12px">
+                Por favor, consulte el cliente y recargue la página para realizar el nuevo registro.
+            </div>
+        </div>
+    </div>
+    <input type="hidden" name="sagrilaftConsultado" id="sagrilaftConsultado" value="false"/>
+
+    <!-- Cliente -->
+    <div class="form-card disabled-block" id="clienteCardWrap">
         <div class="form-card-head">@Iconos.Persona("#0076E3", 20) <span class="form-card-title">Cliente</span></div>
         <div class="form-body">
             <div class="tab-row">
@@ -192,7 +209,7 @@
         <div id="errCliente" class="alerta-error"></div>
     </div>
     <div class="btn-row">
-        <button type="submit" class="ios-btn">&#10003; Confirmar venta</button>
+        <button type="submit" id="btnConfirmarVenta" class="ios-btn" disabled>&#10003; Confirmar venta</button>
     </div>
 </form>
 
@@ -211,6 +228,11 @@
         const sel = document.getElementById('selCliente');
         if (sel) _optsCliente = Array.from(sel.options).map(o => ({val: o.value, txt: o.text}));
         document.querySelector('form').addEventListener('submit', function(e) {
+            if (document.getElementById('sagrilaftConsultado').value !== 'true') {
+                e.preventDefault();
+                document.getElementById('sagrilaftAviso').style.display = 'block';
+                return;
+            }
             const tipo = document.getElementById('tipoCliente').value;
             if (tipo === 'existente') {
                 const s = document.getElementById('selCliente');
@@ -249,6 +271,12 @@
         document.getElementById('errCliente').textContent = 'Por favor ingrese los datos del cliente para continuar con la venta.';
         wrapper.style.display = 'block';
         wrapper.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    function sagrilaftRespuesta(si) {
+        document.getElementById('sagrilaftConsultado').value = si ? 'true' : 'false';
+        document.getElementById('clienteCardWrap').classList.toggle('disabled-block', !si);
+        document.getElementById('btnConfirmarVenta').disabled = !si;
+        document.getElementById('sagrilaftAviso').style.display = si ? 'none' : 'block';
     }
     function selDestino(val, el) {
         document.getElementById('destinoInput').value = val;

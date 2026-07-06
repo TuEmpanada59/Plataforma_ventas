@@ -501,12 +501,19 @@ namespace Plataforma_ventas.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVentaReserva(int idInmueble, long precioVenta,
-            int? idClienteExistente, string tipoCliente, string destino,
+            int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            // Cumplimiento SAGRILAFT: no se puede registrar la venta sin confirmar la consulta previa.
+            if (!sagrilaftConsultado)
+            {
+                TempData["Error"] = "Por favor, consulte el cliente y recargue la página para realizar el nuevo registro.";
+                return RedirectToAction("ContinuarVenta", new { idInmueble });
+            }
 
             // Validar datos del cliente
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
@@ -700,12 +707,19 @@ namespace Plataforma_ventas.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVenta(int idInmueble, string accion,
-            int? idClienteExistente, string tipoCliente, string destino,
+            int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            // Cumplimiento SAGRILAFT: no se puede registrar la venta sin confirmar la consulta previa.
+            if (!sagrilaftConsultado)
+            {
+                TempData["Error"] = "Por favor, consulte el cliente y recargue la página para realizar el nuevo registro.";
+                return RedirectToAction("RegistrarVenta", new { idInmueble });
+            }
 
             if (tipoCliente == "existente" && (!idClienteExistente.HasValue || idClienteExistente.Value <= 0))
             {
