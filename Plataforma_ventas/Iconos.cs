@@ -22,6 +22,12 @@ public static class Iconos
         "<rect x='4' y='4' width='4.6' height='16' rx='1.4'/><rect x='9.7' y='4' width='4.6' height='10' rx='1.4'/><rect x='15.4' y='4' width='4.6' height='13' rx='1.4'/>",
         color, size, fo);
 
+    // Torre / edificio con ventanas — proyecto de vivienda (más legible que las barras)
+    public static HtmlString Torre(string color = "#0076E3", int size = 19, double fo = 0.22) => Svg(
+        "<rect x='5' y='3' width='14' height='18' rx='1.6'/>",
+        "<rect x='5' y='3' width='14' height='18' rx='1.6'/><path d='M9 7h1.5M13.5 7h1.5M9 11h1.5M13.5 11h1.5M9 15h1.5M13.5 15h1.5M10.5 21v-2.5h3V21'/>",
+        color, size, fo);
+
     // Casa — inicio / vivienda
     public static HtmlString Casa(string color = "#0076E3", int size = 19, double fo = 0.22) => Svg(
         "<path d='M4 11 12 4l8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z'/>",

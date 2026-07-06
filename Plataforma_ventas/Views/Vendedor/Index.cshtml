@@ -22,7 +22,7 @@
     .welcome-banner::after{content:'';position:absolute;bottom:-40px;right:100px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
     .wb-txt h2{font-size:20px;font-weight:700;color:white;letter-spacing:-0.5px;margin-bottom:4px;}
     .wb-txt p{font-size:13px;color:rgba(255,255,255,0.7);}
-    .wb-ico{font-size:48px;position:relative;z-index:1;}
+    .wb-ico{width:64px;height:64px;border-radius:18px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;flex-shrink:0;}
     .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
     .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:16px;box-shadow:var(--sh);transition:transform 0.2s,box-shadow 0.2s;animation:fu 0.35s ease both;}
     .kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.1s}.kpi:nth-child(3){animation-delay:.15s}.kpi:nth-child(4){animation-delay:.2s}
@@ -82,14 +82,14 @@
             <h2>¡Hola, @nombre!</h2>
             <p>Proyecto activo: <strong style="color:white">@proyActivo</strong> · @disponibles inmuebles disponibles</p>
         </div>
-        <div class="wb-ico">@Iconos.Edificio("#ffffff", 46, 0.28)</div>
+        <div class="wb-ico">@Iconos.Torre("#ffffff", 34, 0.3)</div>
     </div>
 
     <div class="kpi-row">
-        <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3")</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles proyecto</div></div>
-        <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851")</div><span class="kpi-tag">Libre</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-        <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#E08600")</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
-        <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Persona("#E63946")</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
+        <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Torre("#0076E3")</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles del proyecto</div></div>
+        <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851")</div><span class="kpi-tag">Libres</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+        <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#CC7700")</div><span class="kpi-tag">Mías</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
+        <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Persona("#E63946")</div><span class="kpi-tag">Míos</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
     </div>
 
     <div class="action-row">
