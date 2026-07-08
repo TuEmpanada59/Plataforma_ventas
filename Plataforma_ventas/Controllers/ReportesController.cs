@@ -174,6 +174,7 @@ namespace Plataforma_ventas.Controllers
         public async Task<IActionResult> ReportePDF()
         {
             QuestPDF.Settings.License = LicenseType.Community;
+            QuestPDF.Settings.EnableDebugging = true;   // temporal: enriquece el error de layout con la ubicación exacta
 
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
@@ -341,12 +342,12 @@ namespace Plataforma_ventas.Controllers
                         // ── FRANJA KPI (6 columnas) ──
                         var kpis = new (string Ico, string Lbl, string Val, string Col, float Fs)[]
                         {
-                            ("home",     "TOTAL",         total.ToString(),                    "#003A70", 20f),
-                            ("check",    "DISPONIBLES",   disponibles.ToString(),              "#1A7A35", 20f),
-                            ("key",      "VENDIDOS",      vendidos.ToString(),                 "#E63946", 20f),
-                            ("lock",     "RESERVADOS",    reservados.ToString(),               "#CC7700", 20f),
-                            ("calendar", "VENTAS HOY",    $"{ventasHoy} · {MoneyM(valorHoy)}", "#0055A5", 12f),
-                            ("dollar",   "VALOR VENDIDO", MoneyM(valorTotal),                  "#003A70", 14f),
+                            ("home",     "TOTAL",         total.ToString(),                    "#003A70", 19f),
+                            ("check",    "DISPONIBLES",   disponibles.ToString(),              "#1A7A35", 19f),
+                            ("key",      "VENDIDOS",      vendidos.ToString(),                 "#E63946", 19f),
+                            ("lock",     "RESERVADOS",    reservados.ToString(),               "#CC7700", 19f),
+                            ("calendar", "VENTAS HOY",    $"{ventasHoy} · {MoneyM(valorHoy)}", "#0055A5", 10f),
+                            ("dollar",   "VALOR VENDIDO", MoneyM(valorTotal),                  "#003A70", 12f),
                         };
                         col.Item().BorderBottom(1).BorderColor(QColor.FromHex("#EDEDEF")).Row(row =>
                         {
@@ -360,8 +361,8 @@ namespace Plataforma_ventas.Controllers
                                     c.Item().Row(rr =>
                                     {
                                         rr.ConstantItem(11).Height(11).Svg(Lucide(LIco[k.Ico], k.Col));
-                                        rr.AutoItem().PaddingLeft(4).AlignMiddle().Text(k.Lbl)
-                                            .FontSize(8).SemiBold().LetterSpacing(0.08f).FontColor(QColor.FromHex("#8A8A8E"));
+                                        rr.RelativeItem().PaddingLeft(4).Text(k.Lbl)
+                                            .FontSize(7.5f).SemiBold().LetterSpacing(0.05f).FontColor(QColor.FromHex("#8A8A8E"));
                                     });
                                     c.Item().PaddingTop(5).Text(k.Val).FontSize(k.Fs).Light().FontColor(QColor.FromHex(k.Col));
                                 });
@@ -381,7 +382,7 @@ namespace Plataforma_ventas.Controllers
                         col.Item().PaddingTop(10).Row(row =>
                         {
                             // Donut con % centrado
-                            row.ConstantItem(150).Height(150).AlignMiddle().Layers(layers =>
+                            row.ConstantItem(150).Height(150).Layers(layers =>
                             {
                                 layers.PrimaryLayer().Svg(DonutSvg(pctV));
                                 layers.Layer().AlignMiddle().AlignCenter().Column(cc =>
@@ -392,9 +393,8 @@ namespace Plataforma_ventas.Controllers
                                         .FontSize(7).SemiBold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#8A8A8E"));
                                 });
                             });
-                            row.ConstantItem(24);
                             // Leyenda + barras por tipología
-                            row.RelativeItem().Column(c =>
+                            row.RelativeItem().PaddingLeft(24).Column(c =>
                             {
                                 void Leg(string dot, string nombre, int val, double pct)
                                 {
@@ -418,13 +418,13 @@ namespace Plataforma_ventas.Controllers
                                     int restW = Math.Max(100 - fillW, 0);
                                     c.Item().PaddingVertical(3).Row(br =>
                                     {
-                                        br.ConstantItem(52).AlignMiddle().Text(t.Tipo).FontSize(8.5f).SemiBold().FontColor(QColor.FromHex("#3A3A3C"));
-                                        br.RelativeItem().AlignMiddle().Height(12).Background(QColor.FromHex("#EEEFF1")).Row(bar =>
+                                        br.ConstantItem(52).Text(t.Tipo).FontSize(8.5f).SemiBold().FontColor(QColor.FromHex("#3A3A3C"));
+                                        br.RelativeItem().Height(12).Background(QColor.FromHex("#EEEFF1")).Row(bar =>
                                         {
                                             bar.RelativeItem(fillW).Background(QColor.FromHex("#0077C8"));
                                             if (restW > 0) bar.RelativeItem(restW);
                                         });
-                                        br.ConstantItem(78).AlignMiddle().PaddingLeft(8).Text($"{t.Vend}/{t.Tot} · {p.ToString("0.0", esCo)}%").FontSize(8.5f).FontColor(QColor.FromHex("#8A8A8E"));
+                                        br.ConstantItem(78).PaddingLeft(8).Text($"{t.Vend}/{t.Tot} · {p.ToString("0.0", esCo)}%").FontSize(8.5f).FontColor(QColor.FromHex("#8A8A8E"));
                                     });
                                 }
                             });
