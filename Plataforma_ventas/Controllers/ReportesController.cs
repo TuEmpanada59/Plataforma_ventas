@@ -269,13 +269,51 @@ namespace Plataforma_ventas.Controllers
 
             var asist = await CargarEventoAsync(con, idProy);
 
+            // ── Helpers de diseño (informe técnico rediseñado, handoff PRIMAVELA) ──
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            string Money(long v) => "$" + v.ToString("N0", esCo);
+            string MoneyM(long v) => v >= 1_000_000
+                ? "$" + (v / 1_000_000d).ToString("#,##0.0", esCo) + "M"
+                : Money(v);
+            // Ícono Lucide inline (stroke 2, currentColor via color fijo)
+            string Lucide(string inner, string color) =>
+                $"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='{color}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>{inner}</svg>";
+            var LIco = new Dictionary<string, string>
+            {
+                ["home"]       = "<path d='M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z'/>",
+                ["check"]      = "<circle cx='12' cy='12' r='9'/><path d='m8 12 2.5 2.5L16 9'/>",
+                ["key"]        = "<circle cx='7.5' cy='15.5' r='4.5'/><path d='m10.5 12.5 8-8M17 5l2 2M15 7l2 2'/>",
+                ["lock"]       = "<rect x='5' y='11' width='14' height='10' rx='2'/><path d='M8 11V7a4 4 0 0 1 8 0v4'/>",
+                ["calendar"]   = "<rect x='4' y='5' width='16' height='16' rx='2'/><path d='M4 9h16M8 3v4M16 3v4'/>",
+                ["dollar"]     = "<line x1='12' y1='2' x2='12' y2='22'/><path d='M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'/>",
+                ["users"]      = "<path d='M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1'/><circle cx='9.5' cy='8' r='3.5'/><path d='M17 15a4 4 0 0 1 4 4v1'/><circle cx='17.5' cy='8' r='3'/>",
+                ["user"]       = "<circle cx='12' cy='8' r='3.6'/><path d='M5.5 20a6.5 6.5 0 0 1 13 0'/>",
+                ["baby"]       = "<path d='M9 12h.01M15 12h.01M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5'/><circle cx='12' cy='12' r='9'/>",
+                ["calcheck"]   = "<rect x='4' y='5' width='16' height='16' rx='2'/><path d='M4 9h16M8 3v4M16 3v4M9 15l2 2 4-4'/>",
+                ["car"]        = "<path d='M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13v5h-2v-2H7v2H5z'/><circle cx='8' cy='16' r='1'/><circle cx='16' cy='16' r='1'/>",
+                ["bike"]       = "<circle cx='6' cy='17' r='3'/><circle cx='18' cy='17' r='3'/><path d='M6 17 10 8h4l2 4M9 8h4'/>",
+                ["pause"]      = "<rect x='7' y='5' width='3.5' height='14' rx='1'/><rect x='13.5' y='5' width='3.5' height='14' rx='1'/>",
+            };
+            string DonutSvg(double pctVend)
+            {
+                double sold = Math.Max(pctVend, 0.6);           // mínimo visible
+                double rest = Math.Max(100 - sold, 0);
+                return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42'>" +
+                       "<circle cx='21' cy='21' r='15.9155' fill='none' stroke='#9BE3B0' stroke-width='5'/>" +
+                       $"<circle cx='21' cy='21' r='15.9155' fill='none' stroke='#E63946' stroke-width='5' " +
+                       $"stroke-dasharray='{sold.ToString(inv)} {rest.ToString(inv)}' transform='rotate(-90 21 21)'/>" +
+                       "</svg>";
+            }
+            // Etiqueta de módulo (01 · TÍTULO) con nota a la derecha
+            string docId = $"IT-{new string(proyNombre.Where(char.IsLetter).Take(3).ToArray()).ToUpper()}-{ahoraCol:ddMM}";
+
             var pdfBytes = Document.Create(container =>
             {
                 container.Page(page =>
                 {
-                    page.Size(PageSizes.A4);
-                    page.Margin(28);
-                    page.DefaultTextStyle(x => x.FontFamily("Arial").FontSize(9));
+                    page.Size(PageSizes.Letter);
+                    page.Margin(34);
+                    page.DefaultTextStyle(x => x.FontFamily("Arial").FontSize(9).FontColor(QColor.FromHex("#1A1A1A")));
 
                     // ── HEADER ──
                     page.Header().Column(col =>
@@ -284,156 +322,125 @@ namespace Plataforma_ventas.Controllers
                         {
                             row.RelativeItem().Column(c =>
                             {
-                                c.Item().Text("LONDOÑO GÓMEZ").FontSize(18).Bold().FontColor(QColor.FromHex("#003A70"));
-                                c.Item().Text("Sistema de Lanzamientos Inmobiliarios").FontSize(9).FontColor(QColor.FromHex("#666666"));
+                                c.Item().Text($"INFORME TÉCNICO DE VENTAS Y ASISTENCIA — {proyNombre.ToUpper()}")
+                                    .FontSize(13).Bold().FontColor(QColor.FromHex("#1A1A1A"));
+                                c.Item().PaddingTop(2).Text("SISTEMA DE LANZAMIENTOS INMOBILIARIOS")
+                                    .FontSize(8).SemiBold().LetterSpacing(0.12f).FontColor(QColor.FromHex("#8A8A8E"));
                             });
-                            row.ConstantItem(140).AlignRight().Column(c =>
+                            row.ConstantItem(160).AlignRight().Column(c =>
                             {
-                                c.Item().Text("INFORME TÉCNICO DE VENTAS").FontSize(9).Bold().FontColor(QColor.FromHex("#003A70"));
-                                c.Item().Text($"Proyecto: {proyNombre}").FontSize(8).FontColor(QColor.FromHex("#555555"));
-                                c.Item().Text($"Generado: {ahoraCol:dd/MM/yyyy HH:mm}").FontSize(7.5f).FontColor(QColor.FromHex("#999999"));
+                                c.Item().AlignRight().Text($"GEN. {ahoraCol:dd/MM/yyyy HH:mm}").FontSize(8).FontColor(QColor.FromHex("#8A8A8E"));
+                                c.Item().AlignRight().PaddingTop(2).Text($"DOC. {docId} · 5 MÓDULOS").FontSize(8).FontColor(QColor.FromHex("#8A8A8E"));
                             });
                         });
-                        col.Item().PaddingTop(5).LineHorizontal(2f).LineColor(QColor.FromHex("#003A70"));
-                        col.Item().PaddingTop(2).LineHorizontal(0.5f).LineColor(QColor.FromHex("#0077C8"));
+                        col.Item().PaddingTop(10).LineHorizontal(2f).LineColor(QColor.FromHex("#1A1A1A"));
                     });
 
                     page.Content().PaddingTop(14).Column(col =>
                     {
-                        // ── RESUMEN DEL DÍA ──
-                        col.Item().Background(QColor.FromHex("#003A70")).Padding(8).Row(row =>
+                        // ── FRANJA KPI (6 columnas) ──
+                        var kpis = new (string Ico, string Lbl, string Val, string Col, float Fs)[]
                         {
-                            row.RelativeItem().Text($"RESUMEN DEL DÍA — {ahoraCol.ToString("dddd, dd/MM/yyyy", esCo).ToUpper()}")
-                                .FontSize(8.5f).Bold().FontColor(QColors.White);
-                        });
-                        col.Item().Background(QColor.FromHex("#EEF4FA")).Border(0.5f).BorderColor(QColor.FromHex("#BBCCDD"))
-                            .Padding(10).Row(row =>
+                            ("home",     "TOTAL",         total.ToString(),                    "#003A70", 20f),
+                            ("check",    "DISPONIBLES",   disponibles.ToString(),              "#1A7A35", 20f),
+                            ("key",      "VENDIDOS",      vendidos.ToString(),                 "#E63946", 20f),
+                            ("lock",     "RESERVADOS",    reservados.ToString(),               "#CC7700", 20f),
+                            ("calendar", "VENTAS HOY",    $"{ventasHoy} · {MoneyM(valorHoy)}", "#0055A5", 12f),
+                            ("dollar",   "VALOR VENDIDO", MoneyM(valorTotal),                  "#003A70", 14f),
+                        };
+                        col.Item().BorderBottom(1).BorderColor(QColor.FromHex("#EDEDEF")).Row(row =>
+                        {
+                            for (int i = 0; i < kpis.Length; i++)
                             {
-                                var stats = new (string Val, string Lbl)[]
+                                var k = kpis[i];
+                                var cell = row.RelativeItem();
+                                if (i < kpis.Length - 1) cell = cell.BorderRight(1).BorderColor(QColor.FromHex("#F2F2F4"));
+                                cell.PaddingVertical(11).PaddingHorizontal(7).Column(c =>
                                 {
-                                ($"{ventasHoy}", "Ventas hoy"),
-                                ($"${valorHoy:N0}", "Valor hoy"),
-                                ($"{vendidos}", "Total vendidos"),
-                                ($"{disponibles}", "Disponibles"),
-                                ($"{pctV:0.0}%", "% Avance"),
-                                };
-                                foreach (var (val, lbl) in stats)
-                                {
-                                    // Shrink font for long monetary strings so they never wrap inside their cell.
-                                    // An A4 page with 28mm margins gives ~154mm total; 5 equal cols ≈ 30mm each.
-                                    // Arial Bold 18pt needs ~3mm/char — strings > 7 chars would overflow.
-                                    float fs = val.Length > 10 ? 11f : val.Length > 7 ? 14f : 18f;
-                                    row.RelativeItem().AlignCenter().Column(c =>
+                                    c.Item().Row(rr =>
                                     {
-                                        c.Item().AlignCenter().Text(val).FontSize(fs).Bold().FontColor(QColor.FromHex("#003A70"));
-                                        c.Item().AlignCenter().Text(lbl).FontSize(7.5f).FontColor(QColor.FromHex("#666666"));
+                                        rr.ConstantItem(11).Height(11).Svg(Lucide(LIco[k.Ico], k.Col));
+                                        rr.AutoItem().PaddingLeft(4).AlignMiddle().Text(k.Lbl)
+                                            .FontSize(8).SemiBold().LetterSpacing(0.08f).FontColor(QColor.FromHex("#8A8A8E"));
+                                    });
+                                    c.Item().PaddingTop(5).Text(k.Val).FontSize(k.Fs).Light().FontColor(QColor.FromHex(k.Col));
+                                });
+                            }
+                        });
+
+                        col.Item().PaddingTop(14);
+
+                        // ── MÓDULO 01 · ESTADO DEL PROYECTO ──
+                        col.Item().Row(mr =>
+                        {
+                            mr.RelativeItem().Text("01 · ESTADO DEL PROYECTO")
+                                .FontSize(9).Bold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#0077C8"));
+                            mr.AutoItem().AlignRight().Text($"{total} unidades · {pctV.ToString("0.0", esCo)}% avance")
+                                .FontSize(8.5f).FontColor(QColor.FromHex("#B0B0B4"));
+                        });
+                        col.Item().PaddingTop(10).Row(row =>
+                        {
+                            // Donut con % centrado
+                            row.ConstantItem(150).Height(150).AlignMiddle().Layers(layers =>
+                            {
+                                layers.PrimaryLayer().Svg(DonutSvg(pctV));
+                                layers.Layer().AlignMiddle().AlignCenter().Column(cc =>
+                                {
+                                    cc.Item().AlignCenter().Text($"{pctV.ToString("0.0", esCo)}%")
+                                        .FontSize(34).Light().FontColor(QColor.FromHex("#003A70"));
+                                    cc.Item().AlignCenter().Text("VENDIDO")
+                                        .FontSize(7).SemiBold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#8A8A8E"));
+                                });
+                            });
+                            row.ConstantItem(24);
+                            // Leyenda + barras por tipología
+                            row.RelativeItem().Column(c =>
+                            {
+                                void Leg(string dot, string nombre, int val, double pct)
+                                {
+                                    c.Item().PaddingVertical(2).Row(lr =>
+                                    {
+                                        lr.ConstantItem(14).AlignMiddle().Text("●").FontSize(11).FontColor(QColor.FromHex(dot));
+                                        lr.RelativeItem().AlignMiddle().Text(nombre).FontSize(11).FontColor(QColor.FromHex("#1A1A1A"));
+                                        lr.AutoItem().AlignMiddle().PaddingRight(8).Text(val.ToString()).FontSize(18).Light().FontColor(QColor.FromHex("#1A1A1A"));
+                                        lr.ConstantItem(46).AlignMiddle().AlignRight().Text($"{pct.ToString("0.0", esCo)}%").FontSize(10).FontColor(QColor.FromHex("#8A8A8E"));
+                                    });
+                                }
+                                Leg("#34C759", "Disponibles", disponibles, pctD);
+                                Leg("#E63946", "Vendidos", vendidos, pctV);
+                                Leg("#FF9500", "Reservados", reservados, pctR);
+
+                                c.Item().PaddingTop(8);
+                                foreach (var t in tips.Take(6))
+                                {
+                                    double p = t.Tot > 0 ? (double)t.Vend / t.Tot * 100 : 0;
+                                    int fillW = (int)Math.Max(Math.Round(p), p > 0 ? 4 : 1);
+                                    int restW = Math.Max(100 - fillW, 0);
+                                    c.Item().PaddingVertical(3).Row(br =>
+                                    {
+                                        br.ConstantItem(52).AlignMiddle().Text(t.Tipo).FontSize(8.5f).SemiBold().FontColor(QColor.FromHex("#3A3A3C"));
+                                        br.RelativeItem().AlignMiddle().Height(12).Background(QColor.FromHex("#EEEFF1")).Row(bar =>
+                                        {
+                                            bar.RelativeItem(fillW).Background(QColor.FromHex("#0077C8"));
+                                            if (restW > 0) bar.RelativeItem(restW);
+                                        });
+                                        br.ConstantItem(78).AlignMiddle().PaddingLeft(8).Text($"{t.Vend}/{t.Tot} · {p.ToString("0.0", esCo)}%").FontSize(8.5f).FontColor(QColor.FromHex("#8A8A8E"));
                                     });
                                 }
                             });
-
+                        });
+                        col.Item().PaddingTop(12).LineHorizontal(1f).LineColor(QColor.FromHex("#EDEDEF"));
                         col.Item().PaddingTop(12);
 
-                        // ── KPIs ──
-                        col.Item().Text("INDICADORES GENERALES DEL PROYECTO")
-                            .FontSize(8.5f).Bold().FontColor(QColor.FromHex("#003A70"));
-                        col.Item().PaddingTop(4).Table(tbl =>
+                        // ── MÓDULO 02 · DETALLE DE VENTAS ──
+                        col.Item().Row(mr =>
                         {
-                            tbl.ColumnsDefinition(c => { for (int i = 0; i < 5; i++) c.RelativeColumn(); });
-                            tbl.Header(h => {
-                                foreach (var hdr in new[] { "Total inmuebles", "Disponibles", "Vendidos", "Reservados", "Valor total vendido" })
-                                    h.Cell().Background(QColor.FromHex("#0055A5")).Padding(6).AlignCenter()
-                                        .Text(hdr).FontSize(7.5f).Bold().FontColor(QColors.White);
-                            });
-
-                            var cells = new (string Val, string Color)[]
-                            {
-                                (total.ToString(), "#003A70"),
-                                ($"{disponibles} ({pctD:0.0}%)", "#1EA851"),
-                                ($"{vendidos} ({pctV:0.0}%)", "#E63946"),
-                                ($"{reservados} ({pctR:0.0}%)", "#CC7700"),
-                                ($"${valorTotal:N0}", "#003A70"),
-                            };
-                            foreach (var (val, color) in cells)
-                                tbl.Cell().Border(0.5f).BorderColor(QColor.FromHex("#DDDDDD"))
-                                    .Background(QColor.FromHex("#F8FAFD")).Padding(7).AlignCenter()
-                                    .Text(val).FontSize(11).Bold().FontColor(QColor.FromHex(color));
+                            mr.RelativeItem().Text("02 · DETALLE DE VENTAS")
+                                .FontSize(9).Bold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#0077C8"));
+                            mr.AutoItem().AlignRight().Text($"{ventas.Count} venta{(ventas.Count != 1 ? "s" : "")}")
+                                .FontSize(8.5f).FontColor(QColor.FromHex("#B0B0B4"));
                         });
-
-                        col.Item().PaddingTop(14);
-
-                        // ── TIPOLOGÍAS ──
-                        col.Item().Text("ANÁLISIS POR TIPOLOGÍA")
-                            .FontSize(8.5f).Bold().FontColor(QColor.FromHex("#003A70"));
-                        col.Item().PaddingTop(4).Table(tbl =>
-                        {
-                            tbl.ColumnsDefinition(c =>
-                            {
-                                c.RelativeColumn(2); c.RelativeColumn(); c.RelativeColumn();
-                                c.RelativeColumn(); c.RelativeColumn(); c.RelativeColumn(1.5f);
-                            });
-                            tbl.Header(h => {
-                                foreach (var hdr in new[] { "Tipología", "Total", "Vendidos", "Disponibles", "Reservados", "% Vendido" })
-                                    h.Cell().Background(QColor.FromHex("#0055A5")).Padding(5).AlignCenter()
-                                        .Text(hdr).FontSize(7.5f).Bold().FontColor(QColors.White);
-                            });
-
-                            bool alt = false;
-                            foreach (var t in tips)
-                            {
-                                var bg = alt ? QColor.FromHex("#F5F8FC") : QColors.White;
-                                double pt = t.Tot > 0 ? Math.Round((double)t.Vend / t.Tot * 100, 1) : 0;
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5)
-                                    .Text(t.Tipo).FontSize(8).Bold();
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5).AlignCenter()
-                                    .Text(t.Tot.ToString()).FontSize(8);
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5).AlignCenter()
-                                    .Text(t.Vend.ToString()).FontSize(8).Bold().FontColor(QColor.FromHex("#E63946"));
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5).AlignCenter()
-                                    .Text(t.Disp.ToString()).FontSize(8).FontColor(QColor.FromHex("#1EA851"));
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5).AlignCenter()
-                                    .Text(t.Res.ToString()).FontSize(8).FontColor(QColor.FromHex("#CC7700"));
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5).AlignCenter()
-                                    .Text($"{pt}%").FontSize(8).Bold().FontColor(QColor.FromHex("#E63946"));
-                                alt = !alt;
-                            }
-                        });
-
-                        col.Item().PaddingTop(14);
-
-                        // ── DESTINOS ──
-                        col.Item().Text("DESTINO DE LAS VENTAS")
-                            .FontSize(8.5f).Bold().FontColor(QColor.FromHex("#003A70"));
-                        col.Item().PaddingTop(4).Table(tbl =>
-                        {
-                            tbl.ColumnsDefinition(c => { c.RelativeColumn(3); c.RelativeColumn(); c.RelativeColumn(); });
-                            tbl.Header(h => {
-                                foreach (var hdr in new[] { "Destino", "Unidades", "% del total" })
-                                    h.Cell().Background(QColor.FromHex("#0055A5")).Padding(5)
-                                        .Text(hdr).FontSize(7.5f).Bold().FontColor(QColors.White);
-                            });
-
-                            int totalDest = dests.Sum(d => d.Tot);
-                            bool alt = false;
-                            foreach (var d in dests)
-                            {
-                                var bg = alt ? QColor.FromHex("#F5F8FC") : QColors.White;
-                                double pctDest = totalDest > 0 ? Math.Round((double)d.Tot / totalDest * 100, 1) : 0;
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5)
-                                    .Text(d.Dest).FontSize(8).Bold();
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5).AlignCenter()
-                                    .Text(d.Tot.ToString()).FontSize(8);
-                                tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(5).AlignCenter()
-                                    .Text($"{pctDest}%").FontSize(8);
-                                alt = !alt;
-                            }
-                        });
-
-                        col.Item().PaddingTop(14);
-
-                        // ── DETALLE DE VENTAS ──
-                        col.Item().Text("DETALLE COMPLETO DE VENTAS")
-                            .FontSize(8.5f).Bold().FontColor(QColor.FromHex("#003A70"));
-                        col.Item().PaddingTop(4).Table(tbl =>
+                        col.Item().PaddingTop(6).Table(tbl =>
                         {
                             tbl.ColumnsDefinition(c =>
                             {
@@ -532,26 +539,96 @@ namespace Plataforma_ventas.Controllers
                                 .Padding(5).AlignCenter()
                                 .Text($"${gran:N0}").FontSize(8).Bold().FontColor(QColors.White);
                         });
+
+                        // Línea de destinos
+                        if (dests.Count > 0)
+                        {
+                            int totalDest = dests.Sum(d => d.Tot);
+                            var destLinea = string.Join("   ·   ", dests.Select(d =>
+                                $"{d.Dest} {(totalDest > 0 ? Math.Round((double)d.Tot / totalDest * 100, 1) : 0).ToString("0.0", esCo)}%"));
+                            col.Item().PaddingTop(6).BorderBottom(1).BorderColor(QColor.FromHex("#EDEDEF")).PaddingBottom(8)
+                                .Text($"Destino:   {destLinea}").FontSize(9).FontColor(QColor.FromHex("#8A8A8E"));
+                        }
+                        col.Item().PaddingTop(12);
+
+                        // ── MÓDULO 03 · ASISTENCIA DEL DÍA ──
+                        bool hayAsist = asist.TablaOk && asist.Dias.Count > 0;
+                        int aFam = 0, aAdu = 0, aNin = 0, aCita = 0, aCar = 0, aMot = 0;
+                        if (hayAsist)
+                            foreach (var d in asist.Dias)
+                            {
+                                aFam += (int)d.Familias; aAdu += (int)d.Adultos; aNin += (int)d.Ninos;
+                                aCita += (int)d.AsisteCita; aCar += (int)d.Carros; aMot += (int)d.Motos;
+                            }
+                        double conCita = aFam > 0 ? (double)aCita / aFam * 100 : 0;
+
+                        col.Item().Text("03 · ASISTENCIA DEL DÍA")
+                            .FontSize(9).Bold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#0077C8"));
+                        if (hayAsist)
+                        {
+                            col.Item().PaddingTop(8).Row(row =>
+                            {
+                                void Card(string ico, string val, string lbl, bool tint = false)
+                                {
+                                    row.RelativeItem().PaddingHorizontal(3).Background(QColor.FromHex(tint ? "#EAF3FB" : "#F1F1F2"))
+                                        .PaddingVertical(10).Column(c =>
+                                        {
+                                            c.Item().AlignCenter().Width(15).Height(15).Svg(Lucide(LIco[ico], tint ? "#0055A5" : "#8A8A8E"));
+                                            c.Item().AlignCenter().PaddingTop(4).Text(val).FontSize(18).Light().FontColor(QColor.FromHex(tint ? "#0055A5" : "#1A1A1A"));
+                                            c.Item().AlignCenter().Text(lbl).FontSize(8).SemiBold().LetterSpacing(0.06f).FontColor(QColor.FromHex("#8A8A8E"));
+                                        });
+                                }
+                                Card("users", aFam.ToString(), "FAMILIAS");
+                                Card("user", aAdu.ToString(), "ADULTOS");
+                                Card("baby", aNin.ToString(), "NIÑOS");
+                                Card("calcheck", $"{conCita.ToString("0", esCo)}%", "CON CITA", true);
+                                Card("car", aCar.ToString(), "CARROS");
+                                Card("bike", aMot.ToString(), "MOTOS");
+                            });
+                        }
+                        else
+                        {
+                            col.Item().PaddingTop(6).Border(1).BorderColor(QColor.FromHex("#E5E5E7")).Padding(9).Row(cr =>
+                            {
+                                cr.ConstantItem(12).Height(12).Svg(Lucide(LIco["pause"], "#B0B0B4"));
+                                cr.RelativeItem().PaddingLeft(6).AlignMiddle().Text("Asistencia del día — sin cuadro cargado.").FontSize(10).FontColor(QColor.FromHex("#B0B0B4"));
+                                cr.AutoItem().AlignMiddle().Text("COLAPSADO").FontSize(8).SemiBold().FontColor(QColor.FromHex("#B0B0B4"));
+                            });
+                        }
+                        col.Item().PaddingTop(12);
+
+                        // ── MÓDULOS 04–05 · COLAPSADOS ──
+                        void Colapsado(string titulo)
+                        {
+                            col.Item().PaddingBottom(6).Border(1).BorderColor(QColor.FromHex("#E5E5E7")).Padding(9).Row(cr =>
+                            {
+                                cr.ConstantItem(12).Height(12).Svg(Lucide(LIco["pause"], "#B0B0B4"));
+                                cr.RelativeItem().PaddingLeft(6).AlignMiddle().Text(titulo).FontSize(10).FontColor(QColor.FromHex("#B0B0B4"));
+                                cr.AutoItem().AlignMiddle().Text("COLAPSADO").FontSize(8).SemiBold().FontColor(QColor.FromHex("#B0B0B4"));
+                            });
+                        }
+                        Colapsado("04 · Preventas — sin registros para el periodo.");
+                        if (enProceso == 0)
+                            Colapsado("05 · Opciones en proceso — sin registros.");
+                        else
+                            col.Item().PaddingBottom(6).Text($"05 · OPCIONES EN PROCESO — {enProceso} unidad{(enProceso != 1 ? "es" : "")}")
+                                .FontSize(9).Bold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#0077C8"));
                     });
 
                     // ── FOOTER ──
-                    page.Footer().PaddingTop(8).Row(row =>
+                    page.Footer().Column(fc =>
                     {
-                        row.RelativeItem().Column(c =>
+                        fc.Item().PaddingTop(6).LineHorizontal(1f).LineColor(QColor.FromHex("#EDEDEF"));
+                        fc.Item().PaddingTop(5).Row(row =>
                         {
-                            c.Item().LineHorizontal(0.5f).LineColor(QColor.FromHex("#CCCCCC"));
-                            c.Item().PaddingTop(3).Text($"Londoño Gómez  ·  {proyNombre}  ·  Informe técnico de ventas  ·  {ahoraCol:dd/MM/yyyy HH:mm}")
-                                .FontSize(7).FontColor(QColor.FromHex("#999999"));
-                        });
-                        row.ConstantItem(60).AlignRight().Column(c =>
-                        {
-                            c.Item().LineHorizontal(0.5f).LineColor(QColor.FromHex("#CCCCCC"));
-                            c.Item().PaddingTop(3).AlignRight().Text(x =>
+                            row.RelativeItem().Text("Londoño Gómez · Sistema de Lanzamientos · Los módulos sin datos se resumen en una línea")
+                                .FontSize(8.5f).FontColor(QColor.FromHex("#B0B0B4"));
+                            row.AutoItem().AlignRight().Text(x =>
                             {
-                                x.Span("Pág. ").FontSize(7).FontColor(QColor.FromHex("#999999"));
-                                x.CurrentPageNumber().FontSize(7).Bold().FontColor(QColor.FromHex("#003A70"));
-                                x.Span(" / ").FontSize(7).FontColor(QColor.FromHex("#999999"));
-                                x.TotalPages().FontSize(7).Bold().FontColor(QColor.FromHex("#003A70"));
+                                x.Span($"{proyNombre} · {ahoraCol:dd/MM/yyyy HH:mm} · Pág. ").FontSize(8.5f).FontColor(QColor.FromHex("#B0B0B4"));
+                                x.CurrentPageNumber().FontSize(8.5f).FontColor(QColor.FromHex("#8A8A8E"));
+                                x.Span("/").FontSize(8.5f).FontColor(QColor.FromHex("#B0B0B4"));
+                                x.TotalPages().FontSize(8.5f).FontColor(QColor.FromHex("#8A8A8E"));
                             });
                         });
                     });
