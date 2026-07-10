@@ -1,12 +1,12 @@
 # Historias de Usuario — Plataforma de Ventas (Londoño Gómez)
 
 **Épica:** Plataforma de Lanzamientos Inmobiliarios (nombre del proyecto en Azure DevOps)
-**Versión del documento:** 2.0 · **Fecha:** 09/07/2026
+**Versión del documento:** 3.0 · **Fecha:** 09/07/2026
 **Convención de estados:** ✅ Implementada · 🔨 Parcial · ⏳ Pendiente
-**Convención de tasks:** `[x]` completada · `[ ]` pendiente
+**Convención de tasks:** `[x]` completada (crear como *Done*) · `[ ]` pendiente (crear como *To Do*)
 
 Estructura para Azure DevOps: **Epic → Feature → User Story → Task**.
-Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al menos una Task** (aunque el trabajo ya esté hecho, queda registrada y marcada como completada, para reflejar el esfuerzo y cerrarla en el tablero).
+Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos una Task**; y cada Task tiene su **título + descripción** (lista para pegar en el campo *Description* de la Task).
 
 ---
 
@@ -15,86 +15,53 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Gestiona la identidad y el acceso a la plataforma. Cubre el inicio de sesión seguro con protección contra fuerza bruta, la recuperación de contraseña por correo, la autorización basada en roles (SuperAdministrador, Administrador, Vendedor) y el manejo endurecido de la sesión y sus cookies. Es la puerta de entrada del sistema y la base sobre la que se apoya toda la seguridad funcional.
 
 ### HU-101 · Inicio de sesión ✅
-**Como** usuario registrado (administrador o vendedor),
-**quiero** iniciar sesión con mi usuario y contraseña,
-**para** acceder a las funciones que corresponden a mi rol.
+**Como** usuario registrado (administrador o vendedor), **quiero** iniciar sesión con mi usuario y contraseña, **para** acceder a las funciones que corresponden a mi rol.
 
-**Criterios de aceptación:**
-1. Con credenciales válidas soy redirigido al panel de mi rol.
-2. Con credenciales inválidas veo "Usuario o contraseña incorrectos" con los intentos restantes, sin revelar cuál campo falló.
-3. La contraseña se verifica contra un hash BCrypt (factor 12); nunca en texto plano.
-4. Al autenticarme se descarta cualquier sesión previa (anti session-fixation).
-5. Todos los intentos quedan registrados con usuario e IP.
+**Criterios de aceptación:** credenciales válidas → panel del rol; inválidas → mensaje con intentos restantes sin revelar el campo; verificación BCrypt (12); descarte de sesión previa; auditoría con usuario e IP.
 
 **Tasks:**
-- [x] Implementar login con verificación BCrypt y auditoría de intentos.
-- [ ] Agregar CAPTCHA o rate-limit por IP tras N intentos fallidos.
-- [ ] Pruebas automatizadas del flujo de login (unitarias + integración).
+- [x] **Login con BCrypt y auditoría** — Autenticar contra el hash BCrypt (factor 12), registrar cada intento (éxito/fallo) con usuario e IP y redirigir según el rol.
+- [ ] **CAPTCHA / rate-limit por IP** — Agregar un desafío o límite por IP tras N intentos fallidos para mitigar el DoS de cuenta que hoy permite el lockout por usuario.
+- [ ] **Pruebas automatizadas del login** — Cubrir con tests (unitarios e integración) los casos: credenciales correctas, incorrectas, cuenta bloqueada y sesión previa descartada.
 
 ### HU-102 · Bloqueo por intentos fallidos (lockout) ✅
-**Como** responsable de seguridad,
-**quiero** que una cuenta se bloquee temporalmente tras varios intentos fallidos,
-**para** impedir ataques de fuerza bruta.
+**Como** responsable de seguridad, **quiero** que una cuenta se bloquee temporalmente tras varios intentos fallidos, **para** impedir ataques de fuerza bruta.
 
-**Criterios de aceptación:**
-1. Tras 5 intentos fallidos, la cuenta se bloquea 15 minutos.
-2. Durante el bloqueo, incluso la contraseña correcta es rechazada.
-3. Bloqueo y desbloqueo quedan auditados con IP.
-4. Restablecer la contraseña elimina el bloqueo vigente.
+**Criterios de aceptación:** 5 fallos → 15 min de bloqueo; durante el bloqueo se rechaza incluso la contraseña correcta; bloqueo/desbloqueo auditados; restablecer contraseña quita el bloqueo.
 
 **Tasks:**
-- [x] Implementar contador de intentos y bloqueo temporal (IMemoryCache).
-- [ ] Panel para que el SuperAdministrador vea y libere bloqueos activos.
+- [x] **Contador de intentos y bloqueo temporal** — Implementar el conteo por usuario en IMemoryCache y el bloqueo de 15 minutos con sus mensajes y auditoría.
+- [ ] **Panel de bloqueos para SuperAdministrador** — Pantalla para ver las cuentas bloqueadas en el momento y liberarlas manualmente antes de que expire el tiempo.
 
 ### HU-103 · Recuperación de contraseña por correo ✅
-**Como** usuario que olvidó su contraseña,
-**quiero** solicitar un enlace de restablecimiento a mi correo,
-**para** recuperar el acceso sin intervención del administrador.
+**Como** usuario que olvidó su contraseña, **quiero** solicitar un enlace de restablecimiento a mi correo, **para** recuperar el acceso sin intervención del administrador.
 
-**Criterios de aceptación:**
-1. Respuesta idéntica exista o no el correo (anti-enumeración).
-2. Token de 256 bits; solo se guarda su hash SHA-256; expira en 15 min y es de un solo uso.
-3. Máximo 5 solicitudes por IP cada 15 minutos.
-4. La nueva contraseña exige mínimo 8 caracteres y confirmación.
+**Criterios de aceptación:** respuesta anti-enumeración; token 256-bit hasheado (SHA-256), un solo uso, expira 15 min; rate-limit 5/15 min por IP; nueva contraseña ≥ 8 caracteres con confirmación.
 
 **Tasks:**
-- [x] Implementar flujo de token hasheado de un solo uso con rate-limit.
-- [ ] Plantilla HTML corporativa para el correo de recuperación.
-- [ ] Política de complejidad de contraseña configurable.
+- [x] **Flujo de token hasheado de un solo uso** — Generar token aleatorio, almacenar solo su hash, validar expiración/uso único y aplicar rate-limit y respuesta genérica.
+- [ ] **Plantilla HTML corporativa del correo** — Diseñar el correo de recuperación con la imagen de marca, en HTML responsivo, en lugar del texto plano actual.
+- [ ] **Política de complejidad configurable** — Exigir mayúscula/minúscula/número/símbolo con reglas parametrizables desde configuración.
 
 ### HU-104 · Autorización por roles ✅
-**Como** propietario del sistema,
-**quiero** que cada pantalla y acción valide el rol del usuario en sesión,
-**para** que nadie acceda a funciones que no le corresponden.
+**Como** propietario del sistema, **quiero** que cada pantalla y acción valide el rol del usuario en sesión, **para** que nadie acceda a funciones que no le corresponden.
 
-**Criterios de aceptación:**
-1. Roles: SuperAdministrador, Administrador, Vendedor.
-2. Sin sesión, cualquier URL protegida redirige al login.
-3. Un rol que entra a una URL ajena es redirigido a su propio panel.
-4. El SuperAdministrador accede a todo lo del Administrador.
-5. Todos los POST llevan token antiforgery (CSRF).
+**Criterios de aceptación:** roles SuperAdministrador/Administrador/Vendedor; sin sesión → login; rol ajeno → su propio panel; SuperAdmin accede a lo de Admin; antiforgery en todos los POST.
 
 **Tasks:**
-- [x] Implementar filtro de autorización por rol basado en sesión.
-- [ ] Documentar la matriz de permisos por controlador/acción (anexo técnico).
+- [x] **Filtro de autorización por rol** — Implementar el atributo que valida el rol de sesión, redirige según corresponda y protege los controladores.
+- [ ] **Matriz de permisos documentada** — Anexo técnico que liste, por controlador y acción, qué rol tiene acceso, como referencia de auditoría.
 
 ### HU-105 · Gestión de sesión y sincronización entre pestañas ✅
-**Como** responsable de seguridad,
-**quiero** sesiones con expiración corta, cookies endurecidas y comportamiento consistente entre pestañas,
-**para** reducir la ventana de secuestro de sesión.
+**Como** responsable de seguridad, **quiero** sesiones con expiración corta, cookies endurecidas y comportamiento consistente entre pestañas, **para** reducir la ventana de secuestro de sesión.
 
-**Criterios de aceptación:**
-1. La sesión expira a los 20 minutos de inactividad (deslizante).
-2. Cookies de sesión y auth: HttpOnly, Secure, SameSite=Strict.
-3. Un banner avisa 2 minutos antes de expirar y permite renovar.
-4. Abrir una pestaña nueva conserva la misma sesión; cerrar sesión en una pestaña cierra las demás.
-5. Cerrar sesión limpia la sesión y borra cookies; el evento queda auditado.
+**Criterios de aceptación:** expiración 20 min deslizante; cookies HttpOnly/Secure/SameSite=Strict; banner de aviso a 2 min; pestaña nueva conserva la sesión; cerrar sesión en una pestaña cierra las demás; logout audita y borra cookies.
 
 **Tasks:**
-- [x] Endurecer cookies (Secure) y reducir la sesión a 20 min.
-- [x] Sincronizar el cierre de sesión entre pestañas del navegador.
-- [ ] Sincronizar también la expiración por inactividad entre pestañas.
-- [ ] Configurar DataProtection persistente (Azure Blob + Key Vault).
+- [x] **Endurecer cookies y reducir la sesión** — Fijar Secure/HttpOnly/SameSite y bajar la expiración a 20 minutos alineada con el banner.
+- [x] **Cierre de sesión sincronizado entre pestañas** — Emitir por localStorage un evento de logout para que todas las pestañas del navegador salgan a la vez.
+- [ ] **Sincronizar la expiración por inactividad** — Que al expirar la sesión por inactividad en una pestaña, las demás también redirijan al login.
+- [ ] **DataProtection persistente** — Almacenar las claves en Azure Blob + Key Vault para que antiforgery y sesión sobrevivan reinicios y escalado multi-instancia.
 
 ---
 
@@ -103,47 +70,33 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Administración del equipo de trabajo de la plataforma. Permite a los administradores listar, crear, editar y restablecer contraseñas de usuarios, con reglas que impiden que un Administrador cree o modifique a otros administradores, y asignar a cada vendedor el proyecto en el que operará. Es el módulo que define quién existe en el sistema y con qué alcance.
 
 ### HU-201 · Listado de usuarios ✅
-**Como** administrador,
-**quiero** ver todos los usuarios registrados con su rol y datos de contacto,
-**para** administrar el equipo comercial.
+**Como** administrador, **quiero** ver todos los usuarios registrados con su rol y datos de contacto, **para** administrar el equipo comercial.
 
-**Criterios de aceptación:**
-1. La pantalla ocupa el área completa y muestra todos los roles.
-2. Hay un botón "Nuevo usuario" que abre el formulario en un modal.
+**Criterios de aceptación:** pantalla completa con todos los roles; botón "Nuevo usuario" que abre el formulario en un modal.
 
 **Tasks:**
-- [x] Rediseñar la vista de usuarios (tabla completa + modal de registro).
-- [ ] Búsqueda y filtros por rol/nombre.
-- [ ] Paginación cuando crezca el número de usuarios.
+- [x] **Vista de usuarios a pantalla completa con modal** — Rediseñar el listado para ocupar toda la pantalla y abrir el registro de nuevo usuario en un formulario modal.
+- [ ] **Búsqueda y filtros por rol/nombre** — Agregar un buscador y filtros para localizar usuarios rápidamente cuando crezca el equipo.
+- [ ] **Paginación del listado** — Paginar con OFFSET/FETCH (25 por página) para mantener el rendimiento con muchos usuarios.
 
 ### HU-202 · Crear y editar usuarios ✅
-**Como** administrador,
-**quiero** crear y editar usuarios (nombre, apellido, documento, celular, correo, usuario, contraseña, rol),
-**para** dar de alta asesores y otros usuarios autorizados.
+**Como** administrador, **quiero** crear y editar usuarios (datos personales, credenciales y rol), **para** dar de alta asesores y otros usuarios autorizados.
 
-**Criterios de aceptación:**
-1. La contraseña se guarda con BCrypt (12).
-2. Un Administrador no puede crear/promover a rol Administrador ni degradar a otro Administrador (solo el SuperAdministrador).
-3. El administrador puede restablecer la contraseña de un usuario.
+**Criterios de aceptación:** contraseña BCrypt(12); un Administrador no puede crear/promover ni degradar a otro Administrador (solo el SuperAdministrador); reset de contraseña disponible.
 
 **Tasks:**
-- [x] Implementar CRUD de usuarios con reglas de rol y reset de contraseña.
-- [ ] Validación de unicidad de usuario/correo con mensaje claro.
-- [ ] Desactivación (soft-delete) en lugar de borrado físico.
+- [x] **CRUD de usuarios con reglas de rol** — Crear/editar usuarios, aplicar la restricción de no gestionar administradores y permitir el reset de contraseña.
+- [ ] **Unicidad de usuario/correo** — Validar que no se repitan el nombre de usuario ni el correo, con un mensaje de error claro.
+- [ ] **Desactivación (soft-delete)** — Inhabilitar usuarios en vez de borrarlos físicamente, para conservar la trazabilidad de sus ventas.
 
 ### HU-203 · Asignación de proyecto a vendedores ✅
-**Como** administrador,
-**quiero** asignar el proyecto en el que trabajará cada vendedor,
-**para** que solo vea y venda inventario de ese proyecto.
+**Como** administrador, **quiero** asignar el proyecto en el que trabajará cada vendedor, **para** que solo vea y venda inventario de ese proyecto.
 
-**Criterios de aceptación:**
-1. La asignación se hace desde administración (el código de acceso fue eliminado).
-2. Un vendedor sin proyecto ve "Por favor, dile al Administrador que te asigne un proyecto" y tiene bloqueada la navegación hasta tenerlo.
-3. Al asignarle proyecto recupera la navegación sin volver a iniciar sesión.
+**Criterios de aceptación:** asignación desde administración (sin código de acceso); sin proyecto → mensaje y navegación bloqueada; al asignar recupera navegación sin re-login.
 
 **Tasks:**
-- [x] Quitar el flujo de código y bloquear la navegación del vendedor sin proyecto.
-- [ ] Historial de asignaciones (qué admin asignó qué proyecto y cuándo).
+- [x] **Bloqueo de navegación sin proyecto** — Quitar el flujo de código, mostrar el aviso al vendedor sin proyecto y bloquear toda la app hasta que el admin le asigne uno.
+- [ ] **Historial de asignaciones** — Registrar qué administrador asignó qué proyecto a cada vendedor y cuándo, para auditoría.
 
 ---
 
@@ -152,34 +105,24 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Punto de entrada del inventario al sistema. Permite a los administradores crear un proyecto e importar masivamente sus inmuebles desde un archivo Excel (con validación de tipo y tamaño), soportando distintos tipos de producto (apartamentos, lotes, suites, salud, oficinas) y hasta cinco listas de precio por unidad. También administra los proyectos ya cargados y su retiro sin afectar el histórico de ventas.
 
 ### HU-301 · Carga masiva desde Excel ✅
-**Como** administrador,
-**quiero** cargar un proyecto y su inventario desde un archivo Excel,
-**para** montar un lanzamiento en minutos sin digitación manual.
+**Como** administrador, **quiero** cargar un proyecto y su inventario desde un archivo Excel, **para** montar un lanzamiento en minutos sin digitación manual.
 
-**Criterios de aceptación:**
-1. Solo se aceptan archivos .xlsx de máximo 10 MB.
-2. Tipos: Apartamentos, Lotes, Suites, Salud, Oficinas, cada uno con su columna de unidad.
-3. Se leen torre, piso, tipo, metros y hasta 5 listas de precio.
-4. Si el archivo no tiene datos, se rechaza y no se crea nada.
+**Criterios de aceptación:** solo .xlsx ≤ 10 MB; tipos con su columna de unidad; lectura de torre/piso/tipo/metros y 5 listas; archivo vacío → rechazo sin crear nada.
 
 **Tasks:**
-- [x] Implementar la importación desde Excel con validación de tipo/tamaño.
-- [ ] Validación estricta: columna PROYECTO y METROS obligatorias, al menos 1 fila válida (unidad+metros+precio>0), carga en transacción.
-- [ ] Vista previa del Excel antes de confirmar.
-- [ ] Reporte de filas rechazadas y su motivo.
+- [x] **Importación desde Excel con validación de tipo/tamaño** — Leer el .xlsx con EPPlus, validar extensión y tamaño, detectar columnas por tipo de proyecto e insertar el inventario.
+- [ ] **Validación estricta del archivo** — Exigir columna PROYECTO (coincidente con el nombre) y METROS, y al menos una fila válida (unidad + metros + precio > 0), envolviendo la carga en transacción para evitar "proyectos fantasma".
+- [ ] **Vista previa antes de confirmar** — Mostrar una previsualización de las filas detectadas para que el admin confirme antes de insertar.
+- [ ] **Reporte de filas rechazadas** — Al terminar la carga, listar las filas descartadas y el motivo de cada una.
 
 ### HU-302 · Gestión de proyectos cargados ✅
-**Como** administrador,
-**quiero** ver los proyectos cargados con sus totales por estado y poder retirarlos,
-**para** mantener el catálogo de lanzamientos al día.
+**Como** administrador, **quiero** ver los proyectos cargados con sus totales por estado y poder retirarlos, **para** mantener el catálogo de lanzamientos al día.
 
-**Criterios de aceptación:**
-1. Cada proyecto muestra totales (inmuebles, disponibles, vendidos, reservados, en proceso).
-2. Retirar un proyecto lo desactiva y desvincula clientes/vendedores, sin borrar el histórico de ventas.
+**Criterios de aceptación:** totales por estado por proyecto; retiro que desactiva y desvincula sin borrar el histórico de ventas.
 
 **Tasks:**
-- [x] Implementar listado de proyectos con totales y retiro lógico.
-- [ ] Confirmación en dos pasos para retirar un proyecto con ventas activas.
+- [x] **Listado de proyectos con totales y retiro lógico** — Mostrar cada proyecto con sus conteos por estado y permitir desactivarlo desvinculando clientes/vendedores.
+- [ ] **Confirmación en dos pasos para retiro con ventas** — Pedir confirmación explícita cuando el proyecto que se retira tiene ventas activas.
 
 ---
 
@@ -188,47 +131,31 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Corazón del control de inventario en tiempo real. Muestra la grilla de inmuebles del proyecto agrupada por área y tipología, y garantiza que los cambios de estado (disponible → en proceso → reservado → vendido) sean atómicos para evitar que dos personas tomen la misma unidad. Incluye el motor de listas de precio con escalamiento automático (global y por área) difundido por SignalR.
 
 ### HU-401 · Grilla de inmuebles por proyecto ✅
-**Como** administrador,
-**quiero** ver la grilla de inmuebles del proyecto agrupada por área y tipología,
-**para** conocer el estado del inventario de un vistazo.
+**Como** administrador, **quiero** ver la grilla de inmuebles agrupada por área y tipología, **para** conocer el estado del inventario de un vistazo.
 
-**Criterios de aceptación:**
-1. Estados con color: DISPONIBLE, EN PROCESO, RESERVADO, VENDIDO.
-2. Puedo filtrar por área (m²) y cambiar de proyecto activo.
-3. La lista activa (global y por área) se muestra con su precio.
+**Criterios de aceptación:** estados con color; filtro por área y cambio de proyecto activo; lista activa (global y por área) con su precio.
 
 **Tasks:**
-- [x] Implementar la grilla con agrupación, filtros y actualización en vivo.
-- [ ] Exportar la grilla actual a imagen/Excel.
+- [x] **Grilla con agrupación, filtros y tiempo real** — Implementar la grilla por área/tipología con colores de estado, filtros y actualización en vivo por SignalR.
+- [ ] **Exportar la grilla actual** — Permitir descargar la vista de inmuebles como imagen o Excel para compartirla.
 
 ### HU-402 · Cambios de estado sin condiciones de carrera ✅
-**Como** propietario del negocio,
-**quiero** que tomar/reservar/vender un inmueble sea una operación atómica,
-**para** que dos personas no puedan quedarse con la misma unidad.
+**Como** propietario del negocio, **quiero** que tomar/reservar/vender un inmueble sea atómico, **para** que dos personas no puedan quedarse con la misma unidad.
 
-**Criterios de aceptación:**
-1. Cada cambio usa `UPDATE … WHERE Estado = <estado previo>` y verifica filas afectadas.
-2. Si otro ganó la carrera, veo "Este inmueble ya no está disponible" y no se hace ningún cambio.
-3. Tras cada cambio se emite el evento SignalR a todos los clientes.
+**Criterios de aceptación:** `UPDATE … WHERE Estado = previo` con verificación de filas; si otro ganó → aviso sin cambios; broadcast SignalR tras cada cambio.
 
 **Tasks:**
-- [x] Implementar cambios de estado atómicos + broadcast SignalR (incluido el cierre de venta transaccional).
-- [ ] Prueba de concurrencia automatizada (dos ventas simultáneas del mismo inmueble).
+- [x] **Cambios de estado atómicos + broadcast** — Implementar todos los cambios con UPDATE condicional al estado previo, verificación de filas afectadas y difusión por SignalR, incluido el cierre de venta transaccional.
+- [ ] **Prueba de concurrencia automatizada** — Test que simule dos ventas simultáneas del mismo inmueble y verifique que solo una prospera.
 
 ### HU-403 · Listas de precio con escalamiento automático ✅
-**Como** administrador,
-**quiero** que la lista de precios suba automáticamente cada N unidades vendidas,
-**para** ejecutar la estrategia de precios del lanzamiento sin intervención manual.
+**Como** administrador, **quiero** que la lista de precios suba automáticamente cada N unidades vendidas, **para** ejecutar la estrategia de precios sin intervención manual.
 
-**Criterios de aceptación:**
-1. Configurable "apartamentos por lista" a nivel proyecto y por área.
-2. Al cumplirse el umbral, la lista sube (máx. Lista 5) solo si la lista destino tiene precios.
-3. El cambio se difunde por SignalR y las vistas se actualizan sin recargar.
-4. También puedo cambiar lista/precio de un área manualmente.
+**Criterios de aceptación:** umbral configurable global y por área; sube (máx. Lista 5) solo si la lista destino tiene precios; broadcast en vivo; cambio manual disponible.
 
 **Tasks:**
-- [x] Implementar escalamiento automático global y por área con broadcast.
-- [ ] Historial de cambios de lista (cuándo y qué lo disparó).
+- [x] **Escalamiento automático global y por área** — Calcular y aplicar el ascenso de lista al cumplir el umbral, validando que la lista destino tenga precios, y difundirlo por SignalR.
+- [ ] **Historial de cambios de lista** — Guardar cuándo cambió cada lista y qué lo disparó (venta o cambio manual), para trazabilidad de precios.
 
 ---
 
@@ -237,59 +164,40 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Experiencia principal del asesor durante el lanzamiento. Le muestra sus indicadores, el inventario disponible de su proyecto y le permite tomar una unidad, reservarla congelando el precio de la lista vigente, y consultar sus ventas y reservas — todo actualizándose en vivo a medida que otros asesores actúan. Está diseñado para operar bajo alta concurrencia el día del evento.
 
 ### HU-501 · Panel de inicio del vendedor ✅
-**Como** vendedor,
-**quiero** ver al entrar mis indicadores (inventario, disponibles, mis ventas, mis clientes),
-**para** ubicarme rápido durante el lanzamiento.
+**Como** vendedor, **quiero** ver al entrar mis indicadores, **para** ubicarme rápido durante el lanzamiento.
 
-**Criterios de aceptación:**
-1. Los KPIs corresponden a mi proyecto asignado y a mi gestión.
-2. La vista es responsiva y no se descuadra según resolución/zoom.
+**Criterios de aceptación:** KPIs de mi proyecto y mi gestión; vista responsiva que no se descuadra según resolución/zoom.
 
 **Tasks:**
-- [x] Implementar el panel de KPIs del vendedor (responsivo y con íconos).
-- [ ] KPI adicional: mis reservas activas.
+- [x] **Panel de KPIs del vendedor responsivo** — Implementar el inicio del vendedor con sus indicadores, íconos y una maquetación que no desborde en distintas resoluciones/zoom.
+- [ ] **KPI de reservas activas** — Agregar al panel un indicador con el número de reservas vigentes del vendedor.
 
 ### HU-502 · Ver inmuebles disponibles y tomar unidad ✅
-**Como** vendedor,
-**quiero** ver los inmuebles del proyecto y tomar una unidad disponible,
-**para** iniciar una venta con un cliente en sala.
+**Como** vendedor, **quiero** ver los inmuebles y tomar una unidad disponible, **para** iniciar una venta con un cliente en sala.
 
-**Criterios de aceptación:**
-1. Solo veo mi proyecto; las reservas de otros aparecen bloqueadas con su nombre.
-2. "Tomar" pasa la unidad a EN PROCESO a mi nombre de forma atómica.
-3. Puedo cancelar y la unidad vuelve a DISPONIBLE.
-4. Los cambios de otros se reflejan en vivo (SignalR), incluidos los KPIs.
+**Criterios de aceptación:** solo mi proyecto; reservas ajenas bloqueadas con nombre; "tomar" → EN PROCESO atómico; cancelar → DISPONIBLE; cambios de otros en vivo.
 
 **Tasks:**
-- [x] Implementar la grilla del vendedor con "tomar" atómico y tiempo real.
-- [ ] Tiempo máximo de "EN PROCESO" con liberación automática (configurable).
+- [x] **Grilla del vendedor con "tomar" atómico y tiempo real** — Mostrar el inventario del proyecto, bloquear reservas ajenas, y transicionar a EN PROCESO de forma atómica con actualización en vivo.
+- [ ] **Liberación automática de "EN PROCESO"** — Devolver a DISPONIBLE una unidad que lleve demasiado tiempo tomada sin concretar, con el tiempo configurable.
 
 ### HU-503 · Reservar con precio bloqueado ✅
-**Como** vendedor,
-**quiero** reservar un inmueble congelando el precio de la lista vigente,
-**para** garantizarle al cliente el valor pactado aunque la lista suba.
+**Como** vendedor, **quiero** reservar congelando el precio de la lista vigente, **para** garantizarle al cliente el valor pactado aunque la lista suba.
 
-**Criterios de aceptación:**
-1. La reserva guarda el precio de la lista activa del área en ese momento.
-2. Al confirmar la venta desde la reserva se usa siempre el precio bloqueado.
-3. Solo el dueño de la reserva (o un admin) puede liberarla/venderla.
+**Criterios de aceptación:** guarda el precio de la lista activa del área; al vender desde la reserva usa siempre ese precio; solo el dueño (o admin) libera/vende.
 
 **Tasks:**
-- [x] Implementar reserva con precio bloqueado y verificación de propietario.
-- [ ] Vencimiento automático de reservas (configurable).
+- [x] **Reserva con precio bloqueado y verificación de propietario** — Congelar el precio de la lista activa al reservar y validar la propiedad de la reserva al liberar o vender.
+- [ ] **Vencimiento automático de reservas** — Liberar reservas que superen un tiempo configurado (horas/días) para no bloquear inventario indefinidamente.
 
 ### HU-504 · Mis ventas y mis reservas ✅
-**Como** vendedor,
-**quiero** consultar mis ventas registradas y mis reservas activas,
-**para** hacer seguimiento a mi gestión.
+**Como** vendedor, **quiero** consultar mis ventas y mis reservas activas, **para** hacer seguimiento a mi gestión.
 
-**Criterios de aceptación:**
-1. Veo el historial de mis ventas con precio, destino y fecha.
-2. Veo mis reservas vigentes y puedo continuar la venta o liberarlas.
+**Criterios de aceptación:** historial de ventas con precio/destino/fecha; reservas vigentes con opción de continuar la venta o liberarlas.
 
 **Tasks:**
-- [x] Implementar las vistas "Mis ventas" y "Mis reservas".
-- [ ] Exportar "mis ventas" a Excel desde el panel del vendedor.
+- [x] **Vistas "Mis ventas" y "Mis reservas"** — Implementar las dos pantallas del vendedor con su historial de ventas y sus reservas accionables.
+- [ ] **Exportar "mis ventas" a Excel** — Permitir al vendedor descargar su historial de ventas en un archivo Excel.
 
 ---
 
@@ -298,36 +206,24 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Cierre formal de la operación comercial con controles de negocio y normativos. Antes de registrar el cliente exige la verificación SAGRILAFT (prevención de lavado de activos), permite seleccionar cliente existente o crear uno nuevo con documento validado, y asegura la integridad financiera derivando el precio y la lista en el servidor dentro de una transacción atómica. Aplica tanto al vendedor como al administrador.
 
 ### HU-601 · Verificación SAGRILAFT previa al registro de cliente ✅
-**Como** oficial de cumplimiento,
-**quiero** que antes de habilitar el panel de cliente se confirme si el cliente ya fue consultado en SAGRILAFT,
-**para** cumplir la normativa de prevención de lavado de activos.
+**Como** oficial de cumplimiento, **quiero** confirmar si el cliente ya fue consultado en SAGRILAFT antes de habilitar el panel de cliente, **para** cumplir la normativa antilavado.
 
-**Criterios de aceptación:**
-1. En los 4 flujos de venta aparece "¿Ya fue consultado el cliente en SAGRILAFT?".
-2. "Sí" habilita el panel y el botón; "No" lo mantiene bloqueado con el mensaje "Por favor, consulte el cliente y recargue la página para realizar el nuevo registro."
-3. El servidor rechaza la venta si la confirmación no llega.
+**Criterios de aceptación:** pregunta en los 4 flujos; "Sí" habilita, "No" bloquea con el mensaje indicado; el servidor rechaza la venta si no llega la confirmación.
 
 **Tasks:**
-- [x] Implementar el gate SAGRILAFT (cliente y servidor) en los 4 flujos.
-- [ ] Guardar la confirmación SAGRILAFT en la venta (quién y cuándo).
-- [ ] Integración con el proveedor de listas restrictivas (consulta en línea).
+- [x] **Gate SAGRILAFT en los 4 flujos** — Agregar la pregunta y el bloqueo del panel de cliente (cliente y servidor) en venta directa y desde reserva, para vendedor y administrador.
+- [ ] **Auditar la confirmación en la venta** — Guardar en la venta que se confirmó SAGRILAFT, con el usuario y la fecha, como evidencia de cumplimiento.
+- [ ] **Integración con listas restrictivas** — Consultar en línea al proveedor de listas (SAGRILAFT) en lugar de una confirmación manual.
 
 ### HU-602 · Registrar venta con cliente nuevo o existente ✅
-**Como** vendedor o administrador,
-**quiero** registrar la venta seleccionando un cliente existente o creando uno nuevo,
-**para** cerrar la operación con los datos completos del comprador.
+**Como** vendedor o administrador, **quiero** registrar la venta con cliente existente o nuevo, **para** cerrar la operación con los datos completos del comprador.
 
-**Criterios de aceptación:**
-1. Sin cliente válido la venta no continúa; el mensaje aparece en la misma pantalla.
-2. El documento (CC/NIT) solo acepta números (validado en pantalla y en servidor).
-3. El destino se elige de una lista blanca validada en servidor.
-4. El precio y la lista los calcula el servidor; los valores del formulario se ignoran.
-5. El registro y el cambio a VENDIDO ocurren en una transacción atómica que verifica estado y propietario.
+**Criterios de aceptación:** sin cliente válido no continúa (mensaje en la misma pantalla); documento solo números; destino de lista blanca; precio/lista calculados en servidor; cierre en transacción atómica que verifica estado y propietario.
 
 **Tasks:**
-- [x] Implementar el cierre de venta con precio en servidor, destino validado y transacción.
-- [ ] Detección de cliente duplicado por documento al crear uno nuevo.
-- [ ] Anulación de ventas con motivo y auditoría.
+- [x] **Cierre de venta seguro (precio en servidor + transacción)** — Derivar precio y lista en el servidor, validar destino y cliente, y ejecutar el INSERT de venta + cambio a VENDIDO en una transacción con guardia de estado/propietario.
+- [ ] **Detección de cliente duplicado** — Al crear un cliente nuevo, avisar si ya existe uno con el mismo documento.
+- [ ] **Anulación de ventas con auditoría** — Flujo de administrador para anular una venta registrando motivo, usuario y fecha, devolviendo el inmueble a disponible.
 
 ---
 
@@ -336,18 +232,14 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Administración de la información de los compradores. Permite listar clientes con paginación y búsqueda, y ver el detalle de cada uno con su historial de compras y edición de datos. Incluye consideraciones de privacidad y protección de datos personales (Ley 1581) sobre qué clientes puede ver cada rol.
 
 ### HU-701 · Listado y detalle de clientes ✅
-**Como** administrador,
-**quiero** listar los clientes con paginación y ver su detalle con historial de compras,
-**para** conocer y atender a los compradores del proyecto.
+**Como** administrador, **quiero** listar los clientes con paginación y ver su detalle con historial, **para** conocer y atender a los compradores.
 
-**Criterios de aceptación:**
-1. Listado paginado (25 por página) con búsqueda.
-2. El detalle permite editar la información y muestra el historial de compras.
+**Criterios de aceptación:** listado paginado (25/página) con búsqueda; detalle editable con historial de compras.
 
 **Tasks:**
-- [x] Implementar el listado paginado y el detalle de cliente con historial.
-- [ ] Limitar los clientes que ve un vendedor a su proyecto/propios (Ley 1581).
-- [ ] Exportar clientes a Excel.
+- [x] **Listado paginado y detalle con historial** — Implementar el listado de clientes con paginación y búsqueda, y la ficha de detalle con edición e historial de compras.
+- [ ] **Privacidad de clientes por vendedor** — Limitar el listado que ve un vendedor a los clientes de su proyecto o a los que él creó, conforme a la Ley 1581 (habeas data).
+- [ ] **Exportar clientes a Excel** — Permitir la descarga del listado de clientes en Excel para gestión comercial.
 
 ---
 
@@ -356,18 +248,13 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Centro de mando del administrador durante el lanzamiento. Reúne los KPIs del proyecto y el mapa de inmuebles que se actualiza en vivo a medida que el equipo vende, reserva o toma unidades, permitiendo dirigir el evento minuto a minuto y cambiar el proyecto activo desde la barra superior.
 
 ### HU-801 · Dashboard con KPIs y mapa en vivo ✅
-**Como** administrador,
-**quiero** un panel con KPIs y el mapa de inmuebles actualizándose en tiempo real,
-**para** dirigir el lanzamiento minuto a minuto.
+**Como** administrador, **quiero** un panel con KPIs y el mapa actualizándose en tiempo real, **para** dirigir el lanzamiento minuto a minuto.
 
-**Criterios de aceptación:**
-1. KPIs: total, disponibles, vendidos, reservados, en proceso, valor vendido, ventas de hoy.
-2. Cuando un vendedor actúa, el dashboard se actualiza sin recargar (SignalR).
-3. Puedo cambiar el proyecto activo desde la barra superior.
+**Criterios de aceptación:** KPIs de inventario/ventas/valor/hoy; actualización sin recargar (SignalR); cambio de proyecto activo desde la barra superior.
 
 **Tasks:**
-- [x] Implementar el dashboard con KPIs y mapa en tiempo real.
-- [ ] Feed de actividad en vivo (última venta, quién, hace cuánto).
+- [x] **Dashboard con KPIs y mapa en tiempo real** — Implementar el panel de indicadores y el mapa de inmuebles con actualización en vivo por SignalR y selector de proyecto.
+- [ ] **Feed de actividad en vivo** — Agregar un panel con las últimas acciones (última venta, quién y hace cuánto) para seguir el pulso del evento.
 
 ---
 
@@ -376,57 +263,42 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Generación de la información oficial del lanzamiento para la operación y la gerencia. Incluye el informe del día en pantalla, exportaciones a Excel, el reporte por asesor y el PDF técnico ejecutivo de una sola hoja (rediseñado según el handoff de diseño) que consolida estado del proyecto, ventas y asistencia.
 
 ### HU-901 · Informe del día en pantalla ✅
-**Como** administrador,
-**quiero** un informe del día con KPIs, progreso, destino de ventas, tipologías, mapa y detalle,
-**para** revisar el desempeño del lanzamiento en cualquier momento.
+**Como** administrador, **quiero** un informe del día con KPIs, progreso, destinos, tipologías, mapa y detalle, **para** revisar el desempeño en cualquier momento.
 
-**Criterios de aceptación:**
-1. Muestra KPIs, progreso por estado y detalle de ventas del proyecto activo.
-2. Los valores provienen de datos vivos.
+**Criterios de aceptación:** KPIs, progreso por estado y detalle del proyecto activo; datos vivos.
 
 **Tasks:**
-- [x] Implementar el informe del día en pantalla.
-- [ ] Filtro por rango de fechas (no solo "hoy").
+- [x] **Informe del día en pantalla** — Construir la vista de reportes con KPIs, progreso, destinos, tipologías, mapa y detalle de ventas del día.
+- [ ] **Filtro por rango de fechas** — Permitir consultar el informe por un periodo y no solo por el día actual.
 
 ### HU-902 · Exportación a Excel ✅
-**Como** administrador,
-**quiero** exportar el informe y el detalle de ventas a Excel,
-**para** compartirlo con gerencia y llevar archivo.
+**Como** administrador, **quiero** exportar el informe y el detalle de ventas a Excel, **para** compartirlo con gerencia y archivarlo.
 
-**Criterios de aceptación:**
-1. Se exporta el detalle de ventas y los indicadores a un archivo .xlsx.
+**Criterios de aceptación:** se exporta detalle e indicadores a .xlsx.
 
 **Tasks:**
-- [x] Implementar la exportación a Excel (EPPlus).
-- [ ] Plantilla Excel con logo y formato corporativo unificado.
+- [x] **Exportación a Excel (EPPlus)** — Generar el archivo Excel con el detalle de ventas y los indicadores del proyecto.
+- [ ] **Plantilla Excel corporativa** — Unificar el formato de las exportaciones con logo, encabezados y estilos de marca.
 
 ### HU-903 · PDF técnico rediseñado 🔨
-**Como** gerencia,
-**quiero** un PDF técnico de una sola hoja con módulos (KPIs con íconos, donut de avance, tipologías, detalle de ventas, asistencia y módulos colapsados),
-**para** recibir un informe ejecutivo claro y estandarizado.
+**Como** gerencia, **quiero** un PDF técnico de una sola hoja con módulos (KPIs, donut, tipologías, ventas, asistencia y colapsados), **para** recibir un informe ejecutivo estandarizado.
 
-**Criterios de aceptación:**
-1. Página carta con header, franja KPI de 6 columnas, módulo de estado (donut + leyenda + barras), tabla de ventas con subtotales y destinos, módulo de asistencia y módulos colapsados, y footer con paginación.
-2. Valores en vivo; formato numérico es-CO.
-3. Los módulos sin datos se colapsan a una línea.
+**Criterios de aceptación:** carta con header, franja KPI de 6 columnas, estado (donut+leyenda+barras), ventas con subtotales y destinos, asistencia y módulos colapsados, y footer; datos vivos es-CO; módulos sin datos colapsados.
 
 **Tasks:**
-- [x] Rediseñar la composición del PDF técnico con QuestPDF según el handoff.
-- [ ] Validar la generación tras el fix de layout y ajustar detalles visuales con datos reales.
-- [ ] Quitar `QuestPDF.Settings.EnableDebugging` al estabilizar.
-- [ ] Embeber la tipografía Barlow (hoy usa Arial como fallback).
+- [x] **Rediseño del PDF técnico con QuestPDF** — Reescribir la composición del informe según el handoff (header, franja KPI con íconos, donut, barras de tipología, tabla de ventas, asistencia y módulos colapsados).
+- [ ] **Validar generación y afinar visual** — Probar la generación tras el fix de layout con datos reales y ajustar detalles (donut, barras, tablas) contra el diseño.
+- [ ] **Quitar el flag de depuración** — Retirar `QuestPDF.Settings.EnableDebugging` una vez estabilizado el informe.
+- [ ] **Embeber la tipografía Barlow** — Incluir la fuente Barlow del diseño en lugar del fallback Arial actual.
 
 ### HU-904 · Reporte de asesores ✅
-**Como** administrador,
-**quiero** un reporte por asesor (ventas, unidades y valores),
-**para** medir el desempeño individual del equipo.
+**Como** administrador, **quiero** un reporte por asesor, **para** medir el desempeño individual del equipo.
 
-**Criterios de aceptación:**
-1. Muestra por asesor sus ventas, unidades y valor total.
+**Criterios de aceptación:** por asesor sus ventas, unidades y valor total.
 
 **Tasks:**
-- [x] Implementar el reporte de asesores.
-- [ ] Ranking histórico multi-proyecto.
+- [x] **Reporte de asesores** — Implementar el reporte que agrupa por asesor sus ventas, unidades y valores.
+- [ ] **Ranking histórico multi-proyecto** — Extender el reporte para comparar el desempeño de los asesores a través de varios proyectos/lanzamientos.
 
 ---
 
@@ -435,30 +307,22 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Registro y medición de la convocatoria del evento. Permite capturar por día del lanzamiento los datos de asistencia (familias, adultos, niños, mascotas, asistentes con cita, vehículos, agendados) con cálculos de porcentajes en vivo, y exportarlos a Excel e integrarlos al PDF técnico como parte del informe oficial.
 
 ### HU-1001 · Captura del cuadro de asistencia ✅
-**Como** administrador,
-**quiero** registrar por día: familias, adultos, niños, mascotas, asistentes con cita, carros, motos, caminando y agendados,
-**para** medir la convocatoria del evento.
+**Como** administrador, **quiero** registrar por día los datos de asistencia, **para** medir la convocatoria del evento.
 
-**Criterios de aceptación:**
-1. Puedo agregar/quitar días, escribir observaciones y guardar el cuadro.
-2. La vista previa calcula porcentajes en vivo.
+**Criterios de aceptación:** agregar/quitar días, observaciones y guardar; vista previa con porcentajes en vivo.
 
 **Tasks:**
-- [x] Implementar la captura del cuadro de asistencia con cálculo en vivo.
-- [ ] Captura optimizada para móvil (registro en puerta).
+- [x] **Captura del cuadro con cálculo en vivo** — Implementar el formulario por días (familias, adultos, niños, vehículos, citas, etc.) con vista previa que calcula porcentajes en tiempo real y persistencia.
+- [ ] **Captura optimizada para móvil** — Adaptar la captura para registrar la asistencia desde el celular en la puerta del evento.
 
 ### HU-1002 · Exportación del cuadro (Excel y PDF) ✅
-**Como** administrador,
-**quiero** exportar el cuadro de asistencia a Excel y verlo integrado al PDF técnico,
-**para** anexarlo al informe oficial del lanzamiento.
+**Como** administrador, **quiero** exportar el cuadro a Excel y verlo en el PDF técnico, **para** anexarlo al informe oficial.
 
-**Criterios de aceptación:**
-1. Se exporta el cuadro a Excel con totales y porcentajes.
-2. El resumen de asistencia aparece en el PDF técnico.
+**Criterios de aceptación:** exportación a Excel con totales/porcentajes; resumen de asistencia en el PDF técnico.
 
 **Tasks:**
-- [x] Implementar la exportación del cuadro y su módulo en el PDF.
-- [ ] Consolidado de asistencia multi-lanzamiento (comparativo).
+- [x] **Exportación del cuadro y módulo en el PDF** — Generar el Excel del cuadro de asistencia e incluir su resumen como módulo del informe técnico.
+- [ ] **Consolidado multi-lanzamiento** — Reporte comparativo de asistencia entre distintos lanzamientos/proyectos.
 
 ---
 
@@ -467,49 +331,36 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Conjunto de controles técnicos que protegen la aplicación y los datos de forma transversal: cabeceras de seguridad y HTTPS, manejo de secretos fuera del repositorio, consultas parametrizadas, saneamiento de entradas y auditoría continua de calidad. Sostiene el cumplimiento normativo y la postura de seguridad de cara a producción.
 
 ### HU-1101 · Endurecimiento de aplicación ✅
-**Como** responsable de seguridad,
-**quiero** cabeceras y configuración endurecidas (CSP, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, HSTS, HTTPS-only, TLS ≥ 1.2),
-**para** reducir la superficie de ataque en producción.
+**Como** responsable de seguridad, **quiero** cabeceras y configuración endurecidas, **para** reducir la superficie de ataque en producción.
 
-**Criterios de aceptación:**
-1. Las respuestas incluyen las cabeceras de seguridad y se fuerza HTTPS.
-2. TLS mínimo 1.2 en las conexiones.
+**Criterios de aceptación:** CSP, X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, HSTS, HTTPS-only, TLS ≥ 1.2.
 
 **Tasks:**
-- [x] Configurar cabeceras de seguridad, HSTS y HTTPS-only.
-- [ ] Eliminar `'unsafe-inline'` de `script-src` migrando el JS a archivos con nonce.
-- [ ] Fijar `AllowedHosts` al dominio real de producción.
+- [x] **Cabeceras de seguridad, HSTS y HTTPS-only** — Configurar la CSP y las demás cabeceras, forzar HTTPS y el TLS mínimo en el pipeline de middleware.
+- [ ] **Eliminar `'unsafe-inline'` de la CSP** — Migrar el JS inline a archivos con nonce/hash para poder endurecer `script-src`.
+- [ ] **Fijar `AllowedHosts`** — Restringir los hosts permitidos al dominio real de producción (hoy en `*`).
 
 ### HU-1102 · Protección de datos y secretos 🔨
-**Como** responsable de seguridad,
-**quiero** que ningún secreto viva en el repositorio y que los datos sensibles estén protegidos,
-**para** cumplir buenas prácticas y la normativa de datos personales.
+**Como** responsable de seguridad, **quiero** que ningún secreto viva en el repositorio y que los datos sensibles estén protegidos, **para** cumplir buenas prácticas y la normativa de datos personales.
 
-**Criterios de aceptación:**
-1. La cadena de conexión se define por variable de entorno/Key Vault, no en `appsettings.json`.
-2. `appsettings.Development/Production.json` están en `.gitignore`.
-3. SQL 100% parametrizado; documento del cliente saneado a solo dígitos.
+**Criterios de aceptación:** cadena de conexión por variable de entorno/Key Vault; `appsettings.*.json` sensibles en `.gitignore`; SQL parametrizado; documento saneado.
 
 **Tasks:**
-- [x] Sacar el secreto de `appsettings.json`, sanear documento y parametrizar SQL.
-- [ ] Rotar la credencial SQL expuesta en el historial de git y purgar historial.
-- [ ] DataProtection persistente con Azure Blob + Key Vault.
-- [ ] Auditoría `dotnet list package --vulnerable` en CI.
+- [x] **Sacar secretos, sanear entradas y parametrizar SQL** — Quitar la cadena con credenciales de `appsettings.json`, saneаr el documento del cliente a solo dígitos y confirmar que todo el SQL sea parametrizado.
+- [ ] **Rotar la credencial expuesta y purgar historial** — Cambiar la contraseña SQL que quedó en el historial de git y limpiar el historial (git filter-repo/BFG).
+- [ ] **DataProtection con Key Vault** — Persistir y proteger las claves de DataProtection con Azure Blob + Key Vault.
+- [ ] **Escaneo de dependencias en CI** — Ejecutar `dotnet list package --vulnerable` en el pipeline para detectar librerías vulnerables.
 
 ### HU-1103 · Auditoría de QA continua ⏳
-**Como** líder técnico,
-**quiero** un proyecto de pruebas automatizadas (xUnit) ejecutado en CI,
-**para** que cada cambio se valide antes de llegar a QA/Producción.
+**Como** líder técnico, **quiero** pruebas automatizadas (xUnit) ejecutadas en CI, **para** validar cada cambio antes de QA/Producción.
 
-**Criterios de aceptación:**
-1. Existe un proyecto de pruebas que corre en el pipeline.
-2. `dotnet test` es un gate obligatorio antes de desplegar.
+**Criterios de aceptación:** proyecto de pruebas que corre en el pipeline; `dotnet test` como gate obligatorio.
 
 **Tasks:**
-- [x] Realizar la auditoría inicial de QA/seguridad y documentar hallazgos (INFORME_QA_SEGURIDAD.md).
-- [ ] Crear `Plataforma_ventas.Tests` con los casos ya diseñados.
-- [ ] Pruebas de integración del flujo de venta con BD en contenedor.
-- [ ] Incorporar `dotnet test` como gate del pipeline.
+- [x] **Auditoría inicial de QA/seguridad** — Realizar la revisión estática y de seguridad del proyecto y documentar los hallazgos y remediaciones (INFORME_QA_SEGURIDAD.md).
+- [ ] **Crear el proyecto de pruebas** — Crear `Plataforma_ventas.Tests` (xUnit) con los casos ya diseñados (SoloDigitos, mapeo de listas, política de contraseña).
+- [ ] **Pruebas de integración del flujo de venta** — Probar tomar→vender y reservar→vender contra una BD en contenedor.
+- [ ] **`dotnet test` como gate del pipeline** — Hacer obligatorias las pruebas antes de cualquier despliegue a QA/Producción.
 
 ---
 
@@ -518,49 +369,35 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 **Descripción:** Todo lo relacionado con llevar y mantener la aplicación en la nube. Define los dos entornos idénticos y aislados (QA y Producción) en Azure, el pipeline de CI/CD por ramas con aprobación manual a Producción desde Azure DevOps, y el monitoreo y respaldo necesarios para operar con confianza durante los lanzamientos.
 
 ### HU-1201 · Entornos QA y Producción idénticos ⏳
-**Como** equipo de desarrollo,
-**quiero** dos entornos aislados con la misma configuración,
-**para** probar cada versión en QA antes de liberarla.
+**Como** equipo de desarrollo, **quiero** dos entornos aislados con la misma configuración, **para** probar cada versión en QA antes de liberarla.
 
-**Criterios de aceptación:**
-1. Recursos separados por entorno (App Service + BD propios).
-2. La configuración sensible vive en el entorno (variables/Key Vault).
-3. QA nunca comparte base de datos con Producción.
+**Criterios de aceptación:** recursos separados por entorno; configuración sensible en el entorno (variables/Key Vault); QA no comparte BD con Producción.
 
 **Tasks:**
-- [x] Definir la arquitectura objetivo (App Service B2 + Azure SQL Serverless) y su costeo.
-- [ ] Crear los recursos de QA y Producción en Azure.
-- [ ] Dominio y subdominio con certificado administrado.
+- [x] **Definir arquitectura y costeo** — Elegir App Service B2 (Linux) + Azure SQL Serverless por entorno y documentar el costo aproximado para aprobación de gerencia.
+- [ ] **Crear los recursos en Azure** — Crear los Resource Groups, App Service y Azure SQL de QA y de Producción con las configuraciones de seguridad definidas.
+- [ ] **Dominio y subdominio con certificado** — Configurar el dominio propio y el subdominio de QA con el certificado administrado por Azure.
 
 ### HU-1202 · CI/CD por ramas con aprobación a Producción 🔨
-**Como** equipo de desarrollo,
-**quiero** que la rama `qa` despliegue a QA y `master` a Producción con aprobación manual,
-**para** liberar con control y trazabilidad desde Azure DevOps.
+**Como** equipo de desarrollo, **quiero** que `qa` despliegue a QA y `master` a Producción con aprobación manual, **para** liberar con control y trazabilidad.
 
-**Criterios de aceptación:**
-1. Pipeline YAML único que compila una vez y despliega según la rama.
-2. El stage de Producción exige aprobación en el Environment "Production".
-3. Los pull requests no despliegan.
+**Criterios de aceptación:** pipeline YAML único; Producción exige aprobación en el Environment; los PR no despliegan.
 
 **Tasks:**
-- [x] Crear el `azure-pipelines.yml` con despliegue por rama y aprobación.
-- [ ] Conectar el repo a Azure Pipelines y crear los Environments con aprobadores.
-- [ ] Crear Service Connections por entorno con permisos mínimos.
-- [ ] Reemplazar los placeholders del YAML con los nombres reales de los App Service.
+- [x] **Pipeline con despliegue por rama y aprobación** — Crear `azure-pipelines.yml` que compila una vez y despliega a QA o a Producción según la rama, con aprobación en el entorno de Producción.
+- [ ] **Conectar repo y crear Environments** — Vincular el repositorio a Azure Pipelines y crear los Environments QA y Production con sus aprobadores.
+- [ ] **Service Connections por entorno** — Crear las conexiones de servicio a Azure, una por entorno, con permisos mínimos sobre su Resource Group.
+- [ ] **Completar nombres reales en el YAML** — Reemplazar los placeholders del pipeline por los nombres reales de los App Service y las service connections.
 
 ### HU-1203 · Monitoreo y respaldo en producción ⏳
-**Como** responsable de operación,
-**quiero** monitoreo de errores/desempeño y respaldos verificados,
-**para** detectar incidentes durante los lanzamientos y poder recuperarnos.
+**Como** responsable de operación, **quiero** monitoreo y respaldos verificados, **para** detectar incidentes durante los lanzamientos y poder recuperarnos.
 
-**Criterios de aceptación:**
-1. Hay alertas ante errores 5xx, latencia alta o caídas.
-2. El procedimiento de restauración está documentado y probado.
+**Criterios de aceptación:** alertas ante 5xx/latencia/caídas; procedimiento de restauración documentado y probado.
 
 **Tasks:**
-- [ ] Configurar Application Insights + alertas.
-- [ ] Verificar la retención PITR de Azure SQL y documentar la restauración.
-- [ ] Prueba de restauración de respaldo previa al primer lanzamiento.
+- [ ] **Application Insights + alertas** — Habilitar el monitoreo de errores y desempeño con alertas por correo ante fallos o degradación.
+- [ ] **Verificar respaldos (PITR)** — Confirmar la retención de respaldos de Azure SQL y documentar el procedimiento de restauración punto en el tiempo.
+- [ ] **Prueba de restauración** — Ejecutar una restauración de respaldo de prueba antes del primer lanzamiento en producción.
 
 ---
 
@@ -581,6 +418,6 @@ Cada Feature incluye una **descripción**; cada Historia de Usuario tiene **al m
 | 11. Seguridad técnica | HU-1101…HU-1103 | 🔨 |
 | 12. Infraestructura y DevOps | HU-1201…HU-1203 | ⏳ |
 
-**Total: 12 Features (todas con descripción) · 33 Historias de Usuario (todas con al menos una Task) · 90+ Tasks.**
+**Total: 12 Features (con descripción) · 33 Historias de Usuario (con ≥1 Task) · 90+ Tasks (cada una con título + descripción).**
 
-> **Carga sugerida en Azure DevOps:** crear las 12 Features bajo la Épica (usando la *Descripción* de cada una); dentro de cada Feature, las User Stories con su narrativa "Como… quiero… para…" en *Description* y los criterios en *Acceptance Criteria*; y bajo cada Story sus Tasks. Las tasks `[x]` pueden crearse en estado *Done* para reflejar el trabajo ya realizado; las `[ ]` quedan en *To Do* para planificar.
+> **Carga sugerida:** Feature → pegar su *Descripción*; User Story → narrativa "Como… quiero… para…" en *Description* y los criterios en *Acceptance Criteria*; Task → el **título** como nombre del work item y la **descripción** (el texto después del guion) en su campo *Description*. Las tasks `[x]` se crean en *Done*; las `[ ]` en *To Do*.
