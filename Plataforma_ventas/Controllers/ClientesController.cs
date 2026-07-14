@@ -197,7 +197,7 @@ namespace Plataforma_ventas.Controllers
                 WHERE IdCliente=@id", con);
             cmd.Parameters.AddWithValue("@n", nombre ?? "");
             cmd.Parameters.AddWithValue("@a", apellido ?? "");
-            cmd.Parameters.AddWithValue("@d", documento ?? "");
+            cmd.Parameters.AddWithValue("@d", Texto.SoloDigitos(documento));
             cmd.Parameters.AddWithValue("@c", celular ?? "");
             cmd.Parameters.AddWithValue("@e", correo ?? "");
             cmd.Parameters.AddWithValue("@dir", direccion ?? "");

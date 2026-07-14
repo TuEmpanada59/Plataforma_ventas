@@ -57,13 +57,18 @@
     .ios-btn.ghost{background:var(--fill3);color:var(--label);box-shadow:none;border:1px solid var(--sep);}
     .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851;}
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
+    .cc-card{display:flex;align-items:center;gap:10px;background:rgba(0,118,227,0.06);border:1px solid rgba(0,118,227,0.2);border-radius:10px;padding:10px 14px;margin-top:10px;}
+    .cc-ico{font-size:20px;}
+    .cc-nombre{font-size:14px;font-weight:600;color:var(--label);}
+    .cc-doc{font-size:12px;color:var(--label2);}
+    .disabled-block{opacity:0.45;pointer-events:none;filter:grayscale(0.25);transition:opacity 0.2s;}
     @@media(max-width:700px){.destino-grid{grid-template-columns:1fr!important;}.form-grid{grid-template-columns:1fr!important;}}
 </style>
 }
 
 @if (TempData["Error"] != null)
 {
-    <div class="alerta-error">❌ @TempData["Error"]</div>
+    <div class="alerta-error">@TempData["Error"]</div>
 }
 
 <div class="inm-card">
@@ -86,11 +91,11 @@
     <input type="hidden" name="destino" id="destinoInput" value="Vivienda" />
 
     <div class="form-card">
-        <div class="form-card-head"><span style="font-size:18px">🔒</span><span class="form-card-title">Precio bloqueado al reservar</span></div>
+        <div class="form-card-head">@Iconos.Candado("#1EA851", 20) <span class="form-card-title">Precio bloqueado al reservar</span></div>
         <div class="form-body">
             <div class="precio-lock-card">
                 <div class="pl-left">
-                    <div class="pl-badge">🔒</div>
+                    <div class="pl-badge">@Iconos.Candado("#ffffff", 22, 0.3)</div>
                     <div>
                         <div class="pl-info-lbl">Precio garantizado</div>
                         <div class="pl-info-val">Precio comprometido con el cliente</div>
@@ -106,31 +111,47 @@
     </div>
 
     <div class="form-card">
-        <div class="form-card-head"><span style="font-size:18px">🏷️</span><span class="form-card-title">Destino del inmueble</span></div>
+        <div class="form-card-head">@Iconos.Mapa("#1EA851", 20) <span class="form-card-title">Destino del inmueble</span></div>
         <div class="form-body">
             <div class="destino-grid">
                 <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
-                    <span class="destino-ico">🏠</span>
+                    <div class="destino-ico">@Iconos.Casa("#0076E3", 20)</div>
                     <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
-                    <span class="destino-ico">📈</span>
+                    <div class="destino-ico">@Iconos.Grafico("#1EA851", 20)</div>
                     <div><div class="destino-txt">Inversión para reventa</div><div class="destino-sub">Plusvalía a futuro</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para arriendo',this)">
-                    <span class="destino-ico">🔑</span>
+                    <div class="destino-ico">@Iconos.Llave("#E08600", 20)</div>
                     <div><div class="destino-txt">Inversión para arriendo</div><div class="destino-sub">Renta mensual</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Cesión de derechos',this)">
-                    <span class="destino-ico">📋</span>
+                    <div class="destino-ico">@Iconos.Lista("#5A5AC8", 20)</div>
                     <div><div class="destino-txt">Cesión de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Verificación SAGRILAFT -->
     <div class="form-card">
-        <div class="form-card-head"><span style="font-size:18px">👤</span><span class="form-card-title">Cliente</span></div>
+        <div class="form-card-head">@Iconos.Documento("#CC7700", 20) <span class="form-card-title">Verificación SAGRILAFT</span></div>
+        <div class="form-body">
+            <p style="font-size:13px;color:var(--label2);margin-bottom:12px">¿Ya fue consultado el cliente en SAGRILAFT?</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button type="button" class="ios-btn" onclick="sagrilaftRespuesta(true)">Sí, ya fue consultado</button>
+                <button type="button" class="ios-btn ghost" onclick="sagrilaftRespuesta(false)">No, aún no</button>
+            </div>
+            <div id="sagrilaftAviso" class="alerta-error" style="display:none;margin-top:12px">
+                Por favor, consulte el cliente y recargue la página para realizar el nuevo registro.
+            </div>
+        </div>
+    </div>
+    <input type="hidden" name="sagrilaftConsultado" id="sagrilaftConsultado" value="false"/>
+
+    <div class="form-card disabled-block" id="clienteCardWrap">
+        <div class="form-card-head">@Iconos.Persona("#0076E3", 20) <span class="form-card-title">Cliente</span></div>
         <div class="form-body">
             <div class="tab-row">
                 <button type="button" class="tab-btn active"
@@ -143,9 +164,13 @@
                 </button>
             </div>
             <div class="tab-pane active" id="tab-existente">
+                <div class="field" style="margin-bottom:10px">
+                    <label>Buscar por cédula o nombre</label>
+                    <input type="text" id="buscaCedula" placeholder="Escribe cédula o nombre..." oninput="filtrarClientes(this.value)" autocomplete="off"/>
+                </div>
                 <div class="field">
                     <label>Seleccionar cliente</label>
-                    <select name="idClienteExistente">
+                    <select name="idClienteExistente" id="selCliente" onchange="mostrarTarjetaCliente()">
                         <option value="0">— Selecciona un cliente —</option>
                         @foreach (var c in clientes)
                         {
@@ -153,12 +178,16 @@
                         }
                     </select>
                 </div>
+                <div id="clienteCard" class="cc-card" style="display:none">
+                    <div class="cc-ico">@Iconos.Persona("#0076E3", 20)</div>
+                    <div><div class="cc-nombre"></div><div class="cc-doc"></div></div>
+                </div>
             </div>
             <div class="tab-pane" id="tab-nuevo">
                 <div class="form-grid">
                     <div class="field"><label>Nombre</label><input type="text" name="clienteNombre" placeholder="Nombre" /></div>
                     <div class="field"><label>Apellido</label><input type="text" name="clienteApellido" placeholder="Apellido" /></div>
-                    <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT" /></div>
+                    <div class="field"><label>Documento</label><input type="text" name="clienteDocumento" placeholder="CC / NIT" inputmode="numeric" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')" /></div>
                     <div class="field"><label>Celular</label><input type="text" name="clienteCelular" placeholder="Celular" /></div>
                     <div class="field full"><label>Correo</label><input type="email" name="clienteCorreo" placeholder="correo@email.com" /></div>
                     <div class="field full"><label>Dirección</label><input type="text" name="clienteDireccion" placeholder="Dirección" /></div>
@@ -167,15 +196,79 @@
         </div>
     </div>
 
+    <div id="errClienteContenedor" style="display:none;margin-bottom:10px">
+        <div id="errCliente" class="alerta-error"></div>
+    </div>
     <div class="btn-row">
         <a href="/Vendedor/MisReservas" class="ios-btn ghost">← Volver</a>
-        <button type="submit" class="ios-btn">✓ Confirmar venta</button>
+        <button type="submit" id="btnConfirmarVenta" class="ios-btn" disabled>✓ Confirmar venta</button>
     </div>
 </form>
 
 @section Scripts {
 <script>
+    let _optsCliente = [];
+    document.addEventListener('DOMContentLoaded', function() {
+        const sel = document.getElementById('selCliente');
+        if (sel) _optsCliente = Array.from(sel.options).map(o => ({val: o.value, txt: o.text}));
+        document.querySelector('form').addEventListener('submit', function(e) {
+            if (document.getElementById('sagrilaftConsultado').value !== 'true') {
+                e.preventDefault();
+                document.getElementById('sagrilaftAviso').style.display = 'block';
+                return;
+            }
+            const tipo = document.getElementById('tipoCliente').value;
+            if (tipo === 'existente') {
+                const s = document.getElementById('selCliente');
+                if (!s || s.value === '0') { e.preventDefault(); mostrarErrorCliente(); }
+            } else {
+                const n = document.querySelector('[name="clienteNombre"]');
+                const d = document.querySelector('[name="clienteDocumento"]');
+                if (!n?.value?.trim() || !d?.value?.trim()) { e.preventDefault(); mostrarErrorCliente(); }
+            }
+        });
+    });
+    function filtrarClientes(q) {
+        const sel = document.getElementById('selCliente');
+        const lower = q.toLowerCase();
+        sel.innerHTML = '';
+        const filtered = _optsCliente.filter(o => o.val === '0' || o.txt.toLowerCase().includes(lower));
+        filtered.forEach(o => sel.add(new Option(o.txt, o.val)));
+        const real = filtered.filter(o => o.val !== '0');
+        sel.value = real.length === 1 ? real[0].val : '0';
+        mostrarTarjetaCliente();
+    }
+    function mostrarTarjetaCliente() {
+        const sel = document.getElementById('selCliente');
+        const card = document.getElementById('clienteCard');
+        if (!card) return;
+        if (!sel || sel.value === '0') { card.style.display = 'none'; return; }
+        const txt = sel.options[sel.selectedIndex].text;
+        const idx = txt.indexOf(' — ');
+        card.querySelector('.cc-nombre').textContent = idx > -1 ? txt.substring(0, idx) : txt;
+        card.querySelector('.cc-doc').textContent = idx > -1 ? txt.substring(idx + 3) : '';
+        card.style.display = 'flex';
+        document.getElementById('errClienteContenedor').style.display = 'none';
+    }
+    function mostrarErrorCliente() {
+        const wrapper = document.getElementById('errClienteContenedor');
+        document.getElementById('errCliente').textContent = 'Por favor ingrese los datos del cliente para continuar con la venta.';
+        wrapper.style.display = 'block';
+        wrapper.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    function sagrilaftRespuesta(si) {
+        document.getElementById('sagrilaftConsultado').value = si ? 'true' : 'false';
+        document.getElementById('clienteCardWrap').classList.toggle('disabled-block', !si);
+        document.getElementById('btnConfirmarVenta').disabled = !si;
+        document.getElementById('sagrilaftAviso').style.display = si ? 'none' : 'block';
+    }
     function selDestino(val,el){document.getElementById('destinoInput').value=val;document.querySelectorAll('.destino-opt').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');}
-    function setTab(tab,btn){document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.getElementById('tab-'+tab).classList.add('active');}
+    function setTab(tab,btn){
+        document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(x=>x.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-'+tab).classList.add('active');
+        document.getElementById('errClienteContenedor').style.display = 'none';
+    }
 </script>
 }

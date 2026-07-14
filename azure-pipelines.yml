@@ -1,0 +1,104 @@
+# Pipeline de CI/CD — Plataforma Ventas
+#
+# Estrategia de ramas:
+#   rama "qa"     -> compila y despliega automáticamente a QA (sin aprobación)
+#   rama "master" -> compila y despliega a Producción, PERO requiere aprobación
+#                    manual (se configura en Pipelines > Environments > Production
+#                    > Approvals and checks, en el portal de Azure DevOps).
+#
+# Requisitos previos en Azure DevOps (una sola vez, desde el portal):
+#   1. Pipelines > Environments: crear "QA" y "Production".
+#      - En "Production", agregar un "Approval" con las personas que deben
+#        aprobar antes de que el deploy continúe.
+#   2. Project Settings > Service connections: crear una conexión de tipo
+#      "Azure Resource Manager" por entorno (recomendado: una app registration
+#      distinta por entorno, con permisos SOLO sobre su Resource Group):
+#        - sc-plataforma-qa   -> apunta al Resource Group rg-plataforma-qa
+#        - sc-plataforma-prod -> apunta al Resource Group rg-plataforma-prod
+#   3. (Opcional pero recomendado) Library > Variable groups vinculados a
+#      Key Vault, uno por entorno, para no tener secretos en el pipeline:
+#        - vg-plataforma-qa   -> Key Vault kv-plataforma-qa
+#        - vg-plataforma-prod -> Key Vault kv-plataforma-prod
+#
+# Reemplaza los valores entre <> más abajo por los nombres reales una vez
+# existan los recursos en Azure.
+
+trigger:
+  branches:
+    include:
+      - qa
+      - master
+
+pr: none   # los pull requests no disparan despliegue, solo build (ver stage Build)
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  projectPath: 'Plataforma_ventas/Plataforma_ventas.csproj'
+
+stages:
+
+# ── Compilación (corre siempre, sin importar la rama) ──
+- stage: Build
+  displayName: 'Compilar'
+  jobs:
+    - job: BuildJob
+      displayName: 'dotnet publish'
+      steps:
+        - task: UseDotNet@2
+          displayName: 'Instalar .NET 10 SDK'
+          inputs:
+            packageType: 'sdk'
+            version: '10.0.x'
+
+        - script: dotnet restore $(projectPath)
+          displayName: 'Restaurar dependencias'
+
+        - script: dotnet publish $(projectPath) -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)
+          displayName: 'Publicar'
+
+        - publish: $(Build.ArtifactStagingDirectory)
+          artifact: drop
+          displayName: 'Guardar artefacto'
+
+# ── Despliegue a QA (solo si el push vino de la rama "qa") ──
+- stage: DeployQA
+  displayName: 'Desplegar a QA'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/qa'))
+  jobs:
+    - deployment: DeployQA
+      displayName: 'App Service - QA'
+      environment: 'QA'    # sin aprobación configurada -> despliega directo
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: AzureWebApp@1
+                inputs:
+                  azureSubscription: '<sc-plataforma-qa>'
+                  appType: 'webAppLinux'
+                  appName: '<nombre-app-service-qa>'
+                  package: '$(Pipeline.Workspace)/drop'
+
+# ── Despliegue a Producción (solo si el push vino de "master") ──
+- stage: DeployProd
+  displayName: 'Desplegar a Producción'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  jobs:
+    - deployment: DeployProd
+      displayName: 'App Service - Producción'
+      environment: 'Production'   # con aprobación manual configurada en el portal
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - task: AzureWebApp@1
+                inputs:
+                  azureSubscription: '<sc-plataforma-prod>'
+                  appType: 'webAppLinux'
+                  appName: '<nombre-app-service-prod>'
+                  package: '$(Pipeline.Workspace)/drop'

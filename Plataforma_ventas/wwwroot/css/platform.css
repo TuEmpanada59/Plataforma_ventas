@@ -140,6 +140,18 @@ body::before {
     background: rgba(255,255,255,0.22) !important;
 }
 
+/* Iconos del design system (SVG bicolor) dentro del sidebar */
+.nav-ico img {
+    width: 18px !important;
+    height: 18px !important;
+    display: block !important;
+}
+
+/* En el ítem activo (fondo azul) el icono se muestra blanco para legibilidad */
+.nav-item.active .nav-ico img {
+    filter: brightness(0) invert(1) !important;
+}
+
 .sb-footer {
     margin-top: auto;
     padding: 10px 12px 20px;

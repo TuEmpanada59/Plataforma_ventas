@@ -10,10 +10,13 @@ builder.Services.AddScoped<Plataforma_ventas.Services.IEmailService, Plataforma_
 
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromHours(8);
+    // Sesión de 20 minutos (alineado con el banner de expiración y la documentación).
+    options.IdleTimeout = TimeSpan.FromMinutes(20);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Strict;
+    // La cookie de sesión solo viaja por HTTPS.
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 builder.Services.AddSignalR();
 
@@ -24,20 +27,30 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/Account/Login";
         options.LogoutPath = "/Account/Logout";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+        options.SlidingExpiration = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
     });
 
 // ── Data Protection ──
-// Keys are persisted to the file system so they survive app restarts.
-// Without persistence, every restart invalidates antiforgery tokens and
-// session cookies, causing users to be unexpectedly logged out and
-// antiforgery validation failures (HTTP 400) on in-flight requests.
-// The 90-day lifetime balances security (key rotation) with operational
-// stability. Keys directory must be excluded from source control (.gitignore).
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "Keys")))
+// In development: persist keys to disk so antiforgery tokens survive dotnet watch
+// restarts. In production (Azure App Service): skip file persistence — the
+// filesystem is read-only when deployed as a zip package, causing IOException
+// on the first request that crashes antiforgery validation. Ephemeral in-memory
+// keys work correctly for a single-instance App Service; users simply need to
+// log in again after an instance recycle.
+var dpBuilder = builder.Services.AddDataProtection()
     .SetApplicationName("PlataformaVentas")
     .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+
+if (builder.Environment.IsDevelopment())
+{
+    var keysDir = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "Keys"));
+    keysDir.Create(); // ensure directory exists before registering
+    dpBuilder.PersistKeysToFileSystem(keysDir);
+}
 
 QuestPDF.Settings.License = LicenseType.Community;
 var app = builder.Build();

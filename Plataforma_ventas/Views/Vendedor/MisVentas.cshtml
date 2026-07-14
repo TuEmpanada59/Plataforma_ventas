@@ -35,7 +35,7 @@
 
 <div class="stat-banner">
     <div><div class="sb2-num">@totalVentas</div><div class="sb2-lbl">ventas registradas por ti</div></div>
-    <div class="sb2-ico">💲</div>
+    <div class="sb2-ico">@Iconos.Dolar("#ffffff", 44, 0.3)</div>
 </div>
 <div class="card">
     <div class="card-head"><span class="card-title">Historial de mis ventas</span></div>
@@ -49,13 +49,12 @@
                     {
                         var cls = v.Estado == "ACTIVA" ? "AC" : "AN";
                         var dest = v.Destino as string ?? "—";
-                        var destIco = dest == "Vivienda" ? "🏠" : dest == "Inversión para reventa" ? "📈" : dest == "Inversión para arriendo" ? "🔑" : dest == "Cesión de derechos" ? "📋" : "—";
                         var destCol = dest == "Vivienda" ? "rgba(0,118,227,0.08);color:var(--blue)" : dest == "Inversión para reventa" ? "rgba(52,199,89,0.1);color:#1EA851" : dest == "Inversión para arriendo" ? "rgba(255,149,0,0.1);color:#CC7700" : dest == "Cesión de derechos" ? "rgba(90,90,200,0.1);color:#5A5AC8" : "rgba(120,120,128,0.08);color:var(--label3)";
                         <tr>
                             <td style="font-weight:600">@v.Apto</td>
                             <td>@v.Torre</td>
                             <td>@v.Cliente</td>
-                            <td><div style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;background:@destCol;font-size:11px;font-weight:600;white-space:nowrap;">@destIco @dest</div></td>
+                            <td><div style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;background:@destCol;font-size:11px;font-weight:600;white-space:nowrap;">@dest</div></td>
                             <td style="font-weight:500;color:var(--azul)">$@(string.Format("{0:N0}", long.TryParse(v.PrecioVenta, out long pv) ? pv : 0))</td>
                             <td>Lista @v.Lista</td>
                             <td style="color:var(--label2);font-size:12px">@v.FechaVenta</td>
@@ -69,7 +68,7 @@
     else
     {
         <div class="empty">
-            <div class="empty-ico">💲</div>
+            <div class="empty-ico">@Iconos.Dolar("#8E8E93", 44, 0.16)</div>
             <div class="empty-txt">Aún no tienes ventas registradas</div>
             <div class="empty-sub">Tus ventas aparecerán aquí una vez que las registres</div>
         </div>

@@ -103,16 +103,16 @@
 </style>
 }
 
-@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
-@if (TempData["Error"] != null) { <div class="alerta-error">❌ @TempData["Error"]</div> }
+@if (TempData["Exito"] != null) { <div class="alerta-exito">@TempData["Exito"]</div> }
+@if (TempData["Error"] != null) { <div class="alerta-error">@TempData["Error"]</div> }
 
 <!-- KPIs globales -->
 <div class="kpi-row">
-    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num" id="kpi-total">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">Disponibles</span></div><div class="kpi-num" id="kpi-disp">@disponibles</div><div class="kpi-lbl">Para venta</div></div>
-    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">⏳</div><span class="kpi-tag">En proceso</span></div><div class="kpi-num" id="kpi-proc">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
-    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">🔒</div><span class="kpi-tag">Reservados</span></div><div class="kpi-num" id="kpi-res">@reservados</div><div class="kpi-lbl">Bloqueados</div></div>
-    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">Vendidos</span></div><div class="kpi-num" id="kpi-vend">@vendidos</div><div class="kpi-lbl">Cerrados</div></div>
+    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3")</div><span class="kpi-tag">Total</span></div><div class="kpi-num" id="kpi-total">@total</div><div class="kpi-lbl">Inmuebles</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851")</div><span class="kpi-tag">Disponibles</span></div><div class="kpi-num" id="kpi-disp">@disponibles</div><div class="kpi-lbl">Para venta</div></div>
+    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Reloj("#5A5AC8")</div><span class="kpi-tag">En proceso</span></div><div class="kpi-num" id="kpi-proc">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
+    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Candado("#E08600")</div><span class="kpi-tag">Reservados</span></div><div class="kpi-num" id="kpi-res">@reservados</div><div class="kpi-lbl">Bloqueados</div></div>
+    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#E63946")</div><span class="kpi-tag">Vendidos</span></div><div class="kpi-num" id="kpi-vend">@vendidos</div><div class="kpi-lbl">Cerrados</div></div>
 </div>
 
 @if (string.IsNullOrEmpty(areaActual)) {
@@ -131,7 +131,7 @@
             long precActArea = laArea==1?p1:laArea==2?p2:laArea==3?p3:laArea==4?p4:p5;
             if (precActArea == 0) precActArea = (long)g.PrecioActivo;
             <a href="/Vendedor/Inmuebles?area=@Uri.EscapeDataString(g.Metros)" class="area-card"
-               data-metros="@g.Metros"
+               data-metros="@g.Metros" data-lista-activa="@laArea"
                data-l1="@p1" data-l2="@p2" data-l3="@p3" data-l4="@p4" data-l5="@p5"
                data-disp="@g.Disponibles" data-vend="@g.Vendidos"
                data-proc="@g.EnProceso" data-res="@g.Reservados" data-total="@g.Total">
@@ -142,15 +142,6 @@
                 <span class="area-lista-badge" style="display:inline-block;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:8px;">Lista @laArea activa</span>
                 <div class="area-precio-lbl">Precio lista @laArea</div>
                 <div class="area-precio">$@string.Format("{0:N0}", precActArea)</div>
-                <div class="area-listas">
-                    @for (int ln = 1; ln <= 5; ln++) {
-                        long pl = ln==1?g.PrecioL1:ln==2?g.PrecioL2:ln==3?g.PrecioL3:ln==4?g.PrecioL4:g.PrecioL5;
-                        if (pl > 0) {
-                            var chipCls = ln == laArea ? "area-lista-chip activa" : "area-lista-chip";
-                            <span class="@chipCls" data-lista="@ln">L@(ln): $@string.Format("{0:N0}", pl)</span>
-                        }
-                    }
-                </div>
                 <div class="prog-wrap">
                     <div class="prog-bar"><div class="prog-fill @fillCls" style="width:@(porcVend)%"></div></div>
                     <div class="prog-lbl">
@@ -172,7 +163,7 @@
         <div class="card-head">
             <span class="card-title">@areaActual m² · Lista @laEstaArea</span>
             <div class="filter-bar">
-                <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
+                <div class="search-wrap"><span class="search-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
                 <div class="seg">
                     <button class="seg-btn active" onclick="setFiltro('todos',this)">Todos</button>
                     <button class="seg-btn" onclick="setFiltro('DISPONIBLE',this)">Disponibles</button>
@@ -197,6 +188,7 @@
                         long dl5 = ParsePrecio(i.Lista5);
                         long precioActivo = laEstaArea==1?dl1:laEstaArea==2?dl2:laEstaArea==3?dl3:laEstaArea==4?dl4:dl5;
                         <tr data-estado="@i.Estado" data-id="@i.Id" data-metros="@i.Metros"
+                            data-lista-activa="@laEstaArea"
                             data-l1="@dl1" data-l2="@dl2" data-l3="@dl3" data-l4="@dl4" data-l5="@dl5">
                             <td style="font-weight:600">@i.Apto</td>
                             <td>
@@ -214,7 +206,7 @@
                                 <span class="bdg @cls">@i.Estado</span>
                                 @if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso > 0) {
                                     var nomVend = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Vendedor";
-                                    <br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">👤 @nomVend</span>
+                                    <br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">@nomVend</span>
                                 }
                             </td>
                             <td class="accion-td">
@@ -230,15 +222,15 @@
                                         <button type="submit" class="btn-reservar" onclick="return confirm('¿Reservar?')">Reservar</button>
                                     </form>
                                 } else if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso == miId) {
-                                    <span class="tag-yo">Tú lo tienes</span>
+                                    <a href="/Vendedor/RegistrarVenta?idInmueble=@i.Id" class="btn-vender" style="display:inline-flex;align-items:center;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;margin-right:4px">Continuar</a>
                                     <form action="/Vendedor/CancelarProceso" method="post" style="margin:0;display:inline">
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="idInmueble" value="@i.Id"/>
-                                        <button type="submit" class="btn-cancelar">Cancelar</button>
+                                        <button type="submit" class="btn-cancelar" onclick="return confirm('¿Cancelar? El inmueble volverá a estar disponible.')">Cancelar</button>
                                     </form>
                                 } else if (i.Estado == "EN PROCESO") {
                                     var nomVend2 = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Otro vendedor";
-                                    <span class="tag-otro">⏳ @nomVend2</span>
+                                    <span class="tag-otro">@nomVend2</span>
                                 } else if (i.Estado == "RESERVADO" && i.IdVendedorReserva == miId) {
                                     <span class="tag-yo">Tú lo reservaste</span>
                                     <form action="/Vendedor/LiberarReserva" method="post" style="margin:0;display:inline">
@@ -256,7 +248,7 @@
                 </table>
             </div>
         } else {
-            <div class="empty"><div class="empty-ico">🏢</div><div class="empty-txt">No hay inmuebles disponibles en esta área</div></div>
+            <div class="empty"><div class="empty-ico">@Iconos.Edificio("#8E8E93", 40, 0.18)</div><div class="empty-txt">No hay inmuebles disponibles en esta área</div></div>
         }
     </div>
 }
@@ -340,14 +332,37 @@
 
     conn.on("ListaActualizada", function(proyIdEvt, nuevaLista) {
         if (proyIdEvt !== proyIdSR) return;
+        document.querySelectorAll('.area-card').forEach(function(c){ c.dataset.listaActiva = nuevaLista; });
+        document.querySelectorAll('#tablaInmuebles tbody tr').forEach(function(r){ r.dataset.listaActiva = nuevaLista; });
         actualizarLista(nuevaLista, null);
         mostrarToast('Lista del proyecto actualizada a ' + nuevaLista, 'info');
     });
 
     conn.on("ListaAreaActualizada", function(proyIdEvt, metros, nuevaLista) {
         if (proyIdEvt !== proyIdSR) return;
+        document.querySelectorAll('.area-card[data-metros="' + metros + '"]').forEach(function(c){ c.dataset.listaActiva = nuevaLista; });
+        document.querySelectorAll('#tablaInmuebles tbody tr[data-metros="' + metros + '"]').forEach(function(r){ r.dataset.listaActiva = nuevaLista; });
         actualizarLista(nuevaLista, metros);
         mostrarToast('Área ' + metros + ' m² → Lista ' + nuevaLista, 'info');
+    });
+
+    conn.on("PrecioAreaActualizado", function(proyIdEvt, metros, numLista, nuevoPrecio) {
+        if (proyIdEvt !== proyIdSR) return;
+        document.querySelectorAll('.area-card[data-metros="' + metros + '"]').forEach(function(card) {
+            card.dataset['l' + numLista] = nuevoPrecio;
+            if (parseInt(card.dataset.listaActiva || 1) === numLista) {
+                var priceEl = card.querySelector('.area-precio');
+                if (priceEl) priceEl.textContent = fmtPrecio(nuevoPrecio);
+            }
+        });
+        document.querySelectorAll('#tablaInmuebles tbody tr[data-metros="' + metros + '"]').forEach(function(tr) {
+            tr.dataset['l' + numLista] = nuevoPrecio;
+            if (parseInt(tr.dataset.listaActiva || 1) === numLista) {
+                var td = tr.querySelector('.precio-col');
+                if (td) td.textContent = fmtPrecio(nuevoPrecio);
+            }
+        });
+        mostrarToast('Precio Lista ' + numLista + ' actualizado en ' + metros + ' m²', 'info');
     });
 
     conn.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado) {
@@ -375,7 +390,7 @@
             var estadoTd = tr.querySelector('.estado-td');
             if (estadoTd) {
                 estadoTd.innerHTML = '<span class="bdg ' + cls + '">' + nuevoEstado + '</span>' +
-                    (nuevoEstado === 'EN PROCESO' ? '<br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">⏳ En proceso</span>' : '');
+                    (nuevoEstado === 'EN PROCESO' ? '<br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">En proceso</span>' : '');
             }
 
             // Update action cell
@@ -393,7 +408,7 @@
                         '<input type="hidden" name="idInmueble" value="' + idInmueble + '"/>' +
                         '<button type="submit" class="btn-reservar" onclick="return confirm(\'¿Reservar?\')">Reservar</button></form>';
                 } else if (nuevoEstado === 'EN PROCESO') {
-                    accionTd.innerHTML = '<span class="tag-otro">⏳ En proceso</span>';
+                    accionTd.innerHTML = '<span class="tag-otro">En proceso</span>';
                 } else {
                     accionTd.innerHTML = '<span style="color:var(--label3);font-size:12px">—</span>';
                 }
@@ -411,8 +426,7 @@
             // (full per-area counts update on next page load or area visit)
         }
 
-        var ico = nuevoEstado==='DISPONIBLE'?'✅':nuevoEstado==='VENDIDO'?'🔑':nuevoEstado==='EN PROCESO'?'⏳':'🔒';
-        mostrarToast(ico + ' Inmueble actualizado: ' + nuevoEstado, 'info');
+        mostrarToast('Inmueble actualizado: ' + nuevoEstado, 'info');
     });
 
     conn.start().catch(function(err){ console.error('SignalR:', err); });

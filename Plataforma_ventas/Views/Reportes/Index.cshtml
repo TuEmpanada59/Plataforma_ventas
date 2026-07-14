@@ -18,6 +18,14 @@
     var tipologias = ViewBag.Tipologias  as List<dynamic> ?? new List<dynamic>();
     var destinos   = ViewBag.Destinos    as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
+    DateTime ahoraCol;
+    try {
+        ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/Bogota"));
+    } catch {
+        try { ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("SA Pacific Standard Time")); }
+        catch { ahoraCol = DateTime.UtcNow.AddHours(-5); }
+    }
+    var esCO       = new System.Globalization.CultureInfo("es-CO");
     double pctV    = total > 0 ? Math.Round((double)vendidos    / total * 100, 1) : 0;
     double pctD    = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
     double pctR    = total > 0 ? Math.Round((double)reservados  / total * 100, 1) : 0;
@@ -62,7 +70,7 @@
     .hoy-left p{font-size:13px;color:rgba(255,255,255,0.7);}
     .hoy-stats{display:flex;gap:20px;flex-wrap:wrap;}
     .hoy-stat{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 16px;}
-    .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;}
+    .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;white-space:nowrap;}
     .hoy-stat-lbl{font-size:10px;color:rgba(255,255,255,0.65);margin-top:1px;font-weight:500;}
     .mapa-wrap{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;padding:14px;}
     .mapa-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;transition:background 0.15s;}
@@ -120,8 +128,8 @@
 <!-- INFORME DEL DÍA -->
 <div class="hoy-banner">
     <div class="hoy-left">
-        <h2>📅 Informe del día</h2>
-        <p>@DateTime.Now.ToString("dddd, dd MMMM yyyy") · @proyActivo</p>
+        <h2>Informe del día</h2>
+        <p>@System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(ahoraCol.ToString("dddd, dd 'de' MMMM 'de' yyyy", esCO)) · @proyActivo</p>
     </div>
     <div class="hoy-stats">
         <div class="hoy-stat"><div class="hoy-stat-num">@ventasHoy</div><div class="hoy-stat-lbl">Ventas hoy</div></div>
@@ -134,17 +142,17 @@
 
 <!-- KPIs -->
 <div class="kpi-row">
-    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">🔑</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
-    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">🔒</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
-    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">💰</div><span class="kpi-tag">Total</span></div><div class="kpi-num">$@string.Format("{0:N0}", valorTotal)</div><div class="kpi-lbl">Valor vendido</div></div>
+    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851", 17)</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#E63946", 17)</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
+    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Candado("#CC7700", 17)</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
+    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#1EA851", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num">$@string.Format("{0:N0}", valorTotal)</div><div class="kpi-lbl">Valor vendido</div></div>
 </div>
 
 <!-- PROGRESO + DESTINOS -->
 <div class="dos-col">
     <div class="card">
-        <div class="card-head"><span class="card-title">📈 Progreso del proyecto</span></div>
+        <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Grafico("#0076E3", 17) Progreso del proyecto</span></div>
         <div class="card-body">
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:var(--rojo)">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:#1EA851">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
@@ -154,7 +162,7 @@
     </div>
 
     <div class="card">
-        <div class="card-head"><span class="card-title">🏷️ Destino de ventas</span></div>
+        <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Mapa("#1EA851", 17) Destino de ventas</span></div>
         @if (destinos.Count > 0) {
             <div class="destino-list">
                 @{ int maxDest = destinos.Count > 0 ? (int)destinos[0].Total : 1; }
@@ -178,7 +186,7 @@
 <!-- TIPOLOGÍAS -->
 <div class="card">
     <div class="card-head">
-        <span class="card-title">📐 Ventas por tipología</span>
+        <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Etiqueta("#0076E3", 17) Ventas por tipología</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap;" id="tipoFiltros">
             <span class="tipo-chip active" onclick="filtrarTipo('todos',this)">Todas</span>
             @foreach (var t in tipologias) {
@@ -216,7 +224,7 @@
 <!-- MAPA DE VENTAS -->
 <div class="card">
     <div class="card-head">
-        <span class="card-title">🗺️ Mapa de inmuebles</span>
+        <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Edificio("#0076E3", 17) Mapa de inmuebles</span>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div style="display:flex;gap:10px;font-size:11px;">
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#1EA851;display:inline-block;"></span>Disponible</span>
@@ -224,9 +232,9 @@
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#CC7700;display:inline-block;"></span>Reservado</span>
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#5A5AC8;display:inline-block;"></span>En proceso</span>
             </div>
-            <a href="/Reportes/GenerarMapa" class="ios-btn azul">⬇ Excel</a>
-            <a href="/Reportes/ReporteAsesores" class="ios-btn verde">⬇ Asesores</a>
-            <a href="/Reportes/ReportePDF" class="ios-btn" style="background:var(--rojo)">⬇ PDF técnico</a>
+            <a href="/Reportes/GenerarMapa" class="ios-btn azul">Excel</a>
+            <a href="/Reportes/ReporteAsesores" class="ios-btn verde">Asesores</a>
+            <a href="/Reportes/ReportePDF" class="ios-btn" style="background:var(--rojo)">PDF técnico</a>
         </div>
     </div>
     @if (mapa.Count > 0) {
@@ -252,10 +260,10 @@
 <!-- TABLA VENTAS POR ASESOR -->
 <div class="card">
     <div class="card-head">
-        <span class="card-title">📋 Detalle de ventas</span>
+        <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Lista("#0076E3", 17) Detalle de ventas</span>
         <div style="display:flex;align-items:center;gap:8px;">
             <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@ventas.Count ventas</span>
-            <div class="search-wrap"><span class="search-ico">🔍</span><input type="text" id="buscar" placeholder="Buscar..." oninput="filtrar()"/></div>
+            <div class="search-wrap"><span class="search-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span><input type="text" id="buscar" placeholder="Buscar..." oninput="filtrar()"/></div>
         </div>
     </div>
     @if (ventas.Count > 0) {
@@ -293,19 +301,13 @@
                         <td>
                             @{
                                 var dest = v.Destino as string ?? "—";
-                                var destIco = dest == "Vivienda" ? "🏠" :
-                                              dest == "Inversión para reventa" ? "📈" :
-                                              dest == "Inversión para arriendo" ? "🔑" :
-                                              dest == "Cesión de derechos" ? "📋" : "—";
                                 var destCol = dest == "Vivienda" ? "rgba(0,118,227,0.08);color:var(--blue)" :
                                               dest == "Inversión para reventa" ? "rgba(52,199,89,0.1);color:#1EA851" :
                                               dest == "Inversión para arriendo" ? "rgba(255,149,0,0.1);color:#CC7700" :
                                               dest == "Cesión de derechos" ? "rgba(90,90,200,0.1);color:#5A5AC8" :
                                               "rgba(120,120,128,0.08);color:var(--label3)";
                             }
-                            <div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:@destCol;font-size:11px;font-weight:600;white-space:nowrap;">
-                                <span>@destIco</span><span>@dest</span>
-                            </div>
+                            <div style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;background:@destCol;font-size:11px;font-weight:600;white-space:nowrap;">@dest</div>
                         </td>
                         <td style="text-align:center">@v.Lista</td>
                         <td style="font-weight:600;color:var(--azul)">$@string.Format("{0:N0}", v.PrecioVenta)</td>

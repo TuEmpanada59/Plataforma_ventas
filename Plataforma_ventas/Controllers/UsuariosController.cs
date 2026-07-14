@@ -8,7 +8,7 @@ namespace Plataforma_ventas.Controllers
     /// Administrator controller for user management:
     /// listing, creating, editing, resetting passwords, and deleting user accounts.
     /// </summary>
-    [RolAutorizado("Administrador")]
+    [RolAutorizado("Administrador", "SuperAdministrador")]
     public class UsuariosController : Controller
     {
         private readonly string _conn;
@@ -72,11 +72,17 @@ namespace Plataforma_ventas.Controllers
                         TotalVentas   = (int)reader["TotalVentas"],
                     });
 
+            // El Admin no ve ni puede gestionar SuperAdministradores
+            string rolActual = HttpContext.Session.GetString("Rol") ?? "";
+            if (rolActual != "SuperAdministrador")
+                usuarios = usuarios.Where(u => u.Rol != "SuperAdministrador").ToList();
+
             ViewBag.Usuarios        = usuarios;
             ViewBag.TotalUsuarios   = usuarios.Count;
-            ViewBag.TotalAdmins     = usuarios.Count(u => u.Rol == "Administrador");
+            ViewBag.TotalAdmins     = usuarios.Count(u => u.Rol == "Administrador" || u.Rol == "SuperAdministrador");
             ViewBag.TotalVendedores = usuarios.Count(u => u.Rol == "Vendedor");
             ViewBag.TotalProyectos  = proyectos.Count;
+            ViewBag.RolActual       = HttpContext.Session.GetString("Rol") ?? "";
             return View();
         }
 
@@ -103,8 +109,11 @@ namespace Plataforma_ventas.Controllers
                 return RedirectToAction("Index");
             }
 
-            // Administrador no requiere proyecto asignado; Vendedor sí
-            string rolFinal = rol == "Administrador" ? "Administrador" : "Vendedor";
+            // Solo el SuperAdministrador puede crear Administradores
+            string rolSesion = HttpContext.Session.GetString("Rol") ?? "";
+            string rolFinal = (rolSesion == "SuperAdministrador" && rol == "Administrador")
+                ? "Administrador"
+                : "Vendedor";
             object proyParam = (rolFinal == "Vendedor" && idProyecto > 0)
                 ? (object)idProyecto
                 : DBNull.Value;
@@ -140,7 +149,32 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
+            // Verificar que el Admin no intente editar a un SuperAdministrador
+            string rolSesion = HttpContext.Session.GetString("Rol") ?? "";
+            string? rolObjetivo = null;
+            if (rolSesion != "SuperAdministrador")
+            {
+                var cmdRolCheck = new SqlCommand("SELECT Rol FROM Usuarios WHERE IdUsuario=@id", con);
+                cmdRolCheck.Parameters.AddWithValue("@id", idUsuario);
+                rolObjetivo = (await cmdRolCheck.ExecuteScalarAsync())?.ToString();
+                if (rolObjetivo == "SuperAdministrador")
+                {
+                    TempData["Error"] = "No tienes permisos para editar a un Super Administrador.";
+                    return RedirectToAction("Index");
+                }
+            }
+
             object proyParam = idProyecto > 0 ? (object)idProyecto : DBNull.Value;
+
+            // Solo el SuperAdministrador puede cambiar roles
+            string rolFinalEditar = rol ?? "Vendedor";
+            if (rolSesion != "SuperAdministrador")
+            {
+                // No puede asignar rol Administrador
+                if (rolFinalEditar == "Administrador") rolFinalEditar = "Vendedor";
+                // No puede degradar a un Administrador existente
+                if (rolObjetivo == "Administrador") rolFinalEditar = "Administrador";
+            }
 
             var cmd = new SqlCommand(@"
                 UPDATE Usuarios
@@ -152,7 +186,7 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@d",    documento ?? "");
             cmd.Parameters.AddWithValue("@c",    celular  ?? "");
             cmd.Parameters.AddWithValue("@e",    correo   ?? "");
-            cmd.Parameters.AddWithValue("@r",    rol      ?? "Vendedor");
+            cmd.Parameters.AddWithValue("@r",    rolFinalEditar);
             cmd.Parameters.AddWithValue("@proy", proyParam);
             cmd.Parameters.AddWithValue("@id",   idUsuario);
             await cmd.ExecuteNonQueryAsync();
@@ -200,6 +234,20 @@ namespace Plataforma_ventas.Controllers
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            // Verificar que el Admin no intente eliminar a un SuperAdministrador
+            string rolSesionElim = HttpContext.Session.GetString("Rol") ?? "";
+            if (rolSesionElim != "SuperAdministrador")
+            {
+                var cmdRolCheck = new SqlCommand("SELECT Rol FROM Usuarios WHERE IdUsuario=@id", con);
+                cmdRolCheck.Parameters.AddWithValue("@id", idUsuario);
+                string? rolObjetivo = (await cmdRolCheck.ExecuteScalarAsync())?.ToString();
+                if (rolObjetivo == "SuperAdministrador")
+                {
+                    TempData["Error"] = "No tienes permisos para eliminar a un Super Administrador.";
+                    return RedirectToAction("Index");
+                }
+            }
 
             var cmd = new SqlCommand("DELETE FROM Usuarios WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@id", idUsuario);

@@ -56,7 +56,7 @@
 </style>
 }
 
-@if (TempData["Exito"] != null) { <div class="alerta-exito">✅ @TempData["Exito"]</div> }
+@if (TempData["Exito"] != null) { <div class="alerta-exito">@TempData["Exito"]</div> }
 
 <!-- Hero -->
 <div class="hero">
@@ -74,14 +74,14 @@
 <div class="row2">
     <!-- Panel editar -->
     <div class="card">
-        <div class="card-head"><span class="card-title">✏️ Editar información</span></div>
+        <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Persona("#0076E3", 16) Editar información</span></div>
         <div class="card-body">
             <form action="/Clientes/Editar" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="idCliente" value="@cli.Id"/>
                 <div class="field-row"><div class="field-lbl">Nombre</div><input class="field-input" type="text" name="nombre" value="@cli.Nombre"/></div>
                 <div class="field-row"><div class="field-lbl">Apellido</div><input class="field-input" type="text" name="apellido" value="@cli.Apellido"/></div>
-                <div class="field-row"><div class="field-lbl">Documento</div><input class="field-input" type="text" name="documento" value="@cli.Documento"/></div>
+                <div class="field-row"><div class="field-lbl">Documento</div><input class="field-input" type="text" name="documento" value="@cli.Documento" inputmode="numeric" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
                 <div class="field-row"><div class="field-lbl">Celular</div><input class="field-input" type="text" name="celular" value="@cli.Celular"/></div>
                 <div class="field-row"><div class="field-lbl">Correo</div><input class="field-input" type="email" name="correo" value="@cli.Correo"/></div>
                 <div class="field-row"><div class="field-lbl">Dirección</div><input class="field-input" type="text" name="direccion" value="@cli.Direccion"/></div>
@@ -95,7 +95,7 @@
 
     <!-- Historial compras -->
     <div class="card">
-        <div class="card-head"><span class="card-title">🏠 Historial de compras</span><span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@totalC</span></div>
+        <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Casa("#0076E3", 16) Historial de compras</span><span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@totalC</span></div>
         @if (compras.Count > 0) {
             <div class="tbl-wrap">
                 <table class="tbl">

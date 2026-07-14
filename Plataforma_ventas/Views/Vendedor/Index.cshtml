@@ -12,20 +12,23 @@
     int misClientes= ViewBag.MisClientes != null ? (int)ViewBag.MisClientes : 0;
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     bool sinProyecto = ViewBag.SinProyecto != null ? (bool)ViewBag.SinProyecto : false;
-    var errorCodigo  = ViewBag.ErrorCodigo as string ?? "";
     var nombre = ViewBag.Nombre as string ?? "";
 }
 @section Styles {
 <style>
     @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-    .welcome-banner{background:linear-gradient(135deg,var(--azul) 0%,var(--blue) 100%);border-radius:20px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.35s ease both;position:relative;overflow:hidden;}
+    /* Contenedor: separación vertical garantizada y sin desbordes horizontales */
+    .view-inner{display:flex;flex-direction:column;gap:14px;min-width:0;width:100%;}
+    .welcome-banner{background:linear-gradient(135deg,var(--azul) 0%,var(--blue) 100%);border-radius:20px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.35s ease both;position:relative;overflow:hidden;}
+    .wb-txt{min-width:0;}
+    .wb-txt p{overflow-wrap:anywhere;}
     .welcome-banner::before{content:'';position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.07);}
     .welcome-banner::after{content:'';position:absolute;bottom:-40px;right:100px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.05);}
     .wb-txt h2{font-size:20px;font-weight:700;color:white;letter-spacing:-0.5px;margin-bottom:4px;}
     .wb-txt p{font-size:13px;color:rgba(255,255,255,0.7);}
-    .wb-ico{font-size:48px;position:relative;z-index:1;}
-    .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-    .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:16px;box-shadow:var(--sh);transition:transform 0.2s,box-shadow 0.2s;animation:fu 0.35s ease both;}
+    .wb-ico{width:64px;height:64px;border-radius:18px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;flex-shrink:0;}
+    .kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+    .kpi{min-width:0;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:16px;box-shadow:var(--sh);transition:transform 0.2s,box-shadow 0.2s;animation:fu 0.35s ease both;}
     .kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.1s}.kpi:nth-child(3){animation-delay:.15s}.kpi:nth-child(4){animation-delay:.2s}
     .kpi:hover{transform:translateY(-2px);}
     .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
@@ -36,8 +39,8 @@
     .kpi-num{font-size:32px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
     .kpi.k1 .kpi-num{color:var(--azul)}.kpi.k2 .kpi-num{color:#1EA851}.kpi.k3 .kpi-num{color:#CC7700}.kpi.k4 .kpi-num{color:var(--rojo)}
     .kpi-lbl{font-size:12px;color:var(--label2);}
-    .action-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-    .action-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:20px;box-shadow:var(--sh);animation:fu 0.35s ease 0.25s both;display:flex;flex-direction:column;gap:12px;}
+    .action-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .action-card{min-width:0;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:20px;box-shadow:var(--sh);animation:fu 0.35s ease 0.25s both;display:flex;flex-direction:column;gap:12px;}
     .ac-head{display:flex;align-items:center;justify-content:space-between;}
     .ac-title{font-size:15px;font-weight:600;color:var(--label);}
     .ac-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
@@ -57,11 +60,11 @@
     .btn-codigo{width:100%;padding:13px;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(0,118,227,0.3);transition:all 0.2s;margin-top:12px;}
     .btn-codigo:hover{background:linear-gradient(135deg,var(--azul),var(--mid));transform:translateY(-1px);}
     .error-codigo{background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);border-radius:10px;padding:10px 14px;color:var(--rojo);font-size:13px;font-weight:500;margin-top:10px;text-align:center;}
-    @@media(max-width:1200px){.kpi-row{grid-template-columns:repeat(3,1fr)!important;}}
-    @@media(max-width:1024px){.kpi-row{grid-template-columns:repeat(2,1fr)!important;}.action-row{grid-template-columns:1fr!important;}}
+    @@media(max-width:1200px){.kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))!important;}}
+    @@media(max-width:1024px){.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))!important;}.action-row{grid-template-columns:minmax(0,1fr)!important;}}
     @@media(max-width:700px){
-        .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
-        .action-row{grid-template-columns:1fr!important;}
+        .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;}
+        .action-row{grid-template-columns:minmax(0,1fr)!important;}
         .welcome-banner{flex-direction:column!important;gap:10px!important;}
         .wb-ico{display:none!important;}
     }
@@ -71,44 +74,33 @@
 <div class="view-inner" style="@(sinProyecto ? "display:flex;justify-content:center" : "")">
 @if (sinProyecto) {
     <div class="sin-proy-wrap">
-        <div class="sin-proy-ico">🏗</div>
+        <div class="sin-proy-ico"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01"/></svg></div>
         <div>
             <div class="sin-proy-title">Sin proyecto asignado</div>
-            <div class="sin-proy-sub">Ingresa el código de acceso que te dio tu administrador para unirte a un proyecto.</div>
-        </div>
-        <div class="codigo-card">
-            <form action="/Vendedor/AsignarProyecto" method="post">
-                @Html.AntiForgeryToken()
-                <div class="codigo-lbl">Código de acceso</div>
-                <input type="text" name="codigo" class="codigo-input" placeholder="Ej: PRIM-X7K2" maxlength="20" autocomplete="off" autofocus/>
-                @if (!string.IsNullOrEmpty(errorCodigo)) {
-                    <div class="error-codigo">❌ @errorCodigo</div>
-                }
-                <button type="submit" class="btn-codigo">Unirme al proyecto →</button>
-            </form>
+            <div class="sin-proy-sub">Por favor, dile al Administrador que te asigne un proyecto. Mientras tanto no podrás navegar en la plataforma.</div>
         </div>
     </div>
 } else {
     <div class="welcome-banner">
         <div class="wb-txt">
-            <h2>¡Hola, @nombre! 👋</h2>
+            <h2>¡Hola, @nombre!</h2>
             <p>Proyecto activo: <strong style="color:white">@proyActivo</strong> · @disponibles inmuebles disponibles</p>
         </div>
-        <div class="wb-ico">🏗</div>
+        <div class="wb-ico">@Iconos.Torre("#ffffff", 34, 0.3)</div>
     </div>
 
     <div class="kpi-row">
-        <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">🏠</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles proyecto</div></div>
-        <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">✅</div><span class="kpi-tag">Libre</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-        <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">💲</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
-        <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">👤</div><span class="kpi-tag">Yo</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
+        <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Torre("#0076E3")</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles del proyecto</div></div>
+        <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851")</div><span class="kpi-tag">Libres</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+        <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#CC7700")</div><span class="kpi-tag">Mías</span></div><div class="kpi-num">@misVentas</div><div class="kpi-lbl">Mis ventas</div></div>
+        <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Persona("#E63946")</div><span class="kpi-tag">Míos</span></div><div class="kpi-num">@misClientes</div><div class="kpi-lbl">Mis clientes</div></div>
     </div>
 
     <div class="action-row">
         <div class="action-card">
             <div class="ac-head">
                 <span class="ac-title">Inmuebles disponibles</span>
-                <div class="ac-ico" style="background:rgba(52,199,89,0.1)">🏢</div>
+                <div class="ac-ico" style="background:rgba(52,199,89,0.1)">@Iconos.Check("#1EA851")</div>
             </div>
             <div class="ac-stat" style="color:#1EA851">@disponibles</div>
             <div class="ac-sub">inmuebles listos para vender en @proyActivo</div>
@@ -117,7 +109,7 @@
         <div class="action-card">
             <div class="ac-head">
                 <span class="ac-title">Mis ventas</span>
-                <div class="ac-ico" style="background:rgba(0,118,227,0.1)">💲</div>
+                <div class="ac-ico" style="background:rgba(0,118,227,0.1)">@Iconos.Dolar("#0076E3")</div>
             </div>
             <div class="ac-stat" style="color:var(--blue)">@misVentas</div>
             <div class="ac-sub">ventas registradas por ti en este proyecto</div>
