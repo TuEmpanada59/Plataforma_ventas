@@ -347,7 +347,7 @@ namespace Plataforma_ventas.Controllers
             int listaActual = (int)((await cmdLista.ExecuteScalarAsync()) ?? 1);
 
             // Precio de esa lista
-            var col = listaActual switch { 1 => "Lista1", 2 => "Lista2", 3 => "Lista3", 4 => "Lista4", _ => "Lista5" };
+            var col = Listas.ColumnaLista(listaActual);
             var cmdPrecio = new SqlCommand($"SELECT {col} FROM Inmuebles WHERE IdInmuebles=@id", con);
             cmdPrecio.Parameters.AddWithValue("@id", idInmueble);
             var rawPrecio = (await cmdPrecio.ExecuteScalarAsync())?.ToString() ?? "0";

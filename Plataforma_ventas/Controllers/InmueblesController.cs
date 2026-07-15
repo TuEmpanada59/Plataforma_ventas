@@ -298,7 +298,7 @@ namespace Plataforma_ventas.Controllers
             cmdLista.Parameters.AddWithValue("@proy", idProy);
             int listaActual = (int)((await cmdLista.ExecuteScalarAsync()) ?? 1);
 
-            var colLista = listaActual switch { 1 => "Lista1", 2 => "Lista2", 3 => "Lista3", 4 => "Lista4", _ => "Lista5" };
+            var colLista = Listas.ColumnaLista(listaActual);
             var cmdPrecio = new SqlCommand($"SELECT {colLista} FROM Inmuebles WHERE IdInmuebles=@id", con);
             cmdPrecio.Parameters.AddWithValue("@id", idInmueble);
             var rawPrecio = (await cmdPrecio.ExecuteScalarAsync())?.ToString() ?? "0";
@@ -768,7 +768,7 @@ namespace Plataforma_ventas.Controllers
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
-            var col = numLista switch { 1 => "Lista1", 2 => "Lista2", 3 => "Lista3", 4 => "Lista4", _ => "Lista5" };
+            var col = Listas.ColumnaLista(numLista);
             var cmd = new SqlCommand(
                 $"UPDATE Inmuebles SET {col}=@precio WHERE IdProyecto=@proy AND Metros=@metros", con);
             cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
@@ -938,7 +938,7 @@ namespace Plataforma_ventas.Controllers
             // Evita que el auto-escalamiento mueva a una lista sin precios cargados.
             async Task<bool> ListaConPrecios(int numLista, string? metrosArea)
             {
-                var col = numLista switch { 1 => "Lista1", 2 => "Lista2", 3 => "Lista3", 4 => "Lista4", _ => "Lista5" };
+                var col = Listas.ColumnaLista(numLista);
                 string sql = metrosArea == null
                     ? $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy"
                     : $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy AND Metros=@metros";
