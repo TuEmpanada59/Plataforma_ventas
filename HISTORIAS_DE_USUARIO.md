@@ -1,12 +1,14 @@
 # Historias de Usuario — Plataforma de Ventas (Londoño Gómez)
 
 **Épica:** Plataforma de Lanzamientos Inmobiliarios (nombre del proyecto en Azure DevOps)
-**Versión del documento:** 3.0 · **Fecha:** 09/07/2026
+**Versión del documento:** 4.0 · **Fecha:** 10/07/2026
 **Convención de estados:** ✅ Implementada · 🔨 Parcial · ⏳ Pendiente
 **Convención de tasks:** `[x]` completada (crear como *Done*) · `[ ]` pendiente (crear como *To Do*)
 
 Estructura para Azure DevOps: **Epic → Feature → User Story → Task**.
 Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos una Task**; y cada Task tiene su **título + descripción** (lista para pegar en el campo *Description* de la Task).
+
+**Novedades v4.0:** se auditó el código controlador por controlador contra el documento y aparecieron **4 historias que ya estaban construidas pero no documentadas** (HU-404, HU-905, HU-906, HU-1104). También se actualizaron tasks completadas desde la v3.0: creación del proyecto de pruebas unitarias, refactor del mapeo de listas, despliegue del App Service de QA y el flujo de sincronización DEVELOP → Azure DevOps → QA.
 
 ---
 
@@ -155,7 +157,21 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 
 **Tasks:**
 - [x] **Escalamiento automático global y por área** — Calcular y aplicar el ascenso de lista al cumplir el umbral, validando que la lista destino tenga precios, y difundirlo por SignalR.
+- [x] **Extraer el mapeo lista→columna a un helper testeable** — Unificar el `switch` duplicado en 4 lugares de los controladores en `Listas.ColumnaLista(int)` y cubrirlo con pruebas unitarias.
 - [ ] **Historial de cambios de lista** — Guardar cuándo cambió cada lista y qué lo disparó (venta o cambio manual), para trazabilidad de precios.
+- [ ] **Unificar la fórmula de escalamiento** — El cálculo de "próxima lista" está implementado dos veces con lógica ligeramente distinta (división entera vs. módulo, en vendedor y en administrador); unificarlo en un solo método y cubrirlo con pruebas unitarias de los casos borde (umbral exacto, tope en Lista 5, escalamiento desactivado).
+
+### HU-404 · Vista de reservas activas (administración) ✅
+**Como** administrador, **quiero** ver todas las reservas activas del proyecto (no solo las mías), **para** supervisar el trabajo de todo el equipo de vendedores y poder liberar o continuar cualquier reserva si es necesario.
+
+**Criterios de aceptación:**
+1. Listado de todas las unidades en estado RESERVADO del proyecto activo, con el vendedor que la reservó, el precio bloqueado y la fecha de reserva.
+2. El administrador puede liberar cualquier reserva o continuar la venta desde ella, sin estar limitado al vendedor que la creó.
+3. La lista se actualiza en vivo cuando cambia el estado de una reserva (SignalR).
+
+**Tasks:**
+- [x] **Vista de reservas del administrador** — Implementar la acción `Reservas` con el listado de todas las reservas activas del proyecto, vendedor, precio bloqueado y acciones de liberar/continuar.
+- [ ] **Filtro por vendedor o por antigüedad de la reserva** — Permitir filtrar el listado para encontrar rápido reservas próximas a vencer o de un vendedor específico.
 
 ---
 
@@ -300,6 +316,28 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 - [x] **Reporte de asesores** — Implementar el reporte que agrupa por asesor sus ventas, unidades y valores.
 - [ ] **Ranking histórico multi-proyecto** — Extender el reporte para comparar el desempeño de los asesores a través de varios proyectos/lanzamientos.
 
+### HU-905 · Mapa de ventas exportable a Excel ✅
+**Como** administrador, **quiero** exportar un mapa de inmuebles coloreado por estado (agrupado por torre y piso), **para** compartir con el equipo directivo una vista visual e imprimible del avance del lanzamiento.
+
+**Criterios de aceptación:**
+1. El Excel generado agrupa por torre, muestra los pisos y aptos con el color correspondiente a su estado (disponible/reservado/vendido).
+2. Se genera con los datos del proyecto activo en el momento de la exportación.
+
+**Tasks:**
+- [x] **Generación del mapa en Excel (EPPlus)** — Implementar la exportación con formato y colores por estado, agrupado por torre y piso.
+- [ ] **Unificar la generación del mapa** — Hoy existen dos implementaciones equivalentes (`VentasController.GenerarMapa` y `ReportesController.GenerarMapa`); consolidarlas en un solo servicio compartido para evitar mantenimiento duplicado.
+
+### HU-906 · Listado global de ventas con paginación ✅
+**Como** administrador, **quiero** ver todas las ventas del proyecto activo (de todos los vendedores) en un listado paginado, **para** auditar y consultar el histórico completo de ventas sin depender del informe del día.
+
+**Criterios de aceptación:**
+1. Listado paginado (25 por página) de todas las ventas del proyecto, ordenado por fecha descendente.
+2. Incluye vendedor, cliente, inmueble, precio y fecha de cada venta.
+
+**Tasks:**
+- [x] **Listado de ventas con paginación server-side** — Implementar la consulta paginada (COUNT + OFFSET/FETCH) y la vista de todas las ventas del proyecto activo.
+- [ ] **Filtros de búsqueda** — Agregar filtros por vendedor, rango de fechas o cliente al listado global de ventas.
+
 ---
 
 ## FEATURE 10 — Cuadro de asistencia del lanzamiento
@@ -358,9 +396,21 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 
 **Tasks:**
 - [x] **Auditoría inicial de QA/seguridad** — Realizar la revisión estática y de seguridad del proyecto y documentar los hallazgos y remediaciones (INFORME_QA_SEGURIDAD.md).
-- [ ] **Crear el proyecto de pruebas** — Crear `Plataforma_ventas.Tests` (xUnit) con los casos ya diseñados (SoloDigitos, mapeo de listas, política de contraseña).
-- [ ] **Pruebas de integración del flujo de venta** — Probar tomar→vender y reservar→vender contra una BD en contenedor.
+- [x] **Crear el proyecto de pruebas** — Crear `PruebasLanzamientos` (xUnit) con casos reales de `Texto` (SoloDigitos, ParsearPrecio, DestinoVenta) y `Listas.ColumnaLista`.
+- [ ] **Ampliar cobertura unitaria** — Cubrir la fórmula de escalamiento de lista (una vez unificada) y la política de contraseña con pruebas de los casos borde.
+- [ ] **Pruebas de integración del flujo de venta** — Probar tomar→vender y reservar→vender (atomicidad, precio derivado en servidor, gate SAGRILAFT) con `WebApplicationFactory` contra una BD de pruebas.
 - [ ] **`dotnet test` como gate del pipeline** — Hacer obligatorias las pruebas antes de cualquier despliegue a QA/Producción.
+
+### HU-1104 · Manejo de errores y páginas de estado personalizadas ✅
+**Como** usuario de la plataforma, **quiero** ver una página clara y de marca cuando ocurre un error o una página no existe, **para** no encontrarme con una pantalla técnica en blanco o un error crudo de servidor.
+
+**Criterios de aceptación:**
+1. Los errores 404 y demás códigos de estado se re-ejecutan hacia una página amigable (`/Error/{codigo}`).
+2. En producción no se exponen stack traces ni detalles técnicos; en desarrollo sí, para depurar.
+
+**Tasks:**
+- [x] **Handler global de errores y códigos de estado** — Configurar `UseStatusCodePagesWithReExecute` y `UseExceptionHandler` en `Program.cs` con la acción `Error` de `HomeController`.
+- [ ] **Página de error con soporte de marca y acción de retorno** — Mejorar la vista de error para que oriente al usuario (volver al inicio según su rol) en vez de un mensaje genérico.
 
 ---
 
@@ -368,26 +418,30 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 
 **Descripción:** Todo lo relacionado con llevar y mantener la aplicación en la nube. Define los dos entornos idénticos y aislados (QA y Producción) en Azure, el pipeline de CI/CD por ramas con aprobación manual a Producción desde Azure DevOps, y el monitoreo y respaldo necesarios para operar con confianza durante los lanzamientos.
 
-### HU-1201 · Entornos QA y Producción idénticos ⏳
+### HU-1201 · Entornos QA y Producción idénticos 🔨
 **Como** equipo de desarrollo, **quiero** dos entornos aislados con la misma configuración, **para** probar cada versión en QA antes de liberarla.
 
 **Criterios de aceptación:** recursos separados por entorno; configuración sensible en el entorno (variables/Key Vault); QA no comparte BD con Producción.
 
 **Tasks:**
 - [x] **Definir arquitectura y costeo** — Elegir App Service B2 (Linux) + Azure SQL Serverless por entorno y documentar el costo aproximado para aprobación de gerencia.
-- [ ] **Crear los recursos en Azure** — Crear los Resource Groups, App Service y Azure SQL de QA y de Producción con las configuraciones de seguridad definidas.
+- [x] **Crear el entorno de QA** — App Service y Azure SQL Serverless de QA creados y desplegados en Azure.
+- [ ] **Ajustar el timeout de conexión a la base serverless** — Configurar `Connection Timeout=90;ConnectRetryCount=3;ConnectRetryInterval=10` en la cadena de conexión de QA (y de Producción) para tolerar el arranque en frío de la base al auto-pausarse.
+- [ ] **Crear el entorno de Producción** — Crear el Resource Group, App Service y Azure SQL de Producción con las mismas configuraciones de seguridad que QA.
 - [ ] **Dominio y subdominio con certificado** — Configurar el dominio propio y el subdominio de QA con el certificado administrado por Azure.
 
 ### HU-1202 · CI/CD por ramas con aprobación a Producción 🔨
-**Como** equipo de desarrollo, **quiero** que `qa` despliegue a QA y `master` a Producción con aprobación manual, **para** liberar con control y trazabilidad.
+**Como** equipo de desarrollo, **quiero** que `DEVELOP`/`QA` desplieguen a QA y la rama de Producción despliegue con aprobación manual, **para** liberar con control y trazabilidad desde Azure DevOps.
 
 **Criterios de aceptación:** pipeline YAML único; Producción exige aprobación en el Environment; los PR no despliegan.
 
 **Tasks:**
 - [x] **Pipeline con despliegue por rama y aprobación** — Crear `azure-pipelines.yml` que compila una vez y despliega a QA o a Producción según la rama, con aprobación en el entorno de Producción.
-- [ ] **Conectar repo y crear Environments** — Vincular el repositorio a Azure Pipelines y crear los Environments QA y Production con sus aprobadores.
-- [ ] **Service Connections por entorno** — Crear las conexiones de servicio a Azure, una por entorno, con permisos mínimos sobre su Resource Group.
-- [ ] **Completar nombres reales en el YAML** — Reemplazar los placeholders del pipeline por los nombres reales de los App Service y las service connections.
+- [x] **Conectar el repositorio a Azure DevOps** — Repo `Lanzamientos` creado en Azure Repos, remoto configurado desde el equipo local, y ramas `DEVELOP`/`QA` sincronizadas con el flujo GitHub → local → Azure DevOps.
+- [x] **Flujo de promoción DEVELOP → QA por Pull Request** — Establecer el proceso de Pull Request dentro de Azure DevOps para llevar los cambios de `DEVELOP` a `QA` sin merges locales.
+- [ ] **Ajustar el YAML a los nombres reales de rama** — Cambiar el trigger de `qa`/`master` a los nombres reales de las ramas del repo (`QA` y la rama de Producción que se defina).
+- [ ] **Crear Environments y Service Connections** — Crear los Environments `QA`/`Production` en Pipelines, con su aprobador en Production, y las Service Connections por entorno con permisos mínimos.
+- [ ] **Completar nombres reales en el YAML** — Reemplazar los placeholders del pipeline por los nombres reales de los App Service y las service connections, y ejecutar el pipeline por primera vez.
 
 ### HU-1203 · Monitoreo y respaldo en producción ⏳
 **Como** responsable de operación, **quiero** monitoreo y respaldos verificados, **para** detectar incidentes durante los lanzamientos y poder recuperarnos.
@@ -408,16 +462,16 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 | 1. Autenticación y control de acceso | HU-101…HU-105 | ✅ |
 | 2. Gestión de usuarios | HU-201…HU-203 | ✅ |
 | 3. Carga de proyectos (Excel) | HU-301…HU-302 | ✅ (validación estricta pendiente) |
-| 4. Inventario y estados de inmuebles | HU-401…HU-403 | ✅ |
+| 4. Inventario y estados de inmuebles | HU-401…HU-404 | ✅ |
 | 5. Flujo de venta del vendedor | HU-501…HU-504 | ✅ |
 | 6. Registro de ventas y cumplimiento | HU-601…HU-602 | ✅ |
 | 7. Gestión de clientes | HU-701 | ✅ (privacidad pendiente) |
 | 8. Dashboard en tiempo real | HU-801 | ✅ |
-| 9. Reportes y exportaciones | HU-901…HU-904 | 🔨 (PDF técnico en ajuste) |
+| 9. Reportes y exportaciones | HU-901…HU-906 | 🔨 (PDF técnico en ajuste) |
 | 10. Cuadro de asistencia | HU-1001…HU-1002 | ✅ |
-| 11. Seguridad técnica | HU-1101…HU-1103 | 🔨 |
-| 12. Infraestructura y DevOps | HU-1201…HU-1203 | ⏳ |
+| 11. Seguridad técnica | HU-1101…HU-1104 | 🔨 |
+| 12. Infraestructura y DevOps | HU-1201…HU-1203 | 🔨 |
 
-**Total: 12 Features (con descripción) · 33 Historias de Usuario (con ≥1 Task) · 90+ Tasks (cada una con título + descripción).**
+**Total: 12 Features (con descripción) · 37 Historias de Usuario (con ≥1 Task) · 100+ Tasks (cada una con título + descripción).**
 
 > **Carga sugerida:** Feature → pegar su *Descripción*; User Story → narrativa "Como… quiero… para…" en *Description* y los criterios en *Acceptance Criteria*; Task → el **título** como nombre del work item y la **descripción** (el texto después del guion) en su campo *Description*. Las tasks `[x]` se crean en *Done*; las `[ ]` en *To Do*.
