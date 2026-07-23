@@ -1,25 +1,267 @@
-﻿@model ErrorViewModel
+@model Plataforma_ventas.Models.ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    Layout = null;
+    var estado  = ViewBag.Estado  as string ?? "500";
+    var rolCta  = ViewBag.RolCta  as string ?? "sin-sesion";
+
+    // CTA "PANEL" según el rol en sesión.
+    var (panelLbl, panelHref) = rolCta switch
+    {
+        "administrador" => ("Volver al panel", "/Dashboard"),
+        "vendedor"      => ("Volver al inicio", "/Vendedor"),
+        _               => ("Iniciar sesión", "/Account/Login")
+    };
+
+    // Contenido, colores e íconos por estado.
+    string acc, accDark, tint, tintDark, eyebrow, titulo, mensaje, iconPaths, codeText;
+    string primLbl, primKind; string? secLbl = null, secKind = null;   // kind: panel | retry | login | home
+    bool countdown = false;
+
+    switch (estado)
+    {
+        case "404":
+            acc = "#0077C8"; accDark = "#4DA3FF"; tint = "rgba(0,119,200,0.08)"; tintDark = "rgba(0,119,200,0.18)";
+            eyebrow = "ERROR 404"; titulo = "No encontramos esta página";
+            mensaje = "La página que buscas no existe o fue movida. Verifica el enlace o vuelve a tu panel.";
+            iconPaths = "<circle cx='12' cy='12' r='10'/><polygon points='16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76'/>";
+            codeText = "404"; primLbl = panelLbl; primKind = "panel"; secLbl = "Ir al inicio"; secKind = "home";
+            break;
+        case "503":
+            acc = "#CC7700"; accDark = "#FFB020"; tint = "rgba(255,149,0,0.10)"; tintDark = "rgba(255,149,0,0.20)";
+            eyebrow = "SISTEMA INICIANDO"; titulo = "Estamos encendiendo el sistema";
+            mensaje = "La plataforma estaba en reposo y se está activando. Espera unos segundos y vuelve a intentar.";
+            iconPaths = "<path d='M12 2v10'/><path d='M18.4 6.6a9 9 0 1 1-12.77.04'/>";
+            codeText = "503"; primLbl = "Reintentar ahora"; primKind = "retry"; countdown = true;
+            break;
+        case "sesion":
+            acc = "#5A5AC8"; accDark = "#8E8EF0"; tint = "rgba(90,90,200,0.10)"; tintDark = "rgba(90,90,200,0.22)";
+            eyebrow = "SESIÓN EXPIRADA"; titulo = "Tu sesión expiró por seguridad";
+            mensaje = "Por inactividad cerramos tu sesión para proteger tus datos. Inicia sesión de nuevo para continuar.";
+            iconPaths = "<circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/>";
+            codeText = ""; primLbl = "Iniciar sesión"; primKind = "login";
+            break;
+        case "mantenimiento":
+            acc = "#003A70"; accDark = "#4DA3FF"; tint = "rgba(0,58,112,0.08)"; tintDark = "rgba(0,90,165,0.20)";
+            eyebrow = "MANTENIMIENTO"; titulo = "Estamos actualizando la plataforma";
+            mensaje = "Volvemos en unos minutos con mejoras. Gracias por tu paciencia.";
+            iconPaths = "<path d='M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z'/>";
+            codeText = ""; primLbl = "Reintentar"; primKind = "retry";
+            break;
+        case "403":
+            acc = "#CC7700"; accDark = "#FFB020"; tint = "rgba(255,149,0,0.10)"; tintDark = "rgba(255,149,0,0.20)";
+            eyebrow = "ERROR 403"; titulo = "No tienes acceso a esta sección";
+            mensaje = "Tu cuenta no tiene permiso para ver esta página. Si crees que es un error, contacta a tu administrador.";
+            iconPaths = "<path d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/><path d='M12 8v4'/><path d='M12 16h.01'/>";
+            codeText = "403"; primLbl = panelLbl; primKind = "panel";
+            break;
+        default: // 500
+            acc = "#E63946"; accDark = "#FF6370"; tint = "rgba(230,57,70,0.10)"; tintDark = "rgba(230,57,70,0.20)";
+            eyebrow = "ERROR 500"; titulo = "Algo salió mal de nuestro lado";
+            mensaje = "Tuvimos un problema procesando tu solicitud. Ya quedó registrado; intenta de nuevo en un momento.";
+            iconPaths = "<path d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z'/><line x1='12' y1='9' x2='12' y2='13'/><line x1='12' y1='17' x2='12.01' y2='17'/>";
+            codeText = "500"; primLbl = "Reintentar"; primKind = "retry"; secLbl = panelLbl; secKind = "panel";
+            break;
+    }
+
+    string HrefDe(string kind) => kind switch { "panel" => panelHref, "login" => "/Account/Login", "home" => "/", _ => "#" };
 }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>@titulo — Londoño Gómez</title>
+    <link rel="icon" type="image/png" href="~/favicon.png"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@@400;500;600&display=swap" rel="stylesheet"/>
+    <style>
+        :root{
+            --sc-accent:@acc; --sc-accent-2:@accDark; --sc-accent-btn:@acc;
+            --sc-accent-shadow:color-mix(in srgb, @acc 28%, transparent);
+            --sc-focus:color-mix(in srgb, @acc 40%, transparent);
+            --sc-tile:@tint;
+            --sc-page-bg:#EEF2F7;
+            --sc-space-bg:radial-gradient(ellipse 90% 70% at 50% -10%, #e3edf7 0%, #eef2f7 60%);
+            --sc-title:#003A70; --sc-brand:#003A70;
+            --sc-msg:rgba(60,60,67,0.60); --sc-footer:rgba(60,60,67,0.45);
+            --sc-ghost:rgba(0,0,0,0.85); --sc-ghost-border:rgba(60,60,67,0.16);
+            --sc-track:rgba(120,120,128,0.16);
+            --sc-glass-border:rgba(255,255,255,0.7); --sc-dot:rgba(0,58,112,0.16);
+            --sc-on-accent:#fff;
+        }
+        @@media (prefers-color-scheme: dark){
+            :root{
+                --sc-accent:@accDark; --sc-tile:@tintDark;
+                --sc-page-bg:#0A1626;
+                --sc-space-bg:radial-gradient(ellipse 90% 70% at 50% -10%, #14304f 0%, #0a1626 62%);
+                --sc-title:#EAF1FB; --sc-brand:rgba(235,241,251,0.92);
+                --sc-msg:rgba(220,230,242,0.66); --sc-footer:rgba(220,230,242,0.42);
+                --sc-ghost:#EAF1FB; --sc-ghost-border:rgba(255,255,255,0.16);
+                --sc-track:rgba(255,255,255,0.10);
+                --sc-glass-border:rgba(255,255,255,0.12); --sc-dot:rgba(180,210,255,0.20);
+            }
+        }
+        *{box-sizing:border-box;}
+        html,body{margin:0;height:100%;}
+        body{min-height:100vh; display:flex; align-items:center; justify-content:center;
+            position:relative; overflow:hidden; background:var(--sc-page-bg);
+            font-family:'IBM Plex Mono', ui-monospace, monospace; color:var(--sc-title);}
+        .bg{position:absolute; inset:0; z-index:0; pointer-events:none;}
+        .bg-space{position:absolute; inset:0; background:var(--sc-space-bg);}
+        .bg-stars-a{position:absolute; inset:0; opacity:.5;
+            background-image:radial-gradient(var(--sc-dot) 1.3px, transparent 1.3px); background-size:44px 44px;
+            animation:sc-drift-a 42s linear infinite;}
+        .bg-stars-b{position:absolute; inset:0; opacity:.32;
+            background-image:radial-gradient(var(--sc-dot) 1.3px, transparent 1.3px); background-size:78px 78px;
+            animation:sc-drift-b 58s linear infinite;}
+        .ghost{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+            font-size:min(52vh,440px); font-weight:700; letter-spacing:-.05em; line-height:1;
+            color:color-mix(in srgb, var(--sc-title) 4.5%, transparent); overflow:hidden; user-select:none;}
+        .wrap{position:relative; z-index:1; width:100%; max-width:560px; padding:44px 34px; text-align:center;
+            animation:lg-fade-up .35s cubic-bezier(.4,0,.2,1) both;}
+        .hud{display:flex; justify-content:space-between; align-items:center; margin-bottom:32px;
+            font-size:11px; letter-spacing:.14em;}
+        .hud .brand{display:flex; align-items:center; gap:8px; font-weight:600; color:var(--sc-brand);}
+        .hud .brand i{width:8px; height:8px; border-radius:2px; background:#006DFE; display:block;}
+        .hud .tel{color:var(--sc-footer);}
+        .orbit{width:236px; height:236px; margin:0 auto 34px; position:relative; perspective:920px;}
+        .plane{position:absolute; inset:0; transform-style:preserve-3d; transform:rotateX(64deg);}
+        .ring-b{position:absolute; border-radius:50%;}
+        .r1-b{inset:0; border:1px solid var(--sc-tile);}
+        .r2-b{inset:34px; border:1px dashed var(--sc-glass-border); opacity:.6;}
+        .r3-b{inset:68px; border:1px solid var(--sc-glass-border); opacity:.4;}
+        .rot{position:absolute; border-radius:50%;}
+        .r1{inset:0; animation:sc-orbit 14s linear infinite;}
+        .r2{inset:34px; animation:sc-orbit 8.5s linear infinite reverse;}
+        .r3{inset:68px; animation:sc-orbit 5.5s linear infinite;}
+        .planet{position:absolute; left:50%; transform:translateX(-50%); border-radius:50%;}
+        .p1{width:14px; height:14px; top:-7px; background:var(--sc-accent-2); box-shadow:0 0 18px var(--sc-accent-2);}
+        .p2{width:11px; height:11px; top:-6px; background:var(--sc-accent); box-shadow:0 0 14px var(--sc-accent);}
+        .p3{width:8px; height:8px; top:-4px; background:#006DFE; box-shadow:0 0 11px #006DFE;}
+        .core{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+            width:90px; height:90px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+            background:radial-gradient(circle at 32% 26%, var(--sc-accent-2), var(--sc-accent));
+            box-shadow:0 14px 40px var(--sc-accent-shadow), 0 0 0 1px var(--sc-tile); color:var(--sc-on-accent);}
+        .eyebrow{font-size:12px; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+            color:var(--sc-accent); margin-bottom:12px;}
+        h1{font-size:28px; line-height:1.2; font-weight:600; letter-spacing:-.5px; text-wrap:balance;
+            color:var(--sc-title); margin:0 0 14px;}
+        .msg{font-size:14px; line-height:1.66; max-width:48ch; color:var(--sc-msg); margin:0 auto 26px;}
+        .cd{max-width:300px; margin:0 auto 22px;}
+        .cd-track{height:5px; border-radius:2px; background:var(--sc-track); overflow:hidden;}
+        .cd-fill{height:100%; border-radius:2px; background:var(--sc-accent); width:100%; transition:width 1s linear;}
+        .cd-lbl{font-size:11px; letter-spacing:.1em; color:var(--sc-footer); margin-top:8px;}
+        .actions{display:flex; flex-wrap:wrap; gap:10px; justify-content:center;}
+        .btn{font-family:inherit; cursor:pointer; text-decoration:none; display:inline-block; border-radius:8px;}
+        .btn-primary{padding:13px 26px; font-size:14px; font-weight:600; color:var(--sc-on-accent);
+            border:none; background:var(--sc-accent-btn); box-shadow:0 4px 12px var(--sc-accent-shadow);}
+        .btn-secondary{padding:12px 26px; font-size:13px; font-weight:600; background:transparent;
+            color:var(--sc-ghost); border:1px solid var(--sc-ghost-border);}
+        .btn:focus-visible{outline:none; box-shadow:0 0 0 3px var(--sc-focus);}
+        .btn-primary:focus-visible{box-shadow:0 4px 12px var(--sc-accent-shadow), 0 0 0 3px var(--sc-focus);}
+        .tel-foot{margin-top:30px; display:flex; gap:20px; justify-content:center; flex-wrap:wrap;
+            font-size:10.5px; letter-spacing:.12em; color:var(--sc-footer);}
+        @@keyframes sc-orbit{to{transform:rotate(360deg);}}
+        @@keyframes sc-drift-a{0%{background-position:0 0}100%{background-position:300px 180px}}
+        @@keyframes sc-drift-b{0%{background-position:0 0}100%{background-position:-260px 320px}}
+        @@keyframes lg-fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        @@media (prefers-reduced-motion: reduce){
+            .r1,.r2,.r3,.bg-stars-a,.bg-stars-b,.wrap{animation:none !important;}
+            .cd-fill{transition:none !important;}
+        }
+        @@media (max-width:560px){ h1{font-size:24px;} .orbit{width:200px;height:200px;} }
+    </style>
+</head>
+<body>
+    <div class="bg" aria-hidden="true">
+        <div class="bg-space"></div>
+        <div class="bg-stars-a"></div>
+        <div class="bg-stars-b"></div>
+        @if (!string.IsNullOrEmpty(codeText)) { <div class="ghost">@codeText</div> }
+    </div>
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+    <main class="wrap" role="alert" aria-live="polite">
+        <div class="hud">
+            <span class="brand"><i></i>LONDOÑO GÓMEZ</span>
+            <span class="tel">LG://orbit · telemetría</span>
+        </div>
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+        <div class="orbit" aria-hidden="true">
+            <div class="plane">
+                <div class="ring-b r1-b"></div>
+                <div class="ring-b r2-b"></div>
+                <div class="ring-b r3-b"></div>
+                <div class="rot r1"><span class="planet p1"></span></div>
+                <div class="rot r2"><span class="planet p2"></span></div>
+                <div class="rot r3"><span class="planet p3"></span></div>
+            </div>
+            <div class="core">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@Html.Raw(iconPaths)</svg>
+            </div>
+        </div>
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+        <div class="eyebrow">@eyebrow</div>
+        <h1>@titulo</h1>
+        <p class="msg">@mensaje</p>
+
+        @if (countdown)
+        {
+            <div class="cd">
+                <div class="cd-track"><div class="cd-fill" id="cdFill"></div></div>
+                <div class="cd-lbl">reintentando en <span id="cdNum">10</span>s…</div>
+            </div>
+        }
+
+        <div class="actions">
+            @if (primKind == "retry")
+            {
+                <button type="button" class="btn btn-primary" onclick="reintentar()">@primLbl</button>
+            }
+            else
+            {
+                <a class="btn btn-primary" href="@HrefDe(primKind)">@primLbl</a>
+            }
+
+            @if (secKind != null)
+            {
+                if (secKind == "retry")
+                {
+                    <button type="button" class="btn btn-secondary" onclick="reintentar()">@secLbl</button>
+                }
+                else
+                {
+                    <a class="btn btn-secondary" href="@HrefDe(secKind)">@secLbl</a>
+                }
+            }
+        </div>
+
+        <div class="tel-foot">
+            <span>ENLACE ESTABLE</span>
+            <span>NODO LG-03</span>
+            @if (!string.IsNullOrEmpty(codeText)) { <span>@codeText</span> }
+        </div>
+    </main>
+
+    <script>
+        function reintentar() {
+            if (document.referrer && document.referrer !== location.href) { location.href = document.referrer; }
+            else if (history.length > 1) { history.back(); }
+            else { location.href = '/'; }
+        }
+    </script>
+    @if (countdown)
+    {
+        <script>
+            (function () {
+                var n = 10, num = document.getElementById('cdNum'), fill = document.getElementById('cdFill');
+                setInterval(function () {
+                    n--;
+                    if (n <= 0) { reintentar(); n = 10; }
+                    if (num) num.textContent = n;
+                    if (fill) fill.style.width = (n / 10 * 100) + '%';
+                }, 1000);
+            })();
+        </script>
+    }
+</body>
+</html>
