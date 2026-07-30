@@ -163,6 +163,52 @@ namespace Plataforma_ventas.Controllers
                     });
             ViewBag.Ventas = ventas;
 
+            // ── Ventas por hora del día y por área (m²) para la gráfica de horas pico ──
+            // La fecha se guarda en UTC (GETDATE en Azure SQL); Colombia es UTC-5 fijo.
+            var vha = new List<dynamic>();
+            var cmdVHA = new SqlCommand(@"
+                SELECT DATEPART(HOUR, DATEADD(HOUR, -5, v.FechaVenta)) AS Hora,
+                       ISNULL(NULLIF(i.Metros,''), 'N/D') AS Area,
+                       COUNT(*) AS NumVentas,
+                       ISNULL(SUM(v.PrecioVenta),0) AS Valor
+                FROM Ventas v
+                JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
+                WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
+                GROUP BY DATEPART(HOUR, DATEADD(HOUR, -5, v.FechaVenta)), ISNULL(NULLIF(i.Metros,''), 'N/D')
+                ORDER BY Hora", con);
+            cmdVHA.Parameters.AddWithValue("@id", idProy);
+            using (var rvha = (SqlDataReader)await cmdVHA.ExecuteReaderAsync())
+                while (await rvha.ReadAsync())
+                    vha.Add(new
+                    {
+                        Hora = Convert.ToInt32(rvha["Hora"]),
+                        Area = rvha["Area"]?.ToString() ?? "N/D",
+                        Num = Convert.ToInt32(rvha["NumVentas"]),
+                        Valor = Convert.ToInt64(rvha["Valor"]),
+                    });
+            ViewBag.VentasHoraArea = vha;
+
+            // Indicadores destacados (hora pico, área líder, combinación top).
+            if (vha.Count > 0)
+            {
+                var porHora = vha.GroupBy(x => (int)x.Hora)
+                    .Select(g => new { Hora = g.Key, Num = g.Sum(x => (int)x.Num), Valor = g.Sum(x => (long)x.Valor) })
+                    .OrderByDescending(x => x.Num).ThenByDescending(x => x.Valor).ToList();
+                var porArea = vha.GroupBy(x => (string)x.Area)
+                    .Select(g => new { Area = g.Key, Num = g.Sum(x => (int)x.Num), Valor = g.Sum(x => (long)x.Valor) })
+                    .OrderByDescending(x => x.Num).ToList();
+                var combo = vha.OrderByDescending(x => (int)x.Num).ThenByDescending(x => (long)x.Valor).First();
+
+                ViewBag.HoraPico = porHora[0].Hora;
+                ViewBag.HoraPicoNum = porHora[0].Num;
+                ViewBag.HoraPicoValor = porHora[0].Valor;
+                ViewBag.AreaTop = porArea[0].Area;
+                ViewBag.AreaTopNum = porArea[0].Num;
+                ViewBag.ComboArea = (string)combo.Area;
+                ViewBag.ComboHora = (int)combo.Hora;
+                ViewBag.ComboNum = (int)combo.Num;
+            }
+
             return View();
         }
 
@@ -260,6 +306,24 @@ namespace Plataforma_ventas.Controllers
                 while (await rd.ReadAsync())
                     dests.Add((rd["Destino"]?.ToString() ?? "", (int)rd["Total"]));
 
+            // ── Ventas por hora del día y por área (m²) — para el módulo de horas pico ──
+            var vhaPdf = new List<(int Hora, string Area, int Num, long Valor)>();
+            var cmdVhaP = new SqlCommand(@"
+                SELECT DATEPART(HOUR, DATEADD(HOUR, -5, v.FechaVenta)) AS Hora,
+                       ISNULL(NULLIF(i.Metros,''), 'N/D') AS Area,
+                       COUNT(*) AS NumVentas,
+                       ISNULL(SUM(v.PrecioVenta),0) AS Valor
+                FROM Ventas v
+                JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
+                WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
+                GROUP BY DATEPART(HOUR, DATEADD(HOUR, -5, v.FechaVenta)), ISNULL(NULLIF(i.Metros,''), 'N/D')
+                ORDER BY Hora", con);
+            cmdVhaP.Parameters.AddWithValue("@id", idProy);
+            using (var rvp = (SqlDataReader)await cmdVhaP.ExecuteReaderAsync())
+                while (await rvp.ReadAsync())
+                    vhaPdf.Add((Convert.ToInt32(rvp["Hora"]), rvp["Area"]?.ToString() ?? "N/D",
+                               Convert.ToInt32(rvp["NumVentas"]), Convert.ToInt64(rvp["Valor"])));
+
             double pctV = total > 0 ? Math.Round((double)vendidos / total * 100, 1) : 0;
             double pctD = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
             double pctR = total > 0 ? Math.Round((double)reservados / total * 100, 1) : 0;
@@ -294,6 +358,9 @@ namespace Plataforma_ventas.Controllers
                 ["car"]        = "<path d='M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13v5h-2v-2H7v2H5z'/><circle cx='8' cy='16' r='1'/><circle cx='16' cy='16' r='1'/>",
                 ["bike"]       = "<circle cx='6' cy='17' r='3'/><circle cx='18' cy='17' r='3'/><path d='M6 17 10 8h4l2 4M9 8h4'/>",
                 ["pause"]      = "<rect x='7' y='5' width='3.5' height='14' rx='1'/><rect x='13.5' y='5' width='3.5' height='14' rx='1'/>",
+                ["clock"]      = "<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3.5 2'/>",
+                ["tag"]        = "<path d='M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z'/><circle cx='7.5' cy='7.5' r='1.4'/>",
+                ["chart"]      = "<path d='M4 4v16h16'/><rect x='7' y='11' width='3' height='6'/><rect x='12' y='7' width='3' height='10'/><rect x='17' y='13' width='3' height='4'/>",
             };
             string DonutSvg(double pctVend)
             {
@@ -305,6 +372,8 @@ namespace Plataforma_ventas.Controllers
                        $"stroke-dasharray='{sold.ToString(inv)} {rest.ToString(inv)}' transform='rotate(-90 21 21)'/>" +
                        "</svg>";
             }
+            // Formato de hora en 12h español (ej. "2:00 p. m.")
+            string FmtHora(int h) => $"{(h % 12 == 0 ? 12 : h % 12)}:00 {(h < 12 ? "a. m." : "p. m.")}";
             // Etiqueta de módulo (01 · TÍTULO) con nota a la derecha
             string docId = $"IT-{new string(proyNombre.Where(char.IsLetter).Take(3).ToArray()).ToUpper()}-{ahoraCol:ddMM}";
 
@@ -331,7 +400,7 @@ namespace Plataforma_ventas.Controllers
                             row.ConstantItem(160).AlignRight().Column(c =>
                             {
                                 c.Item().AlignRight().Text($"GEN. {ahoraCol:dd/MM/yyyy HH:mm}").FontSize(8).FontColor(QColor.FromHex("#8A8A8E"));
-                                c.Item().AlignRight().PaddingTop(2).Text($"DOC. {docId} · 5 MÓDULOS").FontSize(8).FontColor(QColor.FromHex("#8A8A8E"));
+                                c.Item().AlignRight().PaddingTop(2).Text($"DOC. {docId} · 6 MÓDULOS").FontSize(8).FontColor(QColor.FromHex("#8A8A8E"));
                             });
                         });
                         col.Item().PaddingTop(10).LineHorizontal(2f).LineColor(QColor.FromHex("#1A1A1A"));
@@ -597,7 +666,103 @@ namespace Plataforma_ventas.Controllers
                         }
                         col.Item().PaddingTop(12);
 
-                        // ── MÓDULOS 04–05 · COLAPSADOS ──
+                        // ── MÓDULO 04 · VENTAS POR HORA Y ÁREA ──
+                        col.Item().Row(mr =>
+                        {
+                            mr.RelativeItem().Text("04 · VENTAS POR HORA Y ÁREA")
+                                .FontSize(9).Bold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#0077C8"));
+                            mr.AutoItem().AlignRight().Text("Hora de Colombia")
+                                .FontSize(8.5f).FontColor(QColor.FromHex("#B0B0B4"));
+                        });
+                        if (vhaPdf.Count > 0)
+                        {
+                            var porHoraP = vhaPdf.GroupBy(x => x.Hora)
+                                .Select(g => new { Hora = g.Key, Num = g.Sum(x => x.Num), Valor = g.Sum(x => x.Valor),
+                                                   AreaLider = g.OrderByDescending(x => x.Num).ThenByDescending(x => x.Valor).First().Area })
+                                .OrderByDescending(x => x.Num).ThenByDescending(x => x.Valor).ToList();
+                            var porAreaP = vhaPdf.GroupBy(x => x.Area)
+                                .Select(g => new { Area = g.Key, Num = g.Sum(x => x.Num), Valor = g.Sum(x => x.Valor) })
+                                .OrderByDescending(x => x.Num).ToList();
+                            var comboP = vhaPdf.OrderByDescending(x => x.Num).ThenByDescending(x => x.Valor).First();
+                            int maxHoraNum = porHoraP.Max(x => x.Num);
+
+                            // Tarjetas de indicadores
+                            col.Item().PaddingTop(8).Row(row =>
+                            {
+                                void Ind(string ico, string val, string lbl, string sub, bool tint = false)
+                                {
+                                    row.RelativeItem().PaddingHorizontal(3).Background(QColor.FromHex(tint ? "#EAF3FB" : "#F1F1F2"))
+                                        .PaddingVertical(10).PaddingHorizontal(10).Column(c =>
+                                        {
+                                            c.Item().Row(rr =>
+                                            {
+                                                rr.ConstantItem(14).Height(14).Svg(Lucide(LIco[ico], tint ? "#0055A5" : "#8A8A8E"));
+                                                rr.RelativeItem().PaddingLeft(5).AlignMiddle().Text(lbl)
+                                                    .FontSize(7.5f).SemiBold().LetterSpacing(0.05f).FontColor(QColor.FromHex("#8A8A8E"));
+                                            });
+                                            c.Item().PaddingTop(5).Text(val).FontSize(15).Light().FontColor(QColor.FromHex(tint ? "#0055A5" : "#1A1A1A"));
+                                            c.Item().PaddingTop(2).Text(sub).FontSize(8).FontColor(QColor.FromHex("#8A8A8E"));
+                                        });
+                                }
+                                var hp = porHoraP.OrderByDescending(x => x.Num).ThenByDescending(x => x.Valor).First();
+                                Ind("clock", FmtHora(hp.Hora), "HORA PICO", $"{hp.Num} venta{(hp.Num != 1 ? "s" : "")} · {MoneyM(hp.Valor)}", true);
+                                Ind("tag", $"{porAreaP[0].Area} m²", "ÁREA LÍDER", $"{porAreaP[0].Num} venta{(porAreaP[0].Num != 1 ? "s" : "")} en total");
+                                Ind("chart", $"{comboP.Area} m² · {FmtHora(comboP.Hora)}", "MEJOR COMBINACIÓN", $"{comboP.Num} venta{(comboP.Num != 1 ? "s" : "")} en esa franja");
+                            });
+
+                            // Tabla por hora (barra proporcional + área líder)
+                            col.Item().PaddingTop(10).Table(tbl =>
+                            {
+                                tbl.ColumnsDefinition(c =>
+                                {
+                                    c.RelativeColumn(1.4f); // Hora
+                                    c.RelativeColumn(0.8f); // N.º
+                                    c.RelativeColumn(3.2f); // Barra
+                                    c.RelativeColumn(1.6f); // Valor
+                                    c.RelativeColumn(1.2f); // Área líder
+                                });
+                                tbl.Header(h =>
+                                {
+                                    foreach (var hdr in new[] { "Hora", "Ventas", "Distribución", "Valor", "Área líder" })
+                                        h.Cell().Background(QColor.FromHex("#003A70")).Padding(4)
+                                            .Text(hdr).FontSize(7).Bold().FontColor(QColors.White);
+                                });
+                                bool altH = false;
+                                foreach (var ph in porHoraP.OrderBy(x => x.Hora))
+                                {
+                                    var bg = altH ? QColor.FromHex("#F5F8FC") : QColors.White;
+                                    altH = !altH;
+                                    int fillW = (int)Math.Max(Math.Round((double)ph.Num / maxHoraNum * 100), 4);
+                                    int restW = Math.Max(100 - fillW, 0);
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                        .Text(FmtHora(ph.Hora)).FontSize(7.5f).SemiBold().FontColor(QColor.FromHex("#1A1A1A"));
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3).AlignCenter()
+                                        .Text(ph.Num.ToString()).FontSize(7.5f).Bold().FontColor(QColor.FromHex("#0077C8"));
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3)
+                                        .Height(12).Background(QColor.FromHex("#EEEFF1")).Row(bar =>
+                                        {
+                                            bar.RelativeItem(fillW).Background(QColor.FromHex("#0077C8"));
+                                            if (restW > 0) bar.RelativeItem(restW);
+                                        });
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3).AlignRight()
+                                        .Text(Money(ph.Valor)).FontSize(7).FontColor(QColor.FromHex("#003A70"));
+                                    tbl.Cell().Background(bg).Border(0.3f).BorderColor(QColor.FromHex("#EEEEEE")).Padding(3).AlignCenter()
+                                        .Text($"{ph.AreaLider} m²").FontSize(7).FontColor(QColor.FromHex("#555555"));
+                                }
+                            });
+                        }
+                        else
+                        {
+                            col.Item().PaddingTop(6).Border(1).BorderColor(QColor.FromHex("#E5E5E7")).Padding(9).Row(cr =>
+                            {
+                                cr.ConstantItem(12).Height(12).Svg(Lucide(LIco["pause"], "#B0B0B4"));
+                                cr.RelativeItem().PaddingLeft(6).AlignMiddle().Text("Ventas por hora — sin ventas registradas.").FontSize(10).FontColor(QColor.FromHex("#B0B0B4"));
+                                cr.AutoItem().AlignMiddle().Text("SIN DATOS").FontSize(8).SemiBold().FontColor(QColor.FromHex("#B0B0B4"));
+                            });
+                        }
+                        col.Item().PaddingTop(12);
+
+                        // ── MÓDULOS 05–06 · COLAPSADOS ──
                         void Colapsado(string titulo)
                         {
                             col.Item().PaddingBottom(6).Border(1).BorderColor(QColor.FromHex("#E5E5E7")).Padding(9).Row(cr =>
@@ -607,11 +772,11 @@ namespace Plataforma_ventas.Controllers
                                 cr.AutoItem().AlignMiddle().Text("COLAPSADO").FontSize(8).SemiBold().FontColor(QColor.FromHex("#B0B0B4"));
                             });
                         }
-                        Colapsado("04 · Preventas — sin registros para el periodo.");
+                        Colapsado("05 · Preventas — sin registros para el periodo.");
                         if (enProceso == 0)
-                            Colapsado("05 · Opciones en proceso — sin registros.");
+                            Colapsado("06 · Opciones en proceso — sin registros.");
                         else
-                            col.Item().PaddingBottom(6).Text($"05 · OPCIONES EN PROCESO — {enProceso} unidad{(enProceso != 1 ? "es" : "")}")
+                            col.Item().PaddingBottom(6).Text($"06 · OPCIONES EN PROCESO — {enProceso} unidad{(enProceso != 1 ? "es" : "")}")
                                 .FontSize(9).Bold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#0077C8"));
                     });
 
