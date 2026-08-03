@@ -1,0 +1,322 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Horas pico y área";
+    ViewBag.ActiveNav = "reportes";
+    ViewBag.TbBread   = "Horas pico y área";
+
+    var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+    var vhaRaw     = ViewBag.VentasHoraArea as List<dynamic> ?? new List<dynamic>();
+
+    // Se materializa a tipos concretos: el resto de la vista trabaja sin dynamic.
+    var vha = vhaRaw.Select(x => new {
+        Hora  = (int)x.Hora,
+        Area  = (string)x.Area,
+        Num   = (int)x.Num,
+        Valor = (long)x.Valor
+    }).ToList();
+
+    // ── Eje X continuo: todas las horas entre la primera y la última con actividad ──
+    // (incluye las horas sin ventas, para que la línea no mienta sobre la jornada)
+    var horas = new List<int>();
+    if (vha.Count > 0)
+        for (int h = vha.Min(x => x.Hora); h <= vha.Max(x => x.Hora); h++) horas.Add(h);
+
+    // ── Series: máximo 8 áreas (las de más ventas); el resto se agrupa en "Otras" ──
+    const int MAX_SERIES = 8;
+    var areasPorVolumen = vha.GroupBy(x => x.Area)
+                             .Select(g => new { Area = g.Key, Num = g.Sum(x => x.Num) })
+                             .OrderByDescending(x => x.Num).ThenBy(x => x.Area)
+                             .Select(x => x.Area).ToList();
+    var areasPrincipales = new HashSet<string>(areasPorVolumen.Take(MAX_SERIES));
+    bool hayOtras = areasPorVolumen.Count > MAX_SERIES;
+
+    // Índice (hora, área) → ventas y valor, para no rescanear la lista en cada celda.
+    var idx = vha.GroupBy(x => (x.Hora, x.Area))
+                 .ToDictionary(g => g.Key, g => (Num: g.Sum(x => x.Num), Valor: g.Sum(x => x.Valor)));
+
+    // Orden de presentación: por área numérica ascendente (estable → el color no baila)
+    Func<string, double> areaNum = a => {
+        var soloNum = new string(a.Where(c => char.IsDigit(c) || c == '.' || c == ',').ToArray()).Replace(',', '.');
+        return double.TryParse(soloNum, System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var n) ? n : double.MaxValue;
+    };
+    var areas = areasPrincipales.OrderBy(areaNum).ThenBy(a => a).ToList();
+
+    // Paleta categórica validada (lightness, croma, separación para daltonismo y contraste)
+    var palette = new[]{ "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948" };
+    const string COLOR_OTRAS = "#6b7280";
+
+    // Conteo/valor por (hora, área de la serie); "Otras" agrupa lo que no entró en el top
+    Func<int, string, int> num = (h, a) => a == "__otras__"
+        ? vha.Where(x => x.Hora == h && !areasPrincipales.Contains(x.Area)).Sum(x => x.Num)
+        : (idx.TryGetValue((h, a), out var c) ? c.Num : 0);
+    Func<int, string, long> val = (h, a) => a == "__otras__"
+        ? vha.Where(x => x.Hora == h && !areasPrincipales.Contains(x.Area)).Sum(x => x.Valor)
+        : (idx.TryGetValue((h, a), out var c) ? c.Valor : 0);
+
+    var series = areas.Select((a, i) => new {
+        clave = a,
+        label = a + " m²",
+        color = palette[i % palette.Length],
+        data  = horas.Select(h => num(h, a)).ToList(),
+        valor = horas.Select(h => val(h, a)).ToList()
+    }).ToList();
+    if (hayOtras)
+        series.Add(new {
+            clave = "__otras__",
+            label = "Otras áreas",
+            color = COLOR_OTRAS,
+            data  = horas.Select(h => num(h, "__otras__")).ToList(),
+            valor = horas.Select(h => val(h, "__otras__")).ToList()
+        });
+
+    Func<int, string> FmtHora = h => $"{(h % 12 == 0 ? 12 : h % 12)}:00 {(h < 12 ? "a. m." : "p. m.")}";
+    var totalesHora = horas.Select(h => vha.Where(x => x.Hora == h).Sum(x => x.Num)).ToList();
+    var valoresHora = horas.Select(h => vha.Where(x => x.Hora == h).Sum(x => x.Valor)).ToList();
+    var chartJson = System.Text.Json.JsonSerializer.Serialize(new {
+        labels = horas.Select(h => FmtHora(h)).ToList(),
+        series,
+        totales = totalesHora
+    });
+
+    int  horaPico    = ViewBag.HoraPico      != null ? (int)ViewBag.HoraPico       : -1;
+    int  horaPicoNum = ViewBag.HoraPicoNum   != null ? (int)ViewBag.HoraPicoNum    : 0;
+    long horaPicoVal = ViewBag.HoraPicoValor != null ? (long)ViewBag.HoraPicoValor : 0;
+    string areaTop   = ViewBag.AreaTop as string ?? "—";
+    int  areaTopNum  = ViewBag.AreaTopNum    != null ? (int)ViewBag.AreaTopNum     : 0;
+    string comboArea = ViewBag.ComboArea as string ?? "—";
+    int  comboHora   = ViewBag.ComboHora     != null ? (int)ViewBag.ComboHora      : -1;
+    int  comboNum    = ViewBag.ComboNum      != null ? (int)ViewBag.ComboNum       : 0;
+    int  totalVentas = ViewBag.TotalVentas   != null ? (int)ViewBag.TotalVentas    : 0;
+    long totalValor  = ViewBag.TotalValor    != null ? (long)ViewBag.TotalValor    : 0;
+}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.1s both;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
+    .card-title{font-size:15px;font-weight:600;color:var(--label);display:inline-flex;align-items:center;gap:8px;}
+    .card-body{padding:16px;}
+    .pico-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    .pico-kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:16px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
+    .pk-lbl{font-size:11px;color:var(--label2);display:flex;align-items:center;gap:7px;margin-bottom:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
+    .pk-num{font-size:24px;font-weight:300;letter-spacing:-1px;line-height:1.15;color:var(--label);}
+    .pk-sub{font-size:12px;color:var(--label3);margin-top:5px;}
+    .chart-box{position:relative;height:420px;width:100%;}
+    .nota{font-size:11px;color:var(--label3);margin-top:12px;text-align:center;line-height:1.5;}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;min-width:520px;}
+    .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:9px 12px;text-align:right;border-bottom:1px solid var(--sep2);white-space:nowrap;}
+    .tbl th:first-child{text-align:left;}
+    .tbl td{padding:8px 12px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);text-align:right;}
+    .tbl td:first-child{text-align:left;font-weight:600;}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .tbl .cero{color:var(--label3);}
+    .tbl .col-tot{font-weight:700;background:rgba(0,118,227,0.04);}
+    .tbl tr.fila-pico td{background:rgba(0,118,227,0.07);}
+    .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;}
+    .empty{padding:36px;text-align:center;color:var(--label3);font-size:13px;}
+    @@media(max-width:1024px){.pico-kpis{grid-template-columns:1fr!important;}}
+    @@media(max-width:700px){.chart-box{height:320px!important;}}
+</style>
+}
+
+<!-- TABS DE REPORTES -->
+@await Html.PartialAsync("_Tabs", "horas")
+
+@if (vha.Count > 0)
+{
+    <!-- INDICADORES -->
+    <div class="pico-kpis">
+        <div class="pico-kpi">
+            <div class="pk-lbl">@Iconos.Reloj("#2a78d6", 15) Hora pico de ventas</div>
+            <div class="pk-num">@FmtHora(horaPico)</div>
+            <div class="pk-sub">@horaPicoNum @(horaPicoNum == 1 ? "venta" : "ventas") · $@string.Format("{0:N0}", horaPicoVal)</div>
+        </div>
+        <div class="pico-kpi">
+            <div class="pk-lbl">@Iconos.Etiqueta("#1baf7a", 15) Área que más se vende</div>
+            <div class="pk-num">@areaTop m²</div>
+            <div class="pk-sub">@areaTopNum @(areaTopNum == 1 ? "venta" : "ventas") en total</div>
+        </div>
+        <div class="pico-kpi">
+            <div class="pk-lbl">@Iconos.Grafico("#eb6834", 15) Mejor combinación</div>
+            <div class="pk-num">@comboArea m² · @FmtHora(comboHora)</div>
+            <div class="pk-sub">@comboNum @(comboNum == 1 ? "venta" : "ventas") en esa franja</div>
+        </div>
+    </div>
+
+    <!-- GRÁFICA DE LÍNEAS -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">@Iconos.Grafico("#2a78d6", 17) Ventas por hora del día y área (m²)</span>
+            <span style="font-size:12px;color:var(--label3)">@proyActivo · hora de Colombia</span>
+        </div>
+        <div class="card-body">
+            <div class="chart-box"><canvas id="chartPico"></canvas></div>
+            <p class="nota">
+                Eje horizontal: hora del día · Eje vertical: número de ventas · Una línea por cada área (m²).
+                Pasa el cursor sobre una hora para ver el detalle y el valor vendido.
+                @if (hayOtras)
+                {
+                    <text>Se grafican las @MAX_SERIES áreas con más ventas; el resto se agrupa en «Otras áreas».</text>
+                }
+            </p>
+        </div>
+    </div>
+
+    <!-- TABLA DE DATOS -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">@Iconos.Lista("#2a78d6", 17) Detalle por hora</span>
+            <span style="font-size:12px;color:var(--label3)">@totalVentas @(totalVentas == 1 ? "venta" : "ventas") · $@string.Format("{0:N0}", totalValor)</span>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        @foreach (var s in series)
+                        {
+                            <th><span class="dot" style="background:@s.color"></span>@s.label</th>
+                        }
+                        <th class="col-tot">Total</th>
+                        <th>Valor vendido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @for (int i = 0; i < horas.Count; i++)
+                {
+                    int h = horas[i];
+                    int totH = totalesHora[i];
+                    long valH = valoresHora[i];
+                    <tr class="@(h == horaPico ? "fila-pico" : "")">
+                        <td>@FmtHora(h)</td>
+                        @foreach (var s in series)
+                        {
+                            var n = s.data[i];
+                            <td class="@(n == 0 ? "cero" : "")">@(n == 0 ? "—" : n.ToString())</td>
+                        }
+                        <td class="col-tot">@totH</td>
+                        <td>@(valH == 0 ? "—" : "$" + string.Format("{0:N0}", valH))</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="empty">
+            Aún no hay ventas registradas en <strong>@proyActivo</strong> para analizar horas pico.<br />
+            La gráfica aparecerá automáticamente cuando se registre la primera venta.
+        </div>
+    </div>
+}
+
+@section Scripts {
+@if (vha.Count > 0)
+{
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var D = @Html.Raw(chartJson);
+        var cv = document.getElementById('chartPico');
+        if (!cv || typeof Chart === 'undefined') return;
+
+        /* Crosshair: línea vertical guía en la hora que se está viendo */
+        var crosshair = {
+            id: 'crosshair',
+            afterDatasetsDraw: function (chart) {
+                var act = chart.tooltip && chart.tooltip.getActiveElements ? chart.tooltip.getActiveElements() : [];
+                if (!act || !act.length) return;
+                var x = act[0].element.x, a = chart.chartArea, c = chart.ctx;
+                c.save();
+                c.beginPath(); c.moveTo(x, a.top); c.lineTo(x, a.bottom);
+                c.lineWidth = 1; c.strokeStyle = 'rgba(60,60,67,0.28)'; c.setLineDash([4, 4]);
+                c.stroke(); c.restore();
+            }
+        };
+
+        new Chart(cv.getContext('2d'), {
+            type: 'line',
+            plugins: [crosshair],
+            data: {
+                labels: D.labels,
+                datasets: D.series.map(function (s) {
+                    return {
+                        label: s.label,
+                        data: s.data,
+                        valor: s.valor,
+                        borderColor: s.color,
+                        backgroundColor: s.color,
+                        borderWidth: 2,
+                        tension: 0.35,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: s.color,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        fill: false
+                    };
+                })
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Hora del día', color: '#6E6E73', font: { size: 11, weight: '600' } },
+                        grid: { color: 'rgba(60,60,67,0.07)' },
+                        ticks: { color: '#6E6E73', font: { size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'N.º de ventas', color: '#6E6E73', font: { size: 11, weight: '600' } },
+                        grid: { color: 'rgba(60,60,67,0.07)' },
+                        ticks: { precision: 0, color: '#6E6E73', font: { size: 11 } }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle',
+                            padding: 14, color: '#3C3C43', font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(28,28,30,0.94)',
+                        padding: 11,
+                        titleFont: { size: 12, weight: '600' },
+                        bodyFont: { size: 12 },
+                        bodySpacing: 5,
+                        displayColors: true,
+                        usePointStyle: true,
+                        /* Solo se listan las áreas que sí vendieron en esa hora */
+                        filter: function (item) { return (item.parsed.y || 0) > 0; },
+                        callbacks: {
+                            label: function (ctx) {
+                                var n = ctx.parsed.y || 0;
+                                var ds = ctx.dataset;
+                                var v = (ds.valor && ds.valor[ctx.dataIndex]) ? ds.valor[ctx.dataIndex] : 0;
+                                return '  ' + ds.label + ': ' + n + (n === 1 ? ' venta' : ' ventas') +
+                                       ' · $' + Number(v).toLocaleString('es-CO');
+                            },
+                            footer: function (items) {
+                                if (!items.length) return '';
+                                var t = D.totales[items[0].dataIndex] || 0;
+                                return 'Total de la hora: ' + t + (t === 1 ? ' venta' : ' ventas');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+</script>
+}
+}

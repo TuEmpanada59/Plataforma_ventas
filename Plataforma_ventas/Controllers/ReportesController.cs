@@ -163,7 +163,22 @@ namespace Plataforma_ventas.Controllers
                     });
             ViewBag.Ventas = ventas;
 
-            // ── Ventas por hora del día y por área (m²) para la gráfica de horas pico ──
+            return View();
+        }
+
+        /// <summary>
+        /// Analiza las ventas del proyecto activo por hora del día y por área (m²)
+        /// para identificar horas pico. Alimenta la gráfica de líneas de la pestaña
+        /// "Horas pico y área".
+        /// </summary>
+        public async Task<IActionResult> HorasPico()
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
             // La fecha se guarda en UTC (GETDATE en Azure SQL); Colombia es UTC-5 fijo.
             var vha = new List<dynamic>();
             var cmdVHA = new SqlCommand(@"
@@ -207,6 +222,8 @@ namespace Plataforma_ventas.Controllers
                 ViewBag.ComboArea = (string)combo.Area;
                 ViewBag.ComboHora = (int)combo.Hora;
                 ViewBag.ComboNum = (int)combo.Num;
+                ViewBag.TotalVentas = porHora.Sum(x => x.Num);
+                ViewBag.TotalValor = porHora.Sum(x => x.Valor);
             }
 
             return View();
