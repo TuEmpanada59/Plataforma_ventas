@@ -213,6 +213,69 @@ namespace Plataforma_ventas.Controllers
         }
 
         /// <summary>
+        /// Analiza las ventas del proyecto activo por hora del día y por área (m²)
+        /// para identificar horas pico. Alimenta la gráfica de líneas de la pestaña
+        /// "Horas pico y área".
+        /// </summary>
+        public async Task<IActionResult> HorasPico()
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            // La fecha se guarda en UTC (GETDATE en Azure SQL); Colombia es UTC-5 fijo.
+            var vha = new List<dynamic>();
+            var cmdVHA = new SqlCommand(@"
+                SELECT DATEPART(HOUR, DATEADD(HOUR, -5, v.FechaVenta)) AS Hora,
+                       ISNULL(NULLIF(i.Metros,''), 'N/D') AS Area,
+                       COUNT(*) AS NumVentas,
+                       ISNULL(SUM(v.PrecioVenta),0) AS Valor
+                FROM Ventas v
+                JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
+                WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
+                GROUP BY DATEPART(HOUR, DATEADD(HOUR, -5, v.FechaVenta)), ISNULL(NULLIF(i.Metros,''), 'N/D')
+                ORDER BY Hora", con);
+            cmdVHA.Parameters.AddWithValue("@id", idProy);
+            using (var rvha = (SqlDataReader)await cmdVHA.ExecuteReaderAsync())
+                while (await rvha.ReadAsync())
+                    vha.Add(new
+                    {
+                        Hora = Convert.ToInt32(rvha["Hora"]),
+                        Area = rvha["Area"]?.ToString() ?? "N/D",
+                        Num = Convert.ToInt32(rvha["NumVentas"]),
+                        Valor = Convert.ToInt64(rvha["Valor"]),
+                    });
+            ViewBag.VentasHoraArea = vha;
+
+            // Indicadores destacados (hora pico, área líder, combinación top).
+            if (vha.Count > 0)
+            {
+                var porHora = vha.GroupBy(x => (int)x.Hora)
+                    .Select(g => new { Hora = g.Key, Num = g.Sum(x => (int)x.Num), Valor = g.Sum(x => (long)x.Valor) })
+                    .OrderByDescending(x => x.Num).ThenByDescending(x => x.Valor).ToList();
+                var porArea = vha.GroupBy(x => (string)x.Area)
+                    .Select(g => new { Area = g.Key, Num = g.Sum(x => (int)x.Num), Valor = g.Sum(x => (long)x.Valor) })
+                    .OrderByDescending(x => x.Num).ToList();
+                var combo = vha.OrderByDescending(x => (int)x.Num).ThenByDescending(x => (long)x.Valor).First();
+
+                ViewBag.HoraPico = porHora[0].Hora;
+                ViewBag.HoraPicoNum = porHora[0].Num;
+                ViewBag.HoraPicoValor = porHora[0].Valor;
+                ViewBag.AreaTop = porArea[0].Area;
+                ViewBag.AreaTopNum = porArea[0].Num;
+                ViewBag.ComboArea = (string)combo.Area;
+                ViewBag.ComboHora = (int)combo.Hora;
+                ViewBag.ComboNum = (int)combo.Num;
+                ViewBag.TotalVentas = porHora.Sum(x => x.Num);
+                ViewBag.TotalValor = porHora.Sum(x => x.Valor);
+            }
+
+            return View();
+        }
+
+        /// <summary>
         /// Generates a PDF technical sales report with KPIs, tipology breakdown,
         /// destination analysis, and full per-asesor sale detail table.
         /// Performs multiple SELECT queries then renders with QuestPDF.

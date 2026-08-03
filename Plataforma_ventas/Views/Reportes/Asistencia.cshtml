@@ -11,9 +11,6 @@
 @section Styles {
 <style>
     @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-    .tab-bar{display:flex;gap:6px;background:var(--fill3);border-radius:14px;padding:4px;width:fit-content;margin-bottom:4px;}
-    .tab-btn{padding:7px 18px;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;color:var(--label2);transition:all 0.2s;}
-    .tab-btn.active{background:white;color:var(--label);box-shadow:0 1px 4px rgba(0,0,0,0.1);}
     .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease both;}
     .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
     .card-title{font-size:15px;font-weight:600;color:var(--label);}
@@ -54,10 +51,7 @@
 }
 
 <!-- TABS DE REPORTES -->
-<div class="tab-bar">
-    <a href="/Reportes" class="tab-btn">Dashboard</a>
-    <a href="/Reportes/Asistencia" class="tab-btn active">Cuadro de asistencia</a>
-</div>
+@await Html.PartialAsync("_Tabs", "asistencia")
 
 @if (TempData["AsistExito"] != null) { <div class="alerta-exito">@TempData["AsistExito"]</div> }
 @if (TempData["AsistError"] != null) { <div class="alerta-error">@TempData["AsistError"]</div> }
