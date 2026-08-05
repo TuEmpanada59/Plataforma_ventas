@@ -821,36 +821,53 @@ namespace Plataforma_ventas.Controllers
 
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
 
-            var cmdConfig = new SqlCommand(
-                "SELECT ListaActual, ApartamentosPorLista FROM Proyectos WHERE IdProyectos=@id", con);
-            cmdConfig.Parameters.AddWithValue("@id", idProy);
-            using var rC = (SqlDataReader)await cmdConfig.ExecuteReaderAsync();
-            if (await rC.ReadAsync())
+            // ── Escalamiento automático de la lista, por área ──
+            // Solo escala el área del inmueble vendido y solo si tiene AptsPorLista > 0
+            // (las áreas fijadas manualmente quedan en 0 y nunca se mueven).
+            var cmdMetrosEsc = new SqlCommand(
+                "SELECT Metros FROM Inmuebles WHERE IdInmuebles=@id", con);
+            cmdMetrosEsc.Parameters.AddWithValue("@id", idInmueble);
+            var metrosArea = (await cmdMetrosEsc.ExecuteScalarAsync())?.ToString() ?? "";
+
+            if (!string.IsNullOrEmpty(metrosArea))
             {
-                int listaActual = rC["ListaActual"] == DBNull.Value ? 1 : (int)rC["ListaActual"];
-                int aptsPorLista = rC["ApartamentosPorLista"] == DBNull.Value ? 0 : (int)rC["ApartamentosPorLista"];
-                rC.Close();
-                if (aptsPorLista > 0)
-                {
-                    var cmdV = new SqlCommand(
-                        "SELECT COUNT(*) FROM Inmuebles WHERE IdProyecto=@id AND Estado='VENDIDO'", con);
-                    cmdV.Parameters.AddWithValue("@id", idProy);
-                    int totalVendidos = (int)(await cmdV.ExecuteScalarAsync())!;
-                    int listaCalculada = Math.Min(5, (totalVendidos / aptsPorLista) + 1);
-                    if (listaCalculada > listaActual)
+                var cmdPALEsc = new SqlCommand(@"SELECT ListaActual, AptsPorLista FROM ProyectoAreaListas
+                    WHERE IdProyecto=@proy AND Metros=@metros", con);
+                cmdPALEsc.Parameters.AddWithValue("@proy", idProy);
+                cmdPALEsc.Parameters.AddWithValue("@metros", metrosArea);
+                int laArea = 1, aptsArea = 0;
+                using (var rPAL = (SqlDataReader)await cmdPALEsc.ExecuteReaderAsync())
+                    if (await rPAL.ReadAsync())
                     {
-                        var cmdS = new SqlCommand(
-                            "UPDATE Proyectos SET ListaActual=@l WHERE IdProyectos=@id", con);
-                        cmdS.Parameters.AddWithValue("@l", listaCalculada);
-                        cmdS.Parameters.AddWithValue("@id", idProy);
-                        await cmdS.ExecuteNonQueryAsync();
-                        await _hub.Clients.All.ListaActualizada(idProy, listaCalculada);
-                        TempData["Exito"] = $"¡Venta registrada! ⚡ Proyecto subió a Lista {listaCalculada}.";
+                        laArea = rPAL["ListaActual"] == DBNull.Value ? 1 : (int)rPAL["ListaActual"];
+                        aptsArea = rPAL["AptsPorLista"] == DBNull.Value ? 0 : (int)rPAL["AptsPorLista"];
+                    }
+
+                if (aptsArea > 0)
+                {
+                    var cmdVArea = new SqlCommand(@"SELECT COUNT(*) FROM Ventas v
+                        INNER JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
+                        WHERE v.IdProyecto=@proy AND i.Metros=@metros AND v.Estado='ACTIVA'", con);
+                    cmdVArea.Parameters.AddWithValue("@proy", idProy);
+                    cmdVArea.Parameters.AddWithValue("@metros", metrosArea);
+                    int vendidosArea = (int)(await cmdVArea.ExecuteScalarAsync())!;
+                    int nuevaListaArea = (vendidosArea / aptsArea) + 1;
+
+                    if (nuevaListaArea > laArea && nuevaListaArea <= 5
+                        && await ListaAreaConPrecios(con, idProy, metrosArea, nuevaListaArea))
+                    {
+                        var cmdUpArea = new SqlCommand(@"UPDATE ProyectoAreaListas
+                            SET ListaActual=@lista WHERE IdProyecto=@proy AND Metros=@metros", con);
+                        cmdUpArea.Parameters.AddWithValue("@lista", nuevaListaArea);
+                        cmdUpArea.Parameters.AddWithValue("@proy", idProy);
+                        cmdUpArea.Parameters.AddWithValue("@metros", metrosArea);
+                        await cmdUpArea.ExecuteNonQueryAsync();
+                        await _hub.Clients.All.ListaAreaActualizada(idProy, metrosArea, nuevaListaArea);
+                        TempData["Exito"] = $"¡Venta registrada! ⚡ El área {metrosArea} m² subió a Lista {nuevaListaArea}.";
                         return RedirectToAction("MisVentas");
                     }
                 }
             }
-            else rC.Close();
 
             TempData["Exito"] = "¡Venta registrada exitosamente!";
             return RedirectToAction("MisVentas");
@@ -923,6 +940,27 @@ namespace Plataforma_ventas.Controllers
                 ViewBag.PerfilCelular = reader["Celular"]?.ToString() ?? "";
             }
             return View();
+        }
+
+        /// <summary>
+        /// Checks that a price list has at least one price &gt; 0 for the given area before
+        /// auto-escalating to it, so the escalation never lands on an empty list.
+        /// </summary>
+        private static async Task<bool> ListaAreaConPrecios(SqlConnection con, int idProy, string metrosArea, int numLista)
+        {
+            var col = Listas.ColumnaLista(numLista);
+            var cmd = new SqlCommand(
+                $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy AND Metros=@metros", con);
+            cmd.Parameters.AddWithValue("@proy", idProy);
+            cmd.Parameters.AddWithValue("@metros", metrosArea);
+            using var r = (SqlDataReader)await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var limpio = (r[0]?.ToString() ?? "0")
+                    .Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
+                if (long.TryParse(limpio, out long v) && v > 0) return true;
+            }
+            return false;
         }
     }
 }

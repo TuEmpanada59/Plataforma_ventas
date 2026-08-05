@@ -136,6 +136,120 @@ namespace Plataforma_ventas.Controllers
                                 + (rTL["TL5"] == DBNull.Value ? 0 : (int)rTL["TL5"]);
             ViewBag.TotalListas = Math.Max(1, totalListas);
 
+            // ── Pulso del día ──────────────────────────────────────────────────────
+            // FechaVenta se guarda en UTC; Colombia es UTC-5 fijo, así que "hoy" se
+            // calcula desplazando ambos lados de la comparación.
+            long valorTotal = 0, valorHoy = 0;
+            int ventasHoy = 0;
+            double horasJornada = 0;
+
+            var cmdVal = new SqlCommand(
+                "SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'", con);
+            cmdVal.Parameters.AddWithValue("@id", idProy);
+            valorTotal = Convert.ToInt64(await cmdVal.ExecuteScalarAsync());
+
+            var cmdHoy = new SqlCommand(@"
+                SELECT COUNT(*) AS Num, ISNULL(SUM(PrecioVenta),0) AS Valor,
+                       MIN(FechaVenta) AS Primera
+                FROM Ventas
+                WHERE IdProyecto=@id AND Estado='ACTIVA'
+                  AND CAST(DATEADD(HOUR,-5,FechaVenta) AS DATE) = CAST(DATEADD(HOUR,-5,GETUTCDATE()) AS DATE)", con);
+            cmdHoy.Parameters.AddWithValue("@id", idProy);
+            using (var rH = (SqlDataReader)await cmdHoy.ExecuteReaderAsync())
+                if (await rH.ReadAsync())
+                {
+                    ventasHoy = Convert.ToInt32(rH["Num"]);
+                    valorHoy = Convert.ToInt64(rH["Valor"]);
+                    if (rH["Primera"] != DBNull.Value)
+                        horasJornada = (DateTime.UtcNow - (DateTime)rH["Primera"]).TotalHours;
+                }
+
+            ViewBag.ValorTotal = valorTotal;
+            ViewBag.VentasHoy = ventasHoy;
+            ViewBag.ValorHoy = valorHoy;
+            ViewBag.Ritmo = (ventasHoy > 0 && horasJornada >= 0.5)
+                ? Math.Round(ventasHoy / horasJornada, 1) : 0d;
+
+            // Última venta registrada (para "hace X minutos")
+            var cmdUlt = new SqlCommand(@"
+                SELECT TOP 1 v.FechaVenta, i.Apto, i.Torre, i.Metros,
+                       u.Nombre + ' ' + u.Apellido AS Asesor
+                FROM Ventas v
+                JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
+                JOIN Usuarios  u ON v.IdUsuario  = u.IdUsuario
+                WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
+                ORDER BY v.FechaVenta DESC", con);
+            cmdUlt.Parameters.AddWithValue("@id", idProy);
+            using (var rU = (SqlDataReader)await cmdUlt.ExecuteReaderAsync())
+                if (await rU.ReadAsync())
+                {
+                    ViewBag.UltimaMinutos = (int)Math.Max(0, (DateTime.UtcNow - (DateTime)rU["FechaVenta"]).TotalMinutes);
+                    ViewBag.UltimaApto = rU["Apto"]?.ToString() ?? "";
+                    ViewBag.UltimaTorre = rU["Torre"]?.ToString() ?? "";
+                    ViewBag.UltimaAsesor = rU["Asesor"]?.ToString() ?? "";
+                }
+
+            // ── Actividad reciente (siembra del feed en vivo) ──────────────────────
+            var actividad = new List<dynamic>();
+            var cmdAct = new SqlCommand(@"
+                SELECT TOP 8 FORMAT(DATEADD(HOUR,-5,v.FechaVenta),'HH:mm') AS Hora,
+                       i.Apto, i.Torre, i.Metros, v.PrecioVenta,
+                       u.Nombre + ' ' + u.Apellido AS Asesor
+                FROM Ventas v
+                JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
+                JOIN Usuarios  u ON v.IdUsuario  = u.IdUsuario
+                WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
+                ORDER BY v.FechaVenta DESC", con);
+            cmdAct.Parameters.AddWithValue("@id", idProy);
+            using (var rA = (SqlDataReader)await cmdAct.ExecuteReaderAsync())
+                while (await rA.ReadAsync())
+                    actividad.Add(new
+                    {
+                        Hora = rA["Hora"]?.ToString() ?? "",
+                        Apto = rA["Apto"]?.ToString() ?? "",
+                        Torre = rA["Torre"]?.ToString() ?? "",
+                        Metros = rA["Metros"]?.ToString() ?? "",
+                        Asesor = rA["Asesor"]?.ToString() ?? "",
+                        Precio = Convert.ToInt64(rA["PrecioVenta"]),
+                    });
+            ViewBag.Actividad = actividad;
+
+            // ── Listas de precio por área (solo lectura) ───────────────────────────
+            // Se muestra el estado consolidado que hoy no existe en ninguna pantalla:
+            // qué lista rige cada área, si está fija o escalando, y cuánto le falta.
+            var listasArea = new List<dynamic>();
+            var cmdLA = new SqlCommand(@"
+                SELECT pal.Metros,
+                       ISNULL(pal.ListaActual,1) AS ListaActual,
+                       ISNULL(pal.AptsPorLista,0) AS AptsPorLista,
+                       (SELECT COUNT(*) FROM Inmuebles i
+                         WHERE i.IdProyecto=pal.IdProyecto AND i.Metros=pal.Metros) AS Total,
+                       (SELECT COUNT(*) FROM Ventas v
+                          JOIN Inmuebles i2 ON v.IdInmueble=i2.IdInmuebles
+                         WHERE v.IdProyecto=pal.IdProyecto AND i2.Metros=pal.Metros
+                           AND v.Estado='ACTIVA') AS Vendidos
+                FROM ProyectoAreaListas pal
+                WHERE pal.IdProyecto=@id
+                ORDER BY TRY_CONVERT(decimal(10,2), REPLACE(pal.Metros,',','.')), pal.Metros", con);
+            cmdLA.Parameters.AddWithValue("@id", idProy);
+            using (var rLA = (SqlDataReader)await cmdLA.ExecuteReaderAsync())
+                while (await rLA.ReadAsync())
+                {
+                    int apts = Convert.ToInt32(rLA["AptsPorLista"]);
+                    int vend = Convert.ToInt32(rLA["Vendidos"]);
+                    listasArea.Add(new
+                    {
+                        Metros = rLA["Metros"]?.ToString() ?? "",
+                        Lista = Convert.ToInt32(rLA["ListaActual"]),
+                        Apts = apts,
+                        Total = Convert.ToInt32(rLA["Total"]),
+                        Vendidos = vend,
+                        // Cuántas ventas faltan para que esta área suba de lista (0 = fija)
+                        Faltan = apts > 0 ? apts - (vend % apts) : 0,
+                    });
+                }
+            ViewBag.ListasArea = listasArea;
+
             return View();
         }
 

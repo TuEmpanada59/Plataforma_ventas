@@ -15,18 +15,30 @@
     double pctV = ViewBag.PctVendidos    != null ? (double)ViewBag.PctVendidos    : 0;
     double pctD = ViewBag.PctDisponibles != null ? (double)ViewBag.PctDisponibles : 0;
     double pctR = ViewBag.PctReservados  != null ? (double)ViewBag.PctReservados  : 0;
-    int listaActual  = ViewBag.ListaActual         != null ? (int)ViewBag.ListaActual         : 1;
-    int aptsPorLista = ViewBag.ApartamentosPorLista != null ? (int)ViewBag.ApartamentosPorLista : 0;
-    string modoLista = ViewBag.ModoLista  as string ?? "MANUAL";
-    int totalListas  = ViewBag.TotalListas != null ? (int)ViewBag.TotalListas : 5;
+    long valorTotal = ViewBag.ValorTotal != null ? (long)ViewBag.ValorTotal : 0;
+    long valorHoy   = ViewBag.ValorHoy   != null ? (long)ViewBag.ValorHoy   : 0;
+    int  ventasHoy  = ViewBag.VentasHoy  != null ? (int)ViewBag.VentasHoy   : 0;
+    double ritmo    = ViewBag.Ritmo      != null ? (double)ViewBag.Ritmo    : 0;
+    int? ultMin     = ViewBag.UltimaMinutos as int?;
+    string ultApto  = ViewBag.UltimaApto   as string ?? "";
+    string ultTorre = ViewBag.UltimaTorre  as string ?? "";
+    string ultAsesor= ViewBag.UltimaAsesor as string ?? "";
+    var actividad   = ViewBag.Actividad  as List<dynamic> ?? new List<dynamic>();
+    var listasArea  = ViewBag.ListasArea as List<dynamic> ?? new List<dynamic>();
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
+
+    // "hace X" legible
+    string HaceTexto(int m) => m < 1 ? "hace un momento"
+        : m < 60 ? $"hace {m} min"
+        : m < 1440 ? $"hace {m / 60} h {(m % 60 > 0 ? $"{m % 60} min" : "")}".Trim()
+        : $"hace {m / 1440} día{(m / 1440 != 1 ? "s" : "")}";
     // Pass iniciales to layout
     ViewBag.Iniciales = iniciales;
 }
 @section Styles {
 <style>
     @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-    .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+    .kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;}
     .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:14px;box-shadow:var(--sh);transition:transform 0.2s,box-shadow 0.2s;animation:fu 0.35s ease both;}
     .kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.1s}.kpi:nth-child(3){animation-delay:.15s}.kpi:nth-child(4){animation-delay:.2s}.kpi:nth-child(5){animation-delay:.25s}
     .kpi:hover{transform:translateY(-2px);box-shadow:var(--sh2);}
@@ -40,11 +52,57 @@
     .kpi.k3 .kpi-ico{background:rgba(90,90,200,0.1)}.kpi.k3 .kpi-tag{background:rgba(90,90,200,0.1);color:#5A5AC8}.kpi.k3 .kpi-num{color:#5A5AC8}
     .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
     .kpi.k5 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k5 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k5 .kpi-num{color:var(--rojo)}
+    .kpi.k6 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k6 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k6 .kpi-num{color:#1EA851}
+    .kpi-num.money{font-size:17px;letter-spacing:-0.5px;padding-top:6px;}
+    /* Pulso del día */
+    .pulso-body{padding:16px;display:flex;flex-direction:column;gap:12px;}
+    .pulso-hero{text-align:center;padding:6px 0 2px;}
+    .pulso-num{font-size:52px;font-weight:200;letter-spacing:-2.5px;line-height:1;color:var(--azul);}
+    .pulso-lbl{font-size:12px;color:var(--label2);margin-top:4px;}
+    .pulso-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .pulso-item{background:var(--fill3);border-radius:12px;padding:11px;text-align:center;}
+    .pulso-v{font-size:16px;font-weight:600;color:var(--label);letter-spacing:-0.4px;}
+    .pulso-k{font-size:10px;color:var(--label3);margin-top:3px;}
+    .pulso-ult{display:flex;align-items:flex-start;gap:9px;background:rgba(0,118,227,0.05);border-radius:12px;padding:10px 12px;font-size:12px;color:var(--label);}
+    .pulso-ult.vacio{color:var(--label3);justify-content:center;}
+    .pulso-ult-sub{font-size:11px;color:var(--label3);margin-top:2px;}
+    .pulso-dot{width:7px;height:7px;border-radius:50%;background:#1EA851;flex-shrink:0;margin-top:5px;animation:pulso 2s infinite;}
+    @@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(52,199,89,.5)}70%{box-shadow:0 0 0 6px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
+    /* Feed en vivo */
+    .vivo-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--label3);background:var(--fill3);padding:3px 9px;border-radius:20px;}
+    .vivo-dot{width:6px;height:6px;border-radius:50%;background:var(--label3);}
+    .vivo-badge.on{color:#1EA851;background:rgba(52,199,89,0.1);}
+    .vivo-badge.on .vivo-dot{background:#1EA851;animation:pulso 2s infinite;}
+    .feed{max-height:270px;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:2px;}
+    .feed-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;transition:background .15s;}
+    .feed-row:hover{background:var(--fill3);}
+    .feed-row.nuevo{animation:fu .4s ease both;background:rgba(52,199,89,0.09);}
+    .feed-hora{font-size:11px;font-weight:600;color:var(--label3);min-width:36px;font-variant-numeric:tabular-nums;}
+    .feed-txt{flex:1;font-size:12.5px;color:var(--label);}
+    .feed-sub{font-size:11px;color:var(--label3);margin-top:1px;}
+    .feed-area{font-size:11px;color:var(--label3);}
+    .feed-bdg{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(230,57,70,0.1);color:var(--rojo);letter-spacing:.03em;}
+    .feed-vacio{padding:28px;text-align:center;color:var(--label3);font-size:12.5px;}
+    /* Listas por área */
+    .lista-link{font-size:11px;font-weight:600;color:var(--blue);text-decoration:none;}
+    .lista-link:hover{text-decoration:underline;}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl-listas{width:100%;border-collapse:collapse;min-width:520px;}
+    .tbl-listas th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--label3);padding:9px 14px;text-align:left;border-bottom:1px solid var(--sep2);}
+    .tbl-listas td{padding:9px 14px;font-size:12.5px;color:var(--label);border-bottom:1px solid var(--sep2);}
+    .tbl-listas tr:last-child td{border-bottom:none;}
+    .tbl-listas tr:hover td{background:var(--fill3);}
+    .tbl-listas .area{font-weight:600;}
+    .tbl-listas .num{font-variant-numeric:tabular-nums;}
+    .tbl-listas .de{color:var(--label3);}
+    .lista-bdg{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(0,118,227,0.1);color:var(--blue);}
+    .modo{font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:20px;}
+    .modo-fijo{background:rgba(120,120,128,0.12);color:var(--label2);}
+    .modo-auto{background:rgba(52,199,89,0.12);color:#1EA851;}
     .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.25s both;}
     .card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep2);}
     .card-title{font-size:15px;font-weight:600;color:var(--label);letter-spacing:-0.2px;}
     .dash-row{display:grid;grid-template-columns:1fr 1fr minmax(200px,260px);gap:12px;}
-    .prog-body{padding:16px;}
     .prog-row{margin-bottom:14px;}
     .prog-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
     .prog-name{font-size:14px;color:var(--label);font-weight:500;}
@@ -107,44 +165,84 @@
 }
 
 @if (TempData["Exito"] != null) {
-    <div style="background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851">&#10003; @TempData["Exito"]</div>
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851">@Iconos.Check("#1EA851", 16) @TempData["Exito"]</div>
 }
 
 <!-- KPIs -->
 <div class="kpi-row">
-    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">&#127968;</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">&#10003;</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">&#8987;</div><span class="kpi-tag">En proceso</span></div><div class="kpi-num">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
-    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">&#128274;</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
-    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">&#128273;</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
+    <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851", 17)</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Reloj("#5A5AC8", 17)</div><span class="kpi-tag">En proceso</span></div><div class="kpi-num">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
+    <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Candado("#CC7700", 17)</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
+    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#E63946", 17)</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
+    <div class="kpi k6"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#1EA851", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num money">$@string.Format("{0:N0}", valorTotal)</div><div class="kpi-lbl">Valor vendido</div></div>
 </div>
 
 <!-- Charts -->
 <div class="dash-row">
+    <!-- PULSO DEL DÍA -->
     <div class="card">
-        <div class="card-head"><span class="card-title">Progreso de ventas</span><span style="font-size:11px;color:var(--label3)">@proyActivo</span></div>
-        <div class="prog-body">
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:var(--rojo)">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:#1EA851">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctR)%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div></div>
-            <div class="prog-pair">
-                <div class="prog-item"><div class="prog-num">@vendidos</div><div class="prog-lbl">Vendidos</div></div>
-                <div class="prog-item"><div class="prog-num" style="color:#1EA851">@disponibles</div><div class="prog-lbl">Disponibles</div></div>
+        <div class="card-head">
+            <span class="card-title">Pulso del día</span>
+            <span style="font-size:11px;color:var(--label3)">@proyActivo</span>
+        </div>
+        <div class="pulso-body">
+            <div class="pulso-hero">
+                <div class="pulso-num">@ventasHoy</div>
+                <div class="pulso-lbl">@(ventasHoy == 1 ? "venta hoy" : "ventas hoy")</div>
             </div>
+            <div class="pulso-grid">
+                <div class="pulso-item">
+                    <div class="pulso-v">$@string.Format("{0:N0}", valorHoy)</div>
+                    <div class="pulso-k">Valor vendido hoy</div>
+                </div>
+                <div class="pulso-item">
+                    <div class="pulso-v">@(ritmo > 0 ? ritmo.ToString("0.#") : "—")</div>
+                    <div class="pulso-k">Ventas por hora</div>
+                </div>
+            </div>
+            @if (ultMin.HasValue)
+            {
+                <div class="pulso-ult">
+                    <span class="pulso-dot"></span>
+                    <div>
+                        <strong>Última venta @HaceTexto(ultMin.Value)</strong>
+                        <div class="pulso-ult-sub">@ultApto · @ultTorre — @ultAsesor</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="pulso-ult vacio">Sin ventas registradas todavía</div>
+            }
         </div>
     </div>
+
+    <!-- ACTIVIDAD EN VIVO -->
     <div class="card">
-        <div class="card-head"><span class="card-title">Resumen del proyecto</span></div>
-        <div style="padding:20px;text-align:center">
-            <div style="font-size:48px;font-weight:200;letter-spacing:-2px;color:var(--azul)">@total</div>
-            <div style="font-size:13px;color:var(--label2);margin-top:4px">inmuebles en <strong>@proyActivo</strong></div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px">
-                <div style="background:rgba(52,199,89,0.08);border-radius:12px;padding:12px"><div style="font-size:22px;font-weight:300;color:#1EA851">@disponibles</div><div style="font-size:11px;color:var(--label3);margin-top:2px">Disponibles</div></div>
-                <div style="background:rgba(255,149,0,0.08);border-radius:12px;padding:12px"><div style="font-size:22px;font-weight:300;color:#CC7700">@reservados</div><div style="font-size:11px;color:var(--label3);margin-top:2px">Reservados</div></div>
-                <div style="background:rgba(230,57,70,0.08);border-radius:12px;padding:12px"><div style="font-size:22px;font-weight:300;color:var(--rojo)">@vendidos</div><div style="font-size:11px;color:var(--label3);margin-top:2px">Vendidos</div></div>
-            </div>
+        <div class="card-head">
+            <span class="card-title">Actividad en vivo</span>
+            <span class="vivo-badge" id="vivoBadge"><span class="vivo-dot"></span>Conectando…</span>
+        </div>
+        <div class="feed" id="feed">
+            @if (actividad.Count == 0)
+            {
+                <div class="feed-vacio" id="feedVacio">Las ventas aparecerán aquí en tiempo real.</div>
+            }
+            @foreach (var a in actividad)
+            {
+                <div class="feed-row">
+                    <div class="feed-hora">@a.Hora</div>
+                    <div class="feed-txt">
+                        <strong>@a.Apto</strong> · @a.Torre <span class="feed-area">@a.Metros m²</span>
+                        <div class="feed-sub">@a.Asesor · $@string.Format("{0:N0}", a.Precio)</div>
+                    </div>
+                    <span class="feed-bdg">VENDIDO</span>
+                </div>
+            }
         </div>
     </div>
+
     <div class="card" style="display:flex;flex-direction:column;">
         <div class="card-head"><span class="card-title">Distribución</span></div>
         <div class="donut-body">
@@ -169,30 +267,122 @@
     </div>
 </div>
 
+<!-- LISTAS DE PRECIO POR ÁREA (solo lectura) -->
+<div class="card">
+    <div class="card-head">
+        <span class="card-title">Listas de precio por área</span>
+        <a href="/Inmuebles" class="lista-link">Gestionar en Inmuebles →</a>
+    </div>
+    @if (listasArea.Count > 0)
+    {
+        <div class="tbl-wrap">
+            <table class="tbl-listas">
+                <thead>
+                    <tr>
+                        <th>Área</th><th>Lista activa</th><th>Modo</th>
+                        <th>Vendidos</th><th>Próximo escalón</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var l in listasArea)
+                {
+                    bool auto = l.Apts > 0;
+                    <tr>
+                        <td class="area">@l.Metros m²</td>
+                        <td><span class="lista-bdg">Lista @l.Lista</span></td>
+                        <td>
+                            @if (auto)
+                            {
+                                <span class="modo modo-auto">Automático · cada @l.Apts</span>
+                            }
+                            else
+                            {
+                                <span class="modo modo-fijo">Fijo</span>
+                            }
+                        </td>
+                        <td class="num">@l.Vendidos <span class="de">/ @l.Total</span></td>
+                        <td class="num">
+                            @if (auto)
+                            {
+                                @: falta@(l.Faltan != 1 ? "n" : "") <strong>@l.Faltan</strong> venta@(l.Faltan != 1 ? "s" : "")
+                            }
+                            else
+                            {
+                                <span class="de">no escala</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="feed-vacio">Este proyecto aún no tiene áreas configuradas.</div>
+    }
+</div>
+
 
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
+var PROY = @(ViewBag.ProyectoId != null ? (int)ViewBag.ProyectoId : 0);
+var feed = document.getElementById('feed');
+var badge = document.getElementById('vivoBadge');
+
+function marcarConexion(ok, texto){
+    if(!badge) return;
+    badge.classList.toggle('on', ok);
+    badge.innerHTML = '<span class="vivo-dot"></span>' + texto;
+}
+
+/* Inserta un evento arriba del feed */
+function agregarFeed(html){
+    if(!feed) return;
+    var vacio = document.getElementById('feedVacio');
+    if(vacio) vacio.remove();
+    var row = document.createElement('div');
+    row.className = 'feed-row nuevo';
+    row.innerHTML = html;
+    feed.insertBefore(row, feed.firstChild);
+    while(feed.children.length > 25) feed.removeChild(feed.lastChild);
+    setTimeout(function(){ row.classList.remove('nuevo'); }, 2500);
+}
+
+function horaAhora(){
+    return new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:false});
+}
+
 var connection = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
-connection.on("ListaActualizada", function(idProyecto, nuevaLista) {
-    console.log("Lista actualizada:", idProyecto, nuevaLista);
-    showToast("Lista escalada a " + nuevaLista + " en proyecto " + idProyecto);
+
+connection.on("InmuebleActualizado", function(idProyecto, idInmueble, estado){
+    if(idProyecto !== PROY) return;
+    var color = estado === 'VENDIDO' ? 'rgba(230,57,70,0.1);color:var(--rojo)'
+              : estado === 'RESERVADO' ? 'rgba(255,149,0,0.12);color:#CC7700'
+              : 'rgba(90,90,200,0.12);color:#5A5AC8';
+    agregarFeed(
+        '<div class="feed-hora">' + horaAhora() + '</div>' +
+        '<div class="feed-txt">Inmueble <strong>#' + idInmueble + '</strong>' +
+        '<div class="feed-sub">Actualización en tiempo real</div></div>' +
+        '<span class="feed-bdg" style="background:' + color + '">' + estado + '</span>');
 });
-connection.on("InmuebleActualizado", function(idProyecto, idInmueble, estado) {
-    console.log("Inmueble", idInmueble, "->", estado);
+
+connection.on("ListaAreaActualizada", function(idProyecto, metros, nuevaLista){
+    if(idProyecto !== PROY) return;
+    agregarFeed(
+        '<div class="feed-hora">' + horaAhora() + '</div>' +
+        '<div class="feed-txt">Área <strong>' + metros + ' m²</strong> subió de lista' +
+        '<div class="feed-sub">Los precios de esta área cambiaron</div></div>' +
+        '<span class="feed-bdg" style="background:rgba(0,118,227,0.1);color:var(--blue)">LISTA ' + nuevaLista + '</span>');
 });
-connection.start().catch(function(err){ console.error("SignalR error:", err); });
-function showToast(msg){
-    var t=document.createElement('div');
-    t.style.cssText='position:fixed;bottom:60px;right:20px;background:#1e222b;color:white;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:9000;box-shadow:0 4px 16px rgba(0,0,0,0.2);';
-    t.textContent=msg;
-    document.body.appendChild(t);
-    setTimeout(function(){t.remove();},4000);
-}
-function cambiarLista(num){
-    if(!confirm('¿Cambiar a Lista '+num+'?'))return;
-    document.getElementById('listaInput').value=num;
-    document.getElementById('formCambiarLista').submit();
-}
+
+connection.onreconnecting(function(){ marcarConexion(false, 'Reconectando…'); });
+connection.onreconnected(function(){ marcarConexion(true, 'En vivo'); });
+connection.onclose(function(){ marcarConexion(false, 'Desconectado'); });
+
+connection.start()
+    .then(function(){ marcarConexion(true, 'En vivo'); })
+    .catch(function(err){ marcarConexion(false, 'Sin conexión'); console.error("SignalR error:", err); });
 </script>
 }

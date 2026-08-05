@@ -936,15 +936,13 @@ namespace Plataforma_ventas.Controllers
 
             // Verifica que una lista tenga al menos un precio > 0 antes de escalar hacia ella.
             // Evita que el auto-escalamiento mueva a una lista sin precios cargados.
-            async Task<bool> ListaConPrecios(int numLista, string? metrosArea)
+            async Task<bool> ListaConPrecios(int numLista, string metrosArea)
             {
                 var col = Listas.ColumnaLista(numLista);
-                string sql = metrosArea == null
-                    ? $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy"
-                    : $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy AND Metros=@metros";
-                var cmdP = new SqlCommand(sql, con);
+                var cmdP = new SqlCommand(
+                    $"SELECT {col} FROM Inmuebles WHERE IdProyecto=@proy AND Metros=@metros", con);
                 cmdP.Parameters.AddWithValue("@proy", idProy);
-                if (metrosArea != null) cmdP.Parameters.AddWithValue("@metros", metrosArea);
+                cmdP.Parameters.AddWithValue("@metros", metrosArea);
                 using (var rP = (SqlDataReader)await cmdP.ExecuteReaderAsync())
                     while (await rP.ReadAsync())
                     {
@@ -953,41 +951,6 @@ namespace Plataforma_ventas.Controllers
                     }
                 return false;
             }
-
-            // Escalamiento global del proyecto
-            var cmdConfig = new SqlCommand(
-                "SELECT ListaActual, ApartamentosPorLista FROM Proyectos WHERE IdProyectos=@id", con);
-            cmdConfig.Parameters.AddWithValue("@id", idProy);
-            using var rC = (SqlDataReader)await cmdConfig.ExecuteReaderAsync();
-            if (await rC.ReadAsync())
-            {
-                int listaActual = rC["ListaActual"] == DBNull.Value ? 1 : (int)rC["ListaActual"];
-                int aptsPorLista = rC["ApartamentosPorLista"] == DBNull.Value ? 0 : (int)rC["ApartamentosPorLista"];
-                rC.Close();
-                if (aptsPorLista > 0)
-                {
-                    var cmdV = new SqlCommand(
-                        "SELECT COUNT(*) FROM Inmuebles WHERE IdProyecto=@id AND Estado='VENDIDO'", con);
-                    cmdV.Parameters.AddWithValue("@id", idProy);
-                    int totalVendidos = (int)(await cmdV.ExecuteScalarAsync())!;
-                    if (totalVendidos > 0 && totalVendidos % aptsPorLista == 0)
-                    {
-                        int nuevaLista = Math.Min(5, listaActual + 1);
-                        if (nuevaLista > listaActual && await ListaConPrecios(nuevaLista, null))
-                        {
-                            var cmdS = new SqlCommand(
-                                "UPDATE Proyectos SET ListaActual=@l WHERE IdProyectos=@id", con);
-                            cmdS.Parameters.AddWithValue("@l", nuevaLista);
-                            cmdS.Parameters.AddWithValue("@id", idProy);
-                            await cmdS.ExecuteNonQueryAsync();
-                            await _hub.Clients.All.ListaActualizada(idProy, nuevaLista);
-                            TempData["Exito"] = $"¡Venta registrada! ⚡ El proyecto subió a Lista {nuevaLista}.";
-                            return RedirectToAction("Index");
-                        }
-                    }
-                }
-            }
-            else rC.Close();
 
             // Escalamiento por área
             var cmdMetrosEsc = new SqlCommand(
