@@ -26,8 +26,10 @@ namespace Plataforma_ventas.Hubs
         /// <param name="idProyecto">Project identifier.</param>
         /// <param name="idInmueble">Property identifier.</param>
         /// <param name="nuevoEstado">New estado string (e.g. "EN PROCESO", "RESERVADO", "VENDIDO", "DISPONIBLE").</param>
+        /// <param name="quien">Full name of the user who caused the change; empty when the
+        /// property was released back to DISPONIBLE and nobody holds it.</param>
         [HubMethodName("InmuebleActualizado")]
-        Task InmuebleActualizado(int idProyecto, int idInmueble, string nuevoEstado);
+        Task InmuebleActualizado(int idProyecto, int idInmueble, string nuevoEstado, string quien);
 
         /// <summary>Notifies all clients that a list price was edited for a specific area.</summary>
         /// <param name="idProyecto">Project identifier.</param>

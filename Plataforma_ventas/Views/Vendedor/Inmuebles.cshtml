@@ -365,7 +365,7 @@
         mostrarToast('Precio Lista ' + numLista + ' actualizado en ' + metros + ' m²', 'info');
     });
 
-    conn.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado) {
+    conn.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado, quien) {
         if (proyIdEvt !== proyIdSR) return;
 
         // Update table row (detail/area view)

@@ -13,6 +13,17 @@ namespace Plataforma_ventas.Controllers
     [RolAutorizado("Administrador")]
     public class InmueblesController : Controller
     {
+        /// <summary>
+        /// Nombre completo del usuario en sesión, para informar en los avisos en vivo
+        /// quién tomó, reservó o vendió el inmueble.
+        /// </summary>
+        private string QuienSoy()
+        {
+            var n = HttpContext.Session.GetString("Nombre") ?? "";
+            var a = HttpContext.Session.GetString("Apellido") ?? "";
+            return $"{n} {a}".Trim();
+        }
+
         private readonly string _conn;
         private readonly IHubContext<VentasHub, IVentasClient> _hub;
 
@@ -184,7 +195,7 @@ namespace Plataforma_ventas.Controllers
             // Diccionario vendedores
             var vendedores = new Dictionary<int, string>();
             var cmdVend = new SqlCommand(
-                "SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto FROM Usuarios WHERE Rol='Vendedor'", con);
+                @"SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto, Rol FROM Usuarios", con);
             using (var rv = (SqlDataReader)await cmdVend.ExecuteReaderAsync())
                 while (await rv.ReadAsync())
                     vendedores[(int)rv["IdUsuario"]] = rv["NombreCompleto"]?.ToString() ?? "";
@@ -321,7 +332,7 @@ namespace Plataforma_ventas.Controllers
                 return RedirectToAction("Index");
             }
 
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "RESERVADO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "RESERVADO", QuienSoy());
             TempData["Exito"] = $"Inmueble reservado. Precio bloqueado: ${string.Format("{0:N0}", precioReserva)}";
             return RedirectToAction("Index");
         }
@@ -556,7 +567,7 @@ namespace Plataforma_ventas.Controllers
 
             await tx.CommitAsync();
 
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO", QuienSoy());
             TempData["Exito"] = $"¡Venta confirmada! Precio aplicado: ${string.Format("{0:N0}", precioFijo)}";
             return RedirectToAction("Reservas");
         }
@@ -578,7 +589,7 @@ namespace Plataforma_ventas.Controllers
                 WHERE IdInmuebles=@id", con);
             cmd.Parameters.AddWithValue("@id", idInmueble);
             await cmd.ExecuteNonQueryAsync();
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
             TempData["Exito"] = "Reserva liberada correctamente.";
             return RedirectToAction("Index");
         }
@@ -609,7 +620,7 @@ namespace Plataforma_ventas.Controllers
                 TempData["Error"] = "Este inmueble ya no está disponible.";
                 return RedirectToAction("Index");
             }
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "EN PROCESO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "EN PROCESO", QuienSoy());
             return RedirectToAction("RegistrarVenta", new { idInmueble });
         }
 
@@ -629,7 +640,7 @@ namespace Plataforma_ventas.Controllers
                 WHERE IdInmuebles=@id", con);
             cmd.Parameters.AddWithValue("@id", idInmueble);
             await cmd.ExecuteNonQueryAsync();
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
             return RedirectToAction("Index");
         }
 
@@ -932,7 +943,7 @@ namespace Plataforma_ventas.Controllers
 
             await tx.CommitAsync();
 
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO", QuienSoy());
 
             // Verifica que una lista tenga al menos un precio > 0 antes de escalar hacia ella.
             // Evita que el auto-escalamiento mueva a una lista sin precios cargados.

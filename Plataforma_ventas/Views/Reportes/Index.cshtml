@@ -80,6 +80,7 @@
     .mapa-tipo{font-size:11px;color:var(--label3);min-width:40px;}
     .mapa-area{font-size:11px;color:var(--label2);min-width:60px;}
     .mapa-torre{font-size:11px;color:var(--label2);flex:1;}
+    .mapa-quien{font-size:11px;font-weight:600;white-space:nowrap;margin-right:4px;}
     .mapa-bdg{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
     .mapa-D{background:rgba(52,199,89,0.12);color:#1EA851}.mapa-V{background:rgba(230,57,70,0.12);color:var(--rojo)}
     .mapa-R{background:rgba(255,149,0,0.12);color:#CC7700}.mapa-P{background:rgba(90,90,200,0.12);color:#5A5AC8}
@@ -239,12 +240,20 @@
             @foreach (var m in mapa) {
                 var clsE = m.Estado == "DISPONIBLE" ? "D" : m.Estado == "VENDIDO" ? "V" : m.Estado == "RESERVADO" ? "R" : "P";
                 var colE = m.Estado == "DISPONIBLE" ? "#1EA851" : m.Estado == "VENDIDO" ? "var(--rojo)" : m.Estado == "RESERVADO" ? "#CC7700" : "#5A5AC8";
+                @{
+                    string quien = m.Estado == "EN PROCESO" ? (string)m.EnProcesoPor
+                                 : m.Estado == "RESERVADO"  ? (string)m.ReservadoPor : "";
+                }
                 <div class="mapa-row">
                     <div class="mapa-estado" style="background:@colE"></div>
                     <div class="mapa-apto">@m.Apto</div>
                     <div class="mapa-tipo">@m.Tipo</div>
                     <div class="mapa-area">@m.Metros m²</div>
                     <div class="mapa-torre">@m.Torre</div>
+                    @if (!string.IsNullOrEmpty(quien))
+                    {
+                        <span class="mapa-quien" style="color:@colE">@quien</span>
+                    }
                     <span class="mapa-bdg mapa-@clsE">@m.Estado</span>
                 </div>
             }

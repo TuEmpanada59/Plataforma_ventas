@@ -356,15 +356,16 @@ function horaAhora(){
 
 var connection = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
 
-connection.on("InmuebleActualizado", function(idProyecto, idInmueble, estado){
+connection.on("InmuebleActualizado", function(idProyecto, idInmueble, estado, quien){
     if(idProyecto !== PROY) return;
     var color = estado === 'VENDIDO' ? 'rgba(230,57,70,0.1);color:var(--rojo)'
               : estado === 'RESERVADO' ? 'rgba(255,149,0,0.12);color:#CC7700'
               : 'rgba(90,90,200,0.12);color:#5A5AC8';
+    var sub = quien ? quien : 'Liberado — vuelve a estar disponible';
     agregarFeed(
         '<div class="feed-hora">' + horaAhora() + '</div>' +
         '<div class="feed-txt">Inmueble <strong>#' + idInmueble + '</strong>' +
-        '<div class="feed-sub">Actualización en tiempo real</div></div>' +
+        '<div class="feed-sub">' + sub + '</div></div>' +
         '<span class="feed-bdg" style="background:' + color + '">' + estado + '</span>');
 });
 

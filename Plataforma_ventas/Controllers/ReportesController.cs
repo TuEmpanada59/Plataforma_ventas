@@ -126,11 +126,29 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Destinos = destinos;
 
             var mapa = new List<dynamic>();
-            var cmdMapa = new SqlCommand("SELECT Apto, Tipo, Metros, Torre, Estado FROM Inmuebles WHERE IdProyecto=@id ORDER BY Torre, Apto", con);
+            // Se incluye quién tiene el inmueble cuando está EN PROCESO o RESERVADO.
+            var cmdMapa = new SqlCommand(@"
+                SELECT i.Apto, i.Tipo, i.Metros, i.Torre, i.Estado,
+                       ISNULL(up.Nombre + ' ' + up.Apellido, '') AS EnProcesoPor,
+                       ISNULL(ur.Nombre + ' ' + ur.Apellido, '') AS ReservadoPor
+                FROM Inmuebles i
+                LEFT JOIN Usuarios up ON i.IdVendedorEnProceso = up.IdUsuario
+                LEFT JOIN Usuarios ur ON i.IdVendedorReserva   = ur.IdUsuario
+                WHERE i.IdProyecto=@id
+                ORDER BY i.Torre, i.Apto", con);
             cmdMapa.Parameters.AddWithValue("@id", idProy);
             using (var rm = (SqlDataReader)await cmdMapa.ExecuteReaderAsync())
                 while (await rm.ReadAsync())
-                    mapa.Add(new { Apto = rm["Apto"]?.ToString() ?? "", Tipo = rm["Tipo"]?.ToString() ?? "", Metros = rm["Metros"]?.ToString() ?? "", Torre = rm["Torre"]?.ToString() ?? "", Estado = rm["Estado"]?.ToString() ?? "" });
+                    mapa.Add(new
+                    {
+                        Apto = rm["Apto"]?.ToString() ?? "",
+                        Tipo = rm["Tipo"]?.ToString() ?? "",
+                        Metros = rm["Metros"]?.ToString() ?? "",
+                        Torre = rm["Torre"]?.ToString() ?? "",
+                        Estado = rm["Estado"]?.ToString() ?? "",
+                        EnProcesoPor = (rm["EnProcesoPor"]?.ToString() ?? "").Trim(),
+                        ReservadoPor = (rm["ReservadoPor"]?.ToString() ?? "").Trim(),
+                    });
             ViewBag.Mapa = mapa;
 
             var ventas = new List<dynamic>();

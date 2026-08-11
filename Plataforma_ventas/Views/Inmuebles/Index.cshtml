@@ -88,6 +88,8 @@
     .bdg.V{background:rgba(230,57,70,0.12);color:var(--rojo)}.bdg.V::before{background:var(--rojo)}
     .bdg.R{background:rgba(255,149,0,0.12);color:#CC7700}.bdg.R::before{background:var(--oro)}
     .bdg.EP{background:rgba(90,90,200,0.12);color:#5A5AC8}.bdg.EP::before{background:#5A5AC8}
+    .quien{display:inline-block;font-size:11px;font-weight:600;margin-top:3px;}
+    .quien::before{content:'';display:inline-block;width:11px;height:11px;margin-right:4px;vertical-align:-2px;border-radius:50%;background:currentColor;opacity:.25;}
     .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
     .search-wrap{position:relative;max-width:220px;}
     .search-wrap input{width:100%;padding:7px 12px 7px 30px;background:var(--fill3);border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);outline:none;transition:all 0.2s;}
@@ -334,8 +336,12 @@ else
                                     <td class="estado-td">
                                         <span class="bdg @cls">@i.Estado</span>
                                         @if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso > 0) {
-                                            var nomVend = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Vendedor";
-                                            <br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">@nomVend</span>
+                                            var nomVend = vendedores.ContainsKey(i.IdVendedorEnProceso) ? vendedores[i.IdVendedorEnProceso] : "Usuario retirado";
+                                            <br/><span class="quien" style="color:#5A5AC8">@nomVend</span>
+                                        }
+                                        else if (i.Estado == "RESERVADO" && i.IdVendedorReserva > 0) {
+                                            var nomRes = vendedores.ContainsKey(i.IdVendedorReserva) ? vendedores[i.IdVendedorReserva] : "Usuario retirado";
+                                            <br/><span class="quien" style="color:#CC7700">@nomRes</span>
                                         }
                                     </td>
                                     <td class="accion-td">
@@ -467,7 +473,7 @@ else
 
     var connAdmin = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
 
-    connAdmin.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado) {
+    connAdmin.on("InmuebleActualizado", function(proyIdEvt, idInmueble, nuevoEstado, quien) {
         if (proyIdEvt !== proyIdSR) return;
 
         var tr = document.querySelector('#tablaInmuebles tbody tr[data-id="' + idInmueble + '"]');
@@ -488,8 +494,10 @@ else
 
             var estadoTd = tr.querySelector('.estado-td');
             if (estadoTd) {
+                var color = nuevoEstado === 'EN PROCESO' ? '#5A5AC8'
+                          : nuevoEstado === 'RESERVADO'  ? '#CC7700' : '';
                 estadoTd.innerHTML = '<span class="bdg ' + cls + '">' + nuevoEstado + '</span>' +
-                    (nuevoEstado === 'EN PROCESO' ? '<br/><span style="font-size:11px;color:#5A5AC8;font-weight:600">En proceso</span>' : '');
+                    ((quien && color) ? '<br/><span class="quien" style="color:' + color + '">' + quien + '</span>' : '');
             }
 
             var accionTd = tr.querySelector('.accion-td');

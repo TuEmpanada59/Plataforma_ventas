@@ -14,6 +14,17 @@ namespace Plataforma_ventas.Controllers
     [RolAutorizado("Vendedor")]
     public class VendedorController : Controller
     {
+        /// <summary>
+        /// Nombre completo del usuario en sesión, para informar en los avisos en vivo
+        /// quién tomó, reservó o vendió el inmueble.
+        /// </summary>
+        private string QuienSoy()
+        {
+            var n = HttpContext.Session.GetString("Nombre") ?? "";
+            var a = HttpContext.Session.GetString("Apellido") ?? "";
+            return $"{n} {a}".Trim();
+        }
+
         private readonly string _conn;
         private readonly IHubContext<VentasHub, IVentasClient> _hub;
 
@@ -199,7 +210,7 @@ namespace Plataforma_ventas.Controllers
 
             var vendedores = new Dictionary<int, string>();
             var cmdVend = new SqlCommand(
-                "SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto FROM Usuarios WHERE Rol='Vendedor'", con);
+                @"SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto, Rol FROM Usuarios", con);
             using (var rv = (SqlDataReader)await cmdVend.ExecuteReaderAsync())
                 while (await rv.ReadAsync())
                     vendedores[(int)rv["IdUsuario"]] = rv["NombreCompleto"]?.ToString() ?? "";
@@ -279,7 +290,7 @@ namespace Plataforma_ventas.Controllers
                 TempData["Error"] = "Este inmueble ya no está disponible.";
                 return RedirectToAction("Inmuebles");
             }
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "EN PROCESO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "EN PROCESO", QuienSoy());
             return RedirectToAction("RegistrarVenta", new { idInmueble });
         }
 
@@ -307,7 +318,7 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@id", idInmueble);
             cmd.Parameters.AddWithValue("@uid", idUsuario);
             await cmd.ExecuteNonQueryAsync();
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
             if (!string.IsNullOrEmpty(metros))
                 return RedirectToAction("Inmuebles", new { area = metros });
             return RedirectToAction("Inmuebles");
@@ -369,7 +380,7 @@ namespace Plataforma_ventas.Controllers
                 return RedirectToAction("Inmuebles");
             }
 
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "RESERVADO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "RESERVADO", QuienSoy());
             TempData["Exito"] = $"Inmueble reservado. Precio bloqueado: ${string.Format("{0:N0}", precioReserva)}";
             return RedirectToAction("Inmuebles");
         }
@@ -394,7 +405,7 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@id", idInmueble);
             cmd.Parameters.AddWithValue("@uid", idUsuario);
             await cmd.ExecuteNonQueryAsync();
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
             TempData["Exito"] = "Reserva liberada correctamente.";
             return RedirectToAction("MisReservas");
         }
@@ -611,7 +622,7 @@ namespace Plataforma_ventas.Controllers
 
             await tx.CommitAsync();
 
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO", QuienSoy());
             TempData["Exito"] = $"¡Venta confirmada! Precio aplicado: ${string.Format("{0:N0}", precioFijo)}";
             return RedirectToAction("MisVentas");
         }
@@ -819,7 +830,7 @@ namespace Plataforma_ventas.Controllers
 
             await tx.CommitAsync();
 
-            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO");
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO", QuienSoy());
 
             // ── Escalamiento automático de la lista, por área ──
             // Solo escala el área del inmueble vendido y solo si tiene AptsPorLista > 0

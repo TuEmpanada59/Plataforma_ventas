@@ -76,7 +76,9 @@
     .cc-nombre{font-size:14px;font-weight:600;color:var(--label);}
     .cc-doc{font-size:12px;color:var(--label2);}
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
-    .disabled-block{opacity:0.45;pointer-events:none;filter:grayscale(0.25);transition:opacity 0.2s;}
+    .disabled-block{display:none;}
+    .sag-ok{display:flex;align-items:center;gap:8px;background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;color:#1EA851;margin-top:12px;}
+    .sag-reset{margin-left:auto;background:none;border:none;color:#1EA851;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit;}
     @@media(max-width:700px){.destino-grid{grid-template-columns:1fr!important;}.form-grid{grid-template-columns:1fr!important;}}
 </style>
 }
@@ -156,12 +158,16 @@
         <div class="form-card-head">@Iconos.Documento("#CC7700", 20) <span class="form-card-title">Verificación SAGRILAFT</span></div>
         <div class="form-body">
             <p style="font-size:13px;color:var(--label2);margin-bottom:12px">¿Ya fue consultado el cliente en SAGRILAFT?</p>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <div id="sagBotones" style="display:flex;gap:10px;flex-wrap:wrap">
                 <button type="button" class="ios-btn" onclick="sagrilaftRespuesta(true)">Sí, ya fue consultado</button>
                 <button type="button" class="ios-btn ghost" onclick="sagrilaftRespuesta(false)">No, aún no</button>
             </div>
             <div id="sagrilaftAviso" class="alerta-error" style="display:none;margin-top:12px">
-                Por favor, consulte el cliente y recargue la página para realizar el nuevo registro.
+                Debe consultar al cliente en SAGRILAFT antes de continuar. Los datos del cliente se habilitarán al confirmar la consulta.
+            </div>
+            <div id="sagrilaftOk" class="sag-ok" style="display:none">
+                Consulta confirmada — puede registrar el cliente
+                <button type="button" class="sag-reset" onclick="sagrilaftRespuesta(false)">Deshacer</button>
             </div>
         </div>
     </div>
@@ -274,9 +280,16 @@
     }
     function sagrilaftRespuesta(si) {
         document.getElementById('sagrilaftConsultado').value = si ? 'true' : 'false';
+        // El bloque de cliente permanece oculto hasta confirmar la consulta.
         document.getElementById('clienteCardWrap').classList.toggle('disabled-block', !si);
         document.getElementById('btnConfirmarVenta').disabled = !si;
         document.getElementById('sagrilaftAviso').style.display = si ? 'none' : 'block';
+        document.getElementById('sagrilaftOk').style.display = si ? 'flex' : 'none';
+        document.getElementById('sagBotones').style.display = si ? 'none' : 'flex';
+        if (si) {
+            var wrap = document.getElementById('clienteCardWrap');
+            wrap.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
     }
     function selDestino(val, el) {
         document.getElementById('destinoInput').value = val;
