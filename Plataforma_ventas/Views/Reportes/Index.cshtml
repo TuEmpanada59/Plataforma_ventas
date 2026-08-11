@@ -240,10 +240,8 @@
             @foreach (var m in mapa) {
                 var clsE = m.Estado == "DISPONIBLE" ? "D" : m.Estado == "VENDIDO" ? "V" : m.Estado == "RESERVADO" ? "R" : "P";
                 var colE = m.Estado == "DISPONIBLE" ? "#1EA851" : m.Estado == "VENDIDO" ? "var(--rojo)" : m.Estado == "RESERVADO" ? "#CC7700" : "#5A5AC8";
-                @{
-                    string quien = m.Estado == "EN PROCESO" ? (string)m.EnProcesoPor
-                                 : m.Estado == "RESERVADO"  ? (string)m.ReservadoPor : "";
-                }
+                string quien = m.Estado == "EN PROCESO" ? (string)m.EnProcesoPor
+                             : m.Estado == "RESERVADO"  ? (string)m.ReservadoPor : "";
                 <div class="mapa-row">
                     <div class="mapa-estado" style="background:@colE"></div>
                     <div class="mapa-apto">@m.Apto</div>
