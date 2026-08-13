@@ -1,14 +1,16 @@
 # Historias de Usuario — Plataforma de Ventas (Londoño Gómez)
 
 **Épica:** Plataforma de Lanzamientos Inmobiliarios (nombre del proyecto en Azure DevOps)
-**Versión del documento:** 4.0 · **Fecha:** 10/07/2026
+**Versión del documento:** 5.0 · **Fecha:** 13/08/2026
 **Convención de estados:** ✅ Implementada · 🔨 Parcial · ⏳ Pendiente
 **Convención de tasks:** `[x]` completada (crear como *Done*) · `[ ]` pendiente (crear como *To Do*)
 
 Estructura para Azure DevOps: **Epic → Feature → User Story → Task**.
 Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos una Task**; y cada Task tiene su **título + descripción** (lista para pegar en el campo *Description* de la Task).
 
-**Novedades v4.0:** se auditó el código controlador por controlador contra el documento y aparecieron **4 historias que ya estaban construidas pero no documentadas** (HU-404, HU-905, HU-906, HU-1104). También se actualizaron tasks completadas desde la v3.0: creación del proyecto de pruebas unitarias, refactor del mapeo de listas, despliegue del App Service de QA y el flujo de sincronización DEVELOP → Azure DevOps → QA.
+**Novedades v5.0:** entran **3 historias nuevas** (HU-802 panel de inicio accionable, HU-907 horas pico y área, HU-908 navegación por pestañas de Reportes) y se cierran tasks pendientes de v4.0 (PDF técnico, feed de actividad en vivo, unificación de la fórmula de escalamiento). Además se documentan **dos defectos encontrados y corregidos durante el desarrollo**: el escalamiento de listas no se aplicaba en el flujo del vendedor (HU-403) y el nombre de quien tenía el inmueble no se mostraba para administradores ni sobrevivía a la actualización en vivo (HU-405).
+
+**Nota sobre la v4.0:** se auditó el código controlador por controlador contra el documento y aparecieron 4 historias ya construidas pero no documentadas (HU-404, HU-905, HU-906, HU-1104).
 
 ---
 
@@ -153,13 +155,15 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 ### HU-403 · Listas de precio con escalamiento automático ✅
 **Como** administrador, **quiero** que la lista de precios suba automáticamente cada N unidades vendidas, **para** ejecutar la estrategia de precios sin intervención manual.
 
-**Criterios de aceptación:** umbral configurable global y por área; sube (máx. Lista 5) solo si la lista destino tiene precios; broadcast en vivo; cambio manual disponible.
+**Criterios de aceptación:** cada área se configura de forma independiente — `AptsPorLista = 0` la deja **fija** en su lista pase lo que pase, `> 0` la hace **automática** y sube cada N ventas de esa área; sube (máx. Lista 5) solo si la lista destino tiene precios; broadcast en vivo; cambio manual disponible; el comportamiento es idéntico venda un vendedor o un administrador.
 
 **Tasks:**
-- [x] **Escalamiento automático global y por área** — Calcular y aplicar el ascenso de lista al cumplir el umbral, validando que la lista destino tenga precios, y difundirlo por SignalR.
+- [x] **Escalamiento automático por área** — Calcular y aplicar el ascenso de lista al cumplir el umbral del área, validando que la lista destino tenga precios, y difundirlo por SignalR.
 - [x] **Extraer el mapeo lista→columna a un helper testeable** — Unificar el `switch` duplicado en 4 lugares de los controladores en `Listas.ColumnaLista(int)` y cubrirlo con pruebas unitarias.
+- [x] **Corregir el escalamiento en el flujo del vendedor** — El camino de venta del vendedor solo tenía el escalamiento global, por lo que las áreas configuradas como automáticas nunca subían de lista cuando vendía un asesor (únicamente si la venta la registraba un administrador). Portar el escalamiento por área a `VendedorController` con la misma validación de precios.
+- [x] **Eliminar el escalamiento global del proyecto** — Como la carga crea una fila por área en `ProyectoAreaListas`, el `ISNULL(pal.ListaActual, p.ListaActual)` siempre resolvía por área: el escalamiento global no cambiaba ningún precio, pero cortaba el flujo con un `return` anticipado que impedía el escalamiento del área y mostraba un mensaje de éxito engañoso. Retirarlo y dejar un solo mecanismo.
 - [ ] **Historial de cambios de lista** — Guardar cuándo cambió cada lista y qué lo disparó (venta o cambio manual), para trazabilidad de precios.
-- [ ] **Unificar la fórmula de escalamiento** — El cálculo de "próxima lista" está implementado dos veces con lógica ligeramente distinta (división entera vs. módulo, en vendedor y en administrador); unificarlo en un solo método y cubrirlo con pruebas unitarias de los casos borde (umbral exacto, tope en Lista 5, escalamiento desactivado).
+- [ ] **Pruebas unitarias del escalamiento** — Cubrir los casos borde ahora que la fórmula es única: umbral exacto, tope en Lista 5, área fija (`AptsPorLista = 0`) y lista destino sin precios.
 
 ### HU-404 · Vista de reservas activas (administración) ✅
 **Como** administrador, **quiero** ver todas las reservas activas del proyecto (no solo las mías), **para** supervisar el trabajo de todo el equipo de vendedores y poder liberar o continuar cualquier reserva si es necesario.
@@ -172,6 +176,22 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 **Tasks:**
 - [x] **Vista de reservas del administrador** — Implementar la acción `Reservas` con el listado de todas las reservas activas del proyecto, vendedor, precio bloqueado y acciones de liberar/continuar.
 - [ ] **Filtro por vendedor o por antigüedad de la reserva** — Permitir filtrar el listado para encontrar rápido reservas próximas a vencer o de un vendedor específico.
+
+
+### HU-405 · Visibilidad de quién tiene el inmueble ✅
+**Como** administrador, **quiero** ver el nombre de la persona que tiene un inmueble EN PROCESO o RESERVADO, **para** saber a quién dirigirme cuando haya que liberar, apurar o consultar por una unidad durante el lanzamiento.
+
+**Criterios de aceptación:**
+1. En la grilla de inmuebles, bajo el estado EN PROCESO o RESERVADO aparece el nombre completo de quien lo tiene.
+2. Funciona igual si quien lo tomó fue un vendedor o un administrador.
+3. El nombre se mantiene cuando la fila se actualiza en vivo por SignalR, sin necesidad de recargar.
+4. El mapa de inmuebles del informe del día también indica quién tiene cada unidad no disponible.
+
+**Tasks:**
+- [x] **Mostrar el asesor en la grilla y el mapa** — Renderizar el nombre bajo el estado en la grilla de inmuebles (proceso y reserva) y agregarlo al mapa de Reportes con LEFT JOIN a Usuarios por `IdVendedorEnProceso` / `IdVendedorReserva`.
+- [x] **Corregir el diccionario de usuarios** — El diccionario de nombres se cargaba con `WHERE Rol='Vendedor'`, por lo que un inmueble tomado por un administrador mostraba la palabra genérica "Vendedor" en lugar de su nombre. Incluir a todos los usuarios.
+- [x] **Propagar el actor en el evento en vivo** — `InmuebleActualizado` no llevaba quién causaba el cambio, así que la actualización por SignalR borraba el nombre hasta recargar. Agregar el parámetro `quien` al contrato del hub y actualizar las 12 llamadas y los 3 manejadores de JavaScript.
+- [ ] **Antigüedad del proceso** — Mostrar hace cuánto está tomada la unidad y señalar los procesos estancados, aprovechando `FechaEnProceso`.
 
 ---
 
@@ -224,12 +244,13 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 ### HU-601 · Verificación SAGRILAFT previa al registro de cliente ✅
 **Como** oficial de cumplimiento, **quiero** confirmar si el cliente ya fue consultado en SAGRILAFT antes de habilitar el panel de cliente, **para** cumplir la normativa antilavado.
 
-**Criterios de aceptación:** pregunta en los 4 flujos; "Sí" habilita, "No" bloquea con el mensaje indicado; el servidor rechaza la venta si no llega la confirmación.
+**Criterios de aceptación:** pregunta en los 4 flujos; el panel de cliente permanece **oculto** hasta confirmar la consulta y entonces se despliega; "No" mantiene el bloqueo con el mensaje indicado; se puede deshacer la confirmación; el servidor rechaza la venta si no llega la confirmación.
 
 **Tasks:**
 - [x] **Gate SAGRILAFT en los 4 flujos** — Agregar la pregunta y el bloqueo del panel de cliente (cliente y servidor) en venta directa y desde reserva, para vendedor y administrador.
-- [ ] **Auditar la confirmación en la venta** — Guardar en la venta que se confirmó SAGRILAFT, con el usuario y la fecha, como evidencia de cumplimiento.
-- [ ] **Integración con listas restrictivas** — Consultar en línea al proveedor de listas (SAGRILAFT) en lugar de una confirmación manual.
+- [x] **Desplegar el panel de cliente al confirmar** — El panel estaba siempre visible en opacidad 45%, lo que hacía ver un formulario apagado en vez de un paso pendiente. Ocultarlo por completo y desplegarlo al confirmar la consulta, con mensaje de confirmación, desplazamiento hacia el bloque y opción de deshacer.
+- [ ] **Auditar la confirmación en la venta** — Guardar en la venta que se confirmó SAGRILAFT, con el usuario, la fecha y el número o soporte de la consulta, como evidencia auditable. Hoy la confirmación se valida pero no queda registrada.
+- [ ] **Consulta de listas restrictivas desde el sistema** — Reemplazar la confirmación declarativa por una verificación real. Alternativas evaluadas: (a) cargar periódicamente las listas públicas gratuitas (OFAC, ONU, Unión Europea) y contrastar por nombre y documento con coincidencia aproximada; (b) integrar un proveedor comercial con API que consolide listas, PEP y antecedentes. Requiere definición del área de cumplimiento.
 
 ### HU-602 · Registrar venta con cliente nuevo o existente ✅
 **Como** vendedor o administrador, **quiero** registrar la venta con cliente existente o nuevo, **para** cerrar la operación con los datos completos del comprador.
@@ -270,7 +291,27 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 
 **Tasks:**
 - [x] **Dashboard con KPIs y mapa en tiempo real** — Implementar el panel de indicadores y el mapa de inmuebles con actualización en vivo por SignalR y selector de proyecto.
-- [ ] **Feed de actividad en vivo** — Agregar un panel con las últimas acciones (última venta, quién y hace cuánto) para seguir el pulso del evento.
+- [x] **Feed de actividad en vivo** — Agregar un panel con las últimas acciones (última venta, quién y hace cuánto) para seguir el pulso del evento.
+
+### HU-802 · Página de inicio accionable ✅
+**Como** administrador, **quiero** que la página de inicio muestre el pulso del lanzamiento en vez de repetir los mismos indicadores, **para** saber de un vistazo cómo va el día, qué acaba de pasar y dónde están los precios.
+
+**Criterios de aceptación:**
+1. No se repite el mismo dato en varios bloques: los tres que mostraban disponibles/reservados/vendidos se consolidan en uno.
+2. Se muestran ventas y valor de hoy, ritmo de ventas por hora y cuánto hace que se registró la última venta.
+3. La actividad en vivo se ve en pantalla, con indicador del estado de la conexión (en vivo, reconectando, desconectado).
+4. Se ve el estado de las listas de precio de todas las áreas, en solo lectura, con enlace a Inmuebles para gestionarlas.
+5. La iconografía es consistente con el resto de la plataforma (SVG, no emojis).
+
+**Tasks:**
+- [x] **Eliminar la redundancia visual** — Los mismos tres números aparecían en cuatro bloques distintos (KPIs, progreso, resumen y dónut). Consolidar dejando el dónut y liberar el espacio.
+- [x] **Pulso del día** — Agregar ventas y valor de hoy, ritmo por hora y tiempo transcurrido desde la última venta, con la unidad y el asesor.
+- [x] **Feed de actividad en pantalla** — Renderizar los eventos SignalR que antes solo iban a la consola del navegador, sembrado con las últimas ventas e indicador de conexión.
+- [x] **Listas de precio por área en solo lectura** — Tabla con la lista activa de cada área, si está fija o escalando automáticamente y cuántas ventas faltan para el siguiente escalón. La vista de conjunto no existía en ninguna pantalla desde que la gestión de listas pasó a ser por área.
+- [x] **KPI de valor vendido** — El panel no mostraba dinero por ningún lado; agregarlo a la franja de indicadores.
+- [x] **Unificar iconografía y limpiar código muerto** — Reemplazar los emojis de los KPIs por los SVG de `Iconos.cs` y retirar la función `cambiarLista()`, que referenciaba un formulario inexistente desde que la gestión de listas se movió a Inmuebles.
+- [ ] **Alertas accionables** — Señalar inmuebles en proceso estancados y reservas próximas a vencer, para que el panel diga qué requiere atención.
+- [ ] **Detalle de la unidad en el feed** — El evento en vivo identifica el inmueble por su ID interno; enriquecer el mensaje de SignalR para mostrar torre y apartamento.
 
 ---
 
@@ -296,15 +337,18 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 - [x] **Exportación a Excel (EPPlus)** — Generar el archivo Excel con el detalle de ventas y los indicadores del proyecto.
 - [ ] **Plantilla Excel corporativa** — Unificar el formato de las exportaciones con logo, encabezados y estilos de marca.
 
-### HU-903 · PDF técnico rediseñado 🔨
-**Como** gerencia, **quiero** un PDF técnico de una sola hoja con módulos (KPIs, donut, tipologías, ventas, asistencia y colapsados), **para** recibir un informe ejecutivo estandarizado.
+### HU-903 · PDF técnico rediseñado ✅
+**Como** gerencia, **quiero** un informe técnico de una sola pieza con la identidad de la empresa, **para** recibir un documento ejecutivo estandarizado sin anexos sueltos.
 
-**Criterios de aceptación:** carta con header, franja KPI de 6 columnas, estado (donut+leyenda+barras), ventas con subtotales y destinos, asistencia y módulos colapsados, y footer; datos vivos es-CO; módulos sin datos colapsados.
+**Criterios de aceptación:** logo corporativo en el encabezado; documento continuo sin páginas anexas; módulos numerados 01–06 (estado, ventas, horas pico, asistencia, preventas por torre, en proceso); módulos sin datos colapsados en una línea; datos vivos es-CO; footer con paginación.
 
 **Tasks:**
 - [x] **Rediseño del PDF técnico con QuestPDF** — Reescribir la composición del informe según el handoff (header, franja KPI con íconos, donut, barras de tipología, tabla de ventas, asistencia y módulos colapsados).
-- [ ] **Validar generación y afinar visual** — Probar la generación tras el fix de layout con datos reales y ajustar detalles (donut, barras, tablas) contra el diseño.
-- [ ] **Quitar el flag de depuración** — Retirar `QuestPDF.Settings.EnableDebugging` una vez estabilizado el informe.
+- [x] **Logo corporativo en el encabezado** — Incorporar el logo de Londoño Gómez, degradando con elegancia al encabezado de solo texto si el archivo no está disponible en el servidor.
+- [x] **Informe en una sola pieza** — Eliminar la página apaisada del cuadro de asistencia trasladando su información al flujo principal, sin perder datos.
+- [x] **Reorganizar los módulos** — Nuevo orden 01–06 con el análisis de horas pico junto al detalle de ventas, y la asistencia y las torres integradas al documento.
+- [x] **Quitar el flag de depuración** — Retirado `QuestPDF.Settings.EnableDebugging`, que era temporal para diagnosticar el error de layout.
+- [ ] **Validar con datos reales** — Generar el informe con un lanzamiento completo y afinar detalles visuales.
 - [ ] **Embeber la tipografía Barlow** — Incluir la fuente Barlow del diseño en lugar del fallback Arial actual.
 
 ### HU-904 · Reporte de asesores ✅
@@ -337,6 +381,36 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 **Tasks:**
 - [x] **Listado de ventas con paginación server-side** — Implementar la consulta paginada (COUNT + OFFSET/FETCH) y la vista de todas las ventas del proyecto activo.
 - [ ] **Filtros de búsqueda** — Agregar filtros por vendedor, rango de fechas o cliente al listado global de ventas.
+
+
+### HU-907 · Análisis de horas pico y área de venta ✅
+**Como** administrador, **quiero** ver a qué horas se vende más y qué áreas se venden en cada franja, **para** planear la operación del lanzamiento y la asignación del equipo comercial.
+
+**Criterios de aceptación:**
+1. Gráfica de líneas sobre plano cartesiano: eje X la hora del día (continuo, incluye las horas sin ventas para no distorsionar la jornada), eje Y el número de ventas y una línea por área (m²).
+2. Indicadores destacados de hora pico, área líder y mejor combinación área+hora.
+3. Las horas se calculan en zona horaria de Colombia (la fecha se almacena en UTC).
+4. Existe una tabla de detalle por hora, accesible sin depender del color.
+5. El análisis también aparece en el PDF técnico.
+
+**Tasks:**
+- [x] **Consulta de ventas por hora y área** — Agrupar las ventas activas por hora local (`DATEADD(HOUR,-5, FechaVenta)`) y por metraje, con conteo y valor.
+- [x] **Gráfica de líneas con Chart.js** — Implementar el plano cartesiano con línea guía vertical, tooltip por hora con el valor vendido y total de la franja, y leyenda.
+- [x] **Paleta validada para daltonismo** — La paleta inicial fallaba la separación de color para protanopía (naranja↔verde) y el contraste mínimo; reemplazarla por una verificada en luminosidad, croma, separación CVD y contraste.
+- [x] **Límite de series con agrupación** — Como el metraje es texto libre y puede producir decenas de series ilegibles, graficar las 8 áreas con más ventas y agrupar el resto en "Otras áreas".
+- [x] **Tabla de detalle por hora** — Vista de datos con total y valor por franja, resaltando la hora pico.
+- [x] **Módulo en el PDF técnico** — Incluir hora pico, área líder y tabla por hora con barra proporcional en el informe.
+- [ ] **Comparar contra lanzamientos anteriores** — Contrastar la curva del día con eventos previos del mismo proyecto para anticipar los picos.
+
+### HU-908 · Navegación por pestañas en Reportes ✅
+**Como** administrador, **quiero** moverme entre las vistas de Reportes sin perder pestañas ni recargar de más, **para** navegar el módulo con coherencia.
+
+**Criterios de aceptación:** cada vista tiene URL propia y compartible; las tres pestañas (Dashboard, Horas pico y área, Cuadro de asistencia) se ven desde cualquiera de ellas; la pestaña activa se resalta.
+
+**Tasks:**
+- [x] **Extraer la barra de pestañas a un partial** — Centralizar `_Tabs.cshtml` y llevar sus estilos a `platform.css` para que las tres vistas compartan la misma barra y no se pierdan pestañas al navegar.
+- [x] **Página propia para Horas pico** — Crear la acción y la vista `/Reportes/HorasPico` con URL propia en lugar de una pestaña interna.
+- [x] **Corregir el espaciado del dashboard** — Retirar el contenedor que anulaba el `gap` del layout y dejaba banner, KPIs y tarjetas pegados entre sí.
 
 ---
 
@@ -462,16 +536,18 @@ Cada Feature tiene **descripción**; cada Historia de Usuario tiene **al menos u
 | 1. Autenticación y control de acceso | HU-101…HU-105 | ✅ |
 | 2. Gestión de usuarios | HU-201…HU-203 | ✅ |
 | 3. Carga de proyectos (Excel) | HU-301…HU-302 | ✅ (validación estricta pendiente) |
-| 4. Inventario y estados de inmuebles | HU-401…HU-404 | ✅ |
+| 4. Inventario y estados de inmuebles | HU-401…HU-405 | ✅ |
 | 5. Flujo de venta del vendedor | HU-501…HU-504 | ✅ |
 | 6. Registro de ventas y cumplimiento | HU-601…HU-602 | ✅ |
 | 7. Gestión de clientes | HU-701 | ✅ (privacidad pendiente) |
-| 8. Dashboard en tiempo real | HU-801 | ✅ |
-| 9. Reportes y exportaciones | HU-901…HU-906 | 🔨 (PDF técnico en ajuste) |
+| 8. Dashboard en tiempo real | HU-801…HU-802 | ✅ |
+| 9. Reportes y exportaciones | HU-901…HU-908 | ✅ |
 | 10. Cuadro de asistencia | HU-1001…HU-1002 | ✅ |
 | 11. Seguridad técnica | HU-1101…HU-1104 | 🔨 |
 | 12. Infraestructura y DevOps | HU-1201…HU-1203 | 🔨 |
 
-**Total: 12 Features (con descripción) · 37 Historias de Usuario (con ≥1 Task) · 100+ Tasks (cada una con título + descripción).**
+**Total: 12 Features (con descripción) · 41 Historias de Usuario (con ≥1 Task) · 125+ Tasks (cada una con título + descripción).**
 
 > **Carga sugerida:** Feature → pegar su *Descripción*; User Story → narrativa "Como… quiero… para…" en *Description* y los criterios en *Acceptance Criteria*; Task → el **título** como nombre del work item y la **descripción** (el texto después del guion) en su campo *Description*. Las tasks `[x]` se crean en *Done*; las `[ ]` en *To Do*.
+- [x] **Integrar la asistencia al informe principal** — Trasladar tarjetas resumen, tabla por día, línea de citas y observaciones al flujo del PDF técnico, eliminando la página apaisada anexa.
+- [x] **Módulo de preventas por torre** — Rescatar los datos de torres/etapas (preventas, ventas, opciones y sus valores) que solo existían en la página eliminada y publicarlos como módulo 05 del informe.
