@@ -11,38 +11,219 @@
     var pCorreo    = ViewBag.PerfilCorreo   as string ?? "";
     var pDoc       = ViewBag.PerfilDocumento as string ?? "—";
     var pCel       = ViewBag.PerfilCelular  as string ?? "—";
+    var reservas   = ViewBag.Reservas   as List<dynamic> ?? new List<dynamic>();
+    var listasArea = ViewBag.ListasArea as List<dynamic> ?? new List<dynamic>();
     var iniciales  = ((pNombre.Length>=1?pNombre.Substring(0,1):"") + (pApellido.Length>=1?pApellido.Substring(0,1):"")).ToUpper();
+
+    // Pestaña inicial: si vienen de liberar/continuar una reserva, abrir en reservas.
+    var tabInicial = Context.Request.Query["tab"].ToString();
+    if (tabInicial != "reservas" && tabInicial != "listas") tabInicial = "datos";
+    if (TempData["Exito"] != null || TempData["Error"] != null) tabInicial = "reservas";
 }
 @section Styles {
 <style>
     @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-    .perfil-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:24px;padding:32px;width:100%;max-width:500px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
-    .perfil-av{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:white;margin:0 auto 12px;box-shadow:0 6px 20px rgba(0,96,187,0.3);}
-    .perfil-nombre{font-size:20px;font-weight:700;color:var(--label);text-align:center;letter-spacing:-0.5px;}
-    .perfil-rol{font-size:12px;color:var(--label3);text-align:center;margin-top:3px;margin-bottom:24px;}
+    .perfil-wrap{width:100%;max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:14px;}
+    .perfil-head{display:flex;align-items:center;gap:16px;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:20px;padding:20px 24px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
+    .perfil-av{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:white;flex-shrink:0;box-shadow:0 6px 20px rgba(0,96,187,0.3);}
+    .perfil-nombre{font-size:19px;font-weight:700;color:var(--label);letter-spacing:-0.5px;}
+    .perfil-rol{font-size:12px;color:var(--label3);margin-top:2px;}
+    .perfil-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:20px;box-shadow:var(--sh);overflow:hidden;animation:fu 0.35s ease 0.1s both;}
+    .perfil-body{padding:20px;}
     .perfil-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
     .perfil-campo{background:var(--fill3);border-radius:14px;padding:14px;}
     .perfil-campo.full{grid-column:1/-1;}
     .pc-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--label3);font-weight:600;margin-bottom:4px;}
     .pc-val{font-size:14px;font-weight:500;color:var(--label);}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
+    .card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .cuenta{background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;min-width:640px;}
+    .tbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--sep2);white-space:nowrap;}
+    .tbl td{padding:11px 14px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .tbl .num{font-variant-numeric:tabular-nums;}
+    .tbl .de{color:var(--label3);}
+    .apto{font-weight:600;}
+    .precio{font-weight:600;color:var(--azul);}
+    .lista-bdg{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(0,118,227,0.1);color:var(--blue);}
+    .modo{font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;}
+    .modo-fijo{background:rgba(120,120,128,0.12);color:var(--label2);}
+    .modo-auto{background:rgba(52,199,89,0.12);color:#1EA851;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:6px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;transition:all 0.2s;}
+    .ios-btn:hover{background:var(--mid);}
+    .ios-btn.rojo{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .ios-btn.rojo:hover{background:rgba(230,57,70,0.18);}
+    .acciones{display:flex;gap:8px;flex-wrap:wrap;}
+    .vacio{padding:36px;text-align:center;color:var(--label3);font-size:13px;}
     .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:#1EA851;display:flex;align-items:center;gap:8px;}
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:var(--rojo);display:flex;align-items:center;gap:8px;}
-    .view-center{display:flex;align-items:center;justify-content:center;}
-    @@media(max-width:700px){.perfil-grid{grid-template-columns:1fr!important;}.perfil-card{max-width:100%!important;}}
+    .nota{font-size:11px;color:var(--label3);padding:0 18px 16px;}
+    @@media(max-width:700px){.perfil-grid{grid-template-columns:1fr!important;}.perfil-head{flex-direction:column;text-align:center;}}
 </style>
 }
 
-<div class="view-center">
-    <div class="perfil-card">
+<div class="perfil-wrap">
+
+    <div class="perfil-head">
         <div class="perfil-av">@iniciales</div>
-        <div class="perfil-nombre">@pNombre @pApellido</div>
-        <div class="perfil-rol">Vendedor · Londoño Gómez</div>
-        <div class="perfil-grid">
-            <div class="perfil-campo"><div class="pc-lbl">Usuario</div><div class="pc-val">@pUsuario</div></div>
-            <div class="perfil-campo"><div class="pc-lbl">Correo</div><div class="pc-val">@pCorreo</div></div>
-            <div class="perfil-campo"><div class="pc-lbl">Documento</div><div class="pc-val">@(string.IsNullOrEmpty(pDoc) ? "—" : pDoc)</div></div>
-            <div class="perfil-campo"><div class="pc-lbl">Celular</div><div class="pc-val">@(string.IsNullOrEmpty(pCel) ? "—" : pCel)</div></div>
-            <div class="perfil-campo full"><div class="pc-lbl">Proyecto activo</div><div class="pc-val">@proyActivo</div></div>
+        <div>
+            <div class="perfil-nombre">@pNombre @pApellido</div>
+            <div class="perfil-rol">Vendedor · @proyActivo</div>
         </div>
     </div>
+
+    <div class="tab-bar">
+        <button type="button" id="tabDatos"    class="tab-btn" onclick="verTab('datos')">Mis datos</button>
+        <button type="button" id="tabReservas" class="tab-btn" onclick="verTab('reservas')">Mis reservas @if (reservas.Count > 0) { <span class="cuenta" style="margin-left:5px">@reservas.Count</span> }</button>
+        <button type="button" id="tabListas"   class="tab-btn" onclick="verTab('listas')">Listas por área</button>
+    </div>
+
+    @if (TempData["Exito"] != null)
+    {
+        <div class="alerta-exito">@Iconos.Check("#1EA851", 16) @TempData["Exito"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alerta-error">@TempData["Error"]</div>
+    }
+
+    <!-- ── MIS DATOS ── -->
+    <div id="paneDatos" class="perfil-card">
+        <div class="card-head"><span class="card-title">Mis datos</span></div>
+        <div class="perfil-body">
+            <div class="perfil-grid">
+                <div class="perfil-campo"><div class="pc-lbl">Usuario</div><div class="pc-val">@pUsuario</div></div>
+                <div class="perfil-campo"><div class="pc-lbl">Correo</div><div class="pc-val">@pCorreo</div></div>
+                <div class="perfil-campo"><div class="pc-lbl">Documento</div><div class="pc-val">@(string.IsNullOrEmpty(pDoc) ? "—" : pDoc)</div></div>
+                <div class="perfil-campo"><div class="pc-lbl">Celular</div><div class="pc-val">@(string.IsNullOrEmpty(pCel) ? "—" : pCel)</div></div>
+                <div class="perfil-campo full"><div class="pc-lbl">Proyecto activo</div><div class="pc-val">@proyActivo</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MIS RESERVAS ── -->
+    <div id="paneReservas" class="perfil-card">
+        <div class="card-head">
+            <span class="card-title">Inmuebles reservados por mí</span>
+            <span class="cuenta">@reservas.Count @(reservas.Count == 1 ? "reserva" : "reservas")</span>
+        </div>
+        @if (reservas.Count > 0)
+        {
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Apto</th><th>Torre</th><th>Piso</th><th>Área</th><th>Tipo</th>
+                            <th>Precio reservado</th><th>Fecha de reserva</th><th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var r in reservas)
+                    {
+                        <tr>
+                            <td class="apto">@r.Apto</td>
+                            <td>@r.Torre</td>
+                            <td>@r.Piso</td>
+                            <td>@r.Metros m²</td>
+                            <td>@r.Tipo</td>
+                            <td class="precio num">$@string.Format("{0:N0}", r.PrecioReserva)</td>
+                            <td class="de">@r.FechaReserva</td>
+                            <td>
+                                <div class="acciones">
+                                    <a href="/Vendedor/ContinuarVenta?idInmueble=@r.Id" class="ios-btn">Continuar venta</a>
+                                    <form action="/Vendedor/LiberarReserva" method="post" style="margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="idInmueble" value="@r.Id"/>
+                                        <button type="submit" class="ios-btn rojo"
+                                                onclick="return confirm('¿Liberar la reserva del apartamento @r.Apto? Volverá a quedar disponible para todos.')">Liberar</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="vacio">No tienes inmuebles reservados en @proyActivo.</div>
+        }
+    </div>
+
+    <!-- ── LISTAS POR ÁREA ── -->
+    <div id="paneListas" class="perfil-card">
+        <div class="card-head">
+            <span class="card-title">Lista de precios vigente por área</span>
+            <span style="font-size:12px;color:var(--label3)">@proyActivo</span>
+        </div>
+        @if (listasArea.Count > 0)
+        {
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Área</th><th>Lista vigente</th><th>Precio</th>
+                            <th>Modo</th><th>Próximo cambio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var l in listasArea)
+                    {
+                        bool auto = l.Apts > 0;
+                        <tr>
+                            <td class="apto">@l.Metros m²</td>
+                            <td><span class="lista-bdg">Lista @l.Lista</span></td>
+                            <td class="precio num">@(l.Precio > 0 ? "$" + string.Format("{0:N0}", l.Precio) : "—")</td>
+                            <td>
+                                @if (auto)
+                                {
+                                    <span class="modo modo-auto">Automático · cada @l.Apts</span>
+                                }
+                                else
+                                {
+                                    <span class="modo modo-fijo">Fijo</span>
+                                }
+                            </td>
+                            <td class="num">
+                                @if (auto)
+                                {
+                                    <text>Sube a Lista @(l.Lista + 1) en <strong>@l.Faltan</strong> venta@(l.Faltan != 1 ? "s" : "")</text>
+                                }
+                                else
+                                {
+                                    <span class="de">No cambia con las ventas</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            <p class="nota">Este es el precio con el que estás vendiendo en cada área. Las áreas en modo <strong>Fijo</strong> mantienen su lista sin importar cuántas unidades se vendan.</p>
+        }
+        else
+        {
+            <div class="vacio">Este proyecto aún no tiene áreas configuradas.</div>
+        }
+    </div>
+
 </div>
+
+@section Scripts {
+<script>
+    function verTab(cual) {
+        ['datos', 'reservas', 'listas'].forEach(function (t) {
+            var pane = document.getElementById('pane' + t.charAt(0).toUpperCase() + t.slice(1));
+            var btn  = document.getElementById('tab'  + t.charAt(0).toUpperCase() + t.slice(1));
+            if (pane) pane.style.display = (t === cual) ? '' : 'none';
+            if (btn)  btn.classList.toggle('active', t === cual);
+        });
+        try { history.replaceState(null, '', '/Vendedor/Perfil?tab=' + cual); } catch (e) { }
+    }
+    verTab('@tabInicial');
+</script>
+}

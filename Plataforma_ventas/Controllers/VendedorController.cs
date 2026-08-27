@@ -407,50 +407,14 @@ namespace Plataforma_ventas.Controllers
             await cmd.ExecuteNonQueryAsync();
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
             TempData["Exito"] = "Reserva liberada correctamente.";
-            return RedirectToAction("MisReservas");
+            return RedirectToAction("Perfil");
         }
 
         /// <summary>
-        /// Lists all active reservations held by this vendor for the active project.
-        /// Performs a SELECT query filtered by IdVendedorReserva.
+        /// Las reservas pasaron a ser una pestaña interna de <see cref="Perfil"/>.
+        /// Esta ruta se conserva redirigiendo, para no romper enlaces guardados.
         /// </summary>
-        public async Task<IActionResult> MisReservas()
-        {
-            CargarSesion();
-            int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
-            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
-
-            using var con = new SqlConnection(_conn);
-            await con.OpenAsync();
-
-            var reservas = new List<dynamic>();
-            var cmd = new SqlCommand(@"
-                SELECT IdInmuebles, Apto, Torre, Piso, Metros, Tipo,
-                       PrecioReserva, FechaReserva
-                FROM Inmuebles
-                WHERE IdProyecto=@proy AND Estado='RESERVADO' AND IdVendedorReserva=@uid
-                ORDER BY Apto", con);
-            cmd.Parameters.AddWithValue("@proy", idProy);
-            cmd.Parameters.AddWithValue("@uid", idUsuario);
-            using var reader = (SqlDataReader)await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-                reservas.Add(new
-                {
-                    Id = (int)reader["IdInmuebles"],
-                    Apto = reader["Apto"]?.ToString() ?? "",
-                    Torre = reader["Torre"]?.ToString() ?? "",
-                    Piso = reader["Piso"]?.ToString() ?? "",
-                    Metros = reader["Metros"]?.ToString() ?? "",
-                    Tipo = reader["Tipo"]?.ToString() ?? "",
-                    PrecioReserva = reader["PrecioReserva"] == DBNull.Value ? 0L : (long)reader["PrecioReserva"],
-                    FechaReserva = reader["FechaReserva"] == DBNull.Value ? "" :
-                                    ((DateTime)reader["FechaReserva"]).ToString("dd/MM/yyyy HH:mm"),
-                });
-
-            ViewBag.Reservas = reservas;
-            ViewBag.TotalReservas = reservas.Count;
-            return View();
-        }
+        public IActionResult MisReservas() => RedirectToAction("Perfil");
 
         /// <summary>
         /// Displays the form to continue a sale from an existing reservation.
@@ -477,7 +441,7 @@ namespace Plataforma_ventas.Controllers
             if (!await r.ReadAsync())
             {
                 TempData["Error"] = "No tienes acceso a esta reserva.";
-                return RedirectToAction("MisReservas");
+                return RedirectToAction("Perfil");
             }
             ViewBag.IdInmueble = (int)r["IdInmuebles"];
             ViewBag.Apto = r["Apto"]?.ToString() ?? "";
@@ -554,7 +518,7 @@ namespace Plataforma_ventas.Controllers
                 if (!await rCheck.ReadAsync())
                 {
                     TempData["Error"] = "No tienes acceso a esta reserva.";
-                    return RedirectToAction("MisReservas");
+                    return RedirectToAction("Perfil");
                 }
                 metros = rCheck["Metros"]?.ToString() ?? "";
                 precioFijo = rCheck["PrecioReserva"] == DBNull.Value ? 0 : (long)rCheck["PrecioReserva"];
@@ -562,7 +526,7 @@ namespace Plataforma_ventas.Controllers
             if (precioFijo <= 0)
             {
                 TempData["Error"] = "La reserva no tiene un precio bloqueado válido.";
-                return RedirectToAction("MisReservas");
+                return RedirectToAction("Perfil");
             }
 
             var cmdListaApl = new SqlCommand(@"
@@ -604,7 +568,7 @@ namespace Plataforma_ventas.Controllers
             if (await cmdInm.ExecuteNonQueryAsync() == 0)
             {
                 TempData["Error"] = "Esta reserva ya no está disponible.";
-                return RedirectToAction("MisReservas");
+                return RedirectToAction("Perfil");
             }
 
             // Registrar venta con el precio bloqueado al reservar y destino validado.
@@ -950,6 +914,96 @@ namespace Plataforma_ventas.Controllers
                 ViewBag.PerfilDocumento = reader["Documento"]?.ToString() ?? "";
                 ViewBag.PerfilCelular = reader["Celular"]?.ToString() ?? "";
             }
+            reader.Close();
+
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            // ── Pestaña "Mis reservas" ──
+            var reservas = new List<dynamic>();
+            var cmdRes = new SqlCommand(@"
+                SELECT IdInmuebles, Apto, Torre, Piso, Metros, Tipo,
+                       PrecioReserva, FechaReserva
+                FROM Inmuebles
+                WHERE IdProyecto=@proy AND Estado='RESERVADO' AND IdVendedorReserva=@uid
+                ORDER BY Apto", con);
+            cmdRes.Parameters.AddWithValue("@proy", idProy);
+            cmdRes.Parameters.AddWithValue("@uid", idUsuario);
+            using (var rr = (SqlDataReader)await cmdRes.ExecuteReaderAsync())
+                while (await rr.ReadAsync())
+                    reservas.Add(new
+                    {
+                        Id = (int)rr["IdInmuebles"],
+                        Apto = rr["Apto"]?.ToString() ?? "",
+                        Torre = rr["Torre"]?.ToString() ?? "",
+                        Piso = rr["Piso"]?.ToString() ?? "",
+                        Metros = rr["Metros"]?.ToString() ?? "",
+                        Tipo = rr["Tipo"]?.ToString() ?? "",
+                        PrecioReserva = rr["PrecioReserva"] == DBNull.Value ? 0L : (long)rr["PrecioReserva"],
+                        FechaReserva = rr["FechaReserva"] == DBNull.Value ? "" :
+                                        ((DateTime)rr["FechaReserva"]).ToString("dd/MM/yyyy HH:mm"),
+                    });
+            ViewBag.Reservas = reservas;
+
+            // ── Pestaña "Listas por área": con qué lista y precio se está trabajando ──
+            var cmdLA = new SqlCommand(@"
+                SELECT pal.Metros,
+                       ISNULL(pal.ListaActual,1)  AS ListaActual,
+                       ISNULL(pal.AptsPorLista,0) AS AptsPorLista,
+                       (SELECT COUNT(*) FROM Ventas v
+                          JOIN Inmuebles i2 ON v.IdInmueble=i2.IdInmuebles
+                         WHERE v.IdProyecto=pal.IdProyecto AND i2.Metros=pal.Metros
+                           AND v.Estado='ACTIVA') AS Vendidos
+                FROM ProyectoAreaListas pal
+                WHERE pal.IdProyecto=@id
+                ORDER BY TRY_CONVERT(decimal(10,2), REPLACE(pal.Metros,',','.')), pal.Metros", con);
+            cmdLA.Parameters.AddWithValue("@id", idProy);
+            var areasCfg = new List<(string Metros, int Lista, int Apts, int Vendidos)>();
+            using (var rLA = (SqlDataReader)await cmdLA.ExecuteReaderAsync())
+                while (await rLA.ReadAsync())
+                    areasCfg.Add((rLA["Metros"]?.ToString() ?? "",
+                                  Convert.ToInt32(rLA["ListaActual"]),
+                                  Convert.ToInt32(rLA["AptsPorLista"]),
+                                  Convert.ToInt32(rLA["Vendidos"])));
+
+            // Precio vigente de cada área = menor precio > 0 de su lista activa
+            var cmdPrecios = new SqlCommand(
+                "SELECT Metros, Lista1, Lista2, Lista3, Lista4, Lista5 FROM Inmuebles WHERE IdProyecto=@id", con);
+            cmdPrecios.Parameters.AddWithValue("@id", idProy);
+            var crudos = new List<(string Metros, string[] Listas)>();
+            using (var rp = (SqlDataReader)await cmdPrecios.ExecuteReaderAsync())
+                while (await rp.ReadAsync())
+                    crudos.Add((rp["Metros"]?.ToString() ?? "", new[]
+                    {
+                        rp["Lista1"]?.ToString() ?? "", rp["Lista2"]?.ToString() ?? "",
+                        rp["Lista3"]?.ToString() ?? "", rp["Lista4"]?.ToString() ?? "",
+                        rp["Lista5"]?.ToString() ?? "",
+                    }));
+
+            static long ALong(string raw)
+            {
+                var limpio = (raw ?? "0").Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
+                return long.TryParse(limpio, out long v) ? v : 0;
+            }
+
+            var listasArea = new List<dynamic>();
+            foreach (var (metros, lista, apts, vendidos) in areasCfg)
+            {
+                var precios = crudos.Where(c => c.Metros == metros)
+                                    .Select(c => ALong(c.Listas[Math.Clamp(lista, 1, 5) - 1]))
+                                    .Where(v => v > 0).ToList();
+                listasArea.Add(new
+                {
+                    Metros = metros,
+                    Lista = lista,
+                    Apts = apts,
+                    Vendidos = vendidos,
+                    Precio = precios.Count > 0 ? precios.Min() : 0L,
+                    // Ventas que faltan para que el área suba de lista (0 = área fija)
+                    Faltan = apts > 0 ? apts - (vendidos % apts) : 0,
+                });
+            }
+            ViewBag.ListasArea = listasArea;
+
             return View();
         }
 
