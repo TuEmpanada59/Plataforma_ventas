@@ -18,18 +18,21 @@ namespace Plataforma_ventas.Controllers
         private readonly IMemoryCache _cache;
         private readonly ILogger<AccountController> _logger;
         private readonly IEmailService _email;
+        private readonly Plataforma_ventas.Services.IAuditoriaService _audit;
 
         private const int MaxIntentos = 5;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
         private static readonly TimeSpan ResetTokenDuration = TimeSpan.FromMinutes(15);
 
         public AccountController(IConfiguration config, IMemoryCache cache,
-            ILogger<AccountController> logger, IEmailService email)
+            ILogger<AccountController> logger, IEmailService email,
+            Plataforma_ventas.Services.IAuditoriaService audit)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
             _cache = cache;
             _logger = logger;
             _email = email;
+            _audit = audit;
         }
 
         /// <summary>Renders the login page. Redirects already-authenticated users to their dashboard.</summary>
@@ -121,6 +124,7 @@ namespace Plataforma_ventas.Controllers
                 }
 
                 _logger.LogInformation("Login exitoso: usuario '{Usuario}' rol '{Rol}'. IP: {Ip}", model.Usuario, rol, ip);
+                await _audit.RegistrarAsync(Services.AccionAudit.Login, "Usuario", null, null, $"Usuario '{model.Usuario}' · rol {rol}");
                 return RedirectSegunRol();
             }
 
@@ -128,6 +132,7 @@ namespace Plataforma_ventas.Controllers
             intentos++;
             _cache.Set(attemptKey, intentos, new MemoryCacheEntryOptions { SlidingExpiration = LockoutDuration });
             _logger.LogWarning("Login fallido #{Intento} para '{Usuario}'. IP: {Ip}", intentos, model.Usuario, ip);
+            await _audit.RegistrarAsync(Services.AccionAudit.LoginFallido, "Usuario", null, null, $"Usuario '{model.Usuario}' · intento {intentos} de {MaxIntentos}");
 
             if (intentos >= MaxIntentos)
             {
@@ -135,6 +140,7 @@ namespace Plataforma_ventas.Controllers
                 _cache.Remove(attemptKey);
                 _logger.LogWarning("Cuenta '{Usuario}' bloqueada por {Min} minutos tras {Max} intentos. IP: {Ip}",
                     model.Usuario, LockoutDuration.TotalMinutes, MaxIntentos, ip);
+                await _audit.RegistrarAsync(Services.AccionAudit.Bloqueo, "Usuario", null, null, $"Usuario '{model.Usuario}' bloqueado {LockoutDuration.TotalMinutes:0} minutos tras {MaxIntentos} intentos");
                 ModelState.AddModelError("", "Demasiados intentos fallidos. Cuenta bloqueada por 15 minutos.");
             }
             else

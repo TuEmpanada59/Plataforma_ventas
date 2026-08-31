@@ -1,0 +1,178 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Auditoría";
+    ViewBag.ActiveNav = "auditoria";
+    ViewBag.TbBread   = "Auditoría";
+
+    var eventos  = ViewBag.Eventos  as List<dynamic> ?? new List<dynamic>();
+    var acciones = ViewBag.Acciones as List<string>  ?? new List<string>();
+    bool tablaOk = ViewBag.TablaOk != null && (bool)ViewBag.TablaOk;
+    int total    = ViewBag.Total      != null ? (int)ViewBag.Total      : 0;
+    int page     = ViewBag.Page       != null ? (int)ViewBag.Page       : 1;
+    int totalPag = ViewBag.TotalPages != null ? (int)ViewBag.TotalPages : 0;
+    string fAccion = ViewBag.Accion as string ?? "";
+    string fQ      = ViewBag.Q      as string ?? "";
+    string fDesde  = ViewBag.Desde  as string ?? "";
+    string fHasta  = ViewBag.Hasta  as string ?? "";
+
+    // Color por familia de acción, para que la lista se lea de un vistazo.
+    string ColorAccion(string a) =>
+        a.StartsWith("LOGIN_FALLIDO") || a.StartsWith("CUENTA_BLOQ") ? "rojo" :
+        a.StartsWith("VENTA_ANULADA") || a.StartsWith("USUARIO_ELIM") || a.StartsWith("PROYECTO_ELIM") ? "rojo" :
+        a.StartsWith("VENTA_") || a.StartsWith("RESERVA_CREADA") ? "verde" :
+        a.StartsWith("LISTA_") ? "naranja" : "azul";
+}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease both;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:10px;}
+    .card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .cuenta{background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;}
+    .filtros{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--sep2);}
+    .fg{display:flex;flex-direction:column;gap:4px;}
+    .fg label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--label3);}
+    .fg input,.fg select{padding:7px 11px;border:1px solid var(--sep);border-radius:9px;font-size:13px;color:var(--label);background:var(--fill3);outline:none;font-family:inherit;}
+    .fg input:focus,.fg select:focus{border-color:var(--blue);background:white;}
+    .btn{display:inline-flex;align-items:center;gap:6px;border:none;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;}
+    .btn-azul{background:var(--blue);color:white;}.btn-azul:hover{background:var(--mid);}
+    .btn-soft{background:var(--fill3);color:var(--label);border:1px solid var(--sep);}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;min-width:900px;}
+    .tbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--sep2);white-space:nowrap;}
+    .tbl td{padding:10px 14px;font-size:12.5px;color:var(--label);border-bottom:1px solid var(--sep2);vertical-align:top;}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .cuando{white-space:nowrap;color:var(--label2);font-variant-numeric:tabular-nums;}
+    .usuario{font-weight:600;white-space:nowrap;}
+    .rol{font-size:10.5px;color:var(--label3);}
+    .acc{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;letter-spacing:0.02em;}
+    .acc.azul{background:rgba(0,118,227,0.1);color:var(--blue);}
+    .acc.verde{background:rgba(52,199,89,0.12);color:#1EA851;}
+    .acc.naranja{background:rgba(255,149,0,0.12);color:#CC7700;}
+    .acc.rojo{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .detalle{color:var(--label2);}
+    .ip{font-size:11px;color:var(--label3);font-family:monospace;white-space:nowrap;}
+    .paginator{display:flex;gap:6px;flex-wrap:wrap;padding:12px 18px;align-items:center;}
+    .page-btn{padding:5px 11px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:var(--label2);background:var(--fill3);}
+    .page-btn.active{background:var(--blue);color:white;}
+    .vacio{padding:44px;text-align:center;color:var(--label3);font-size:13px;}
+    .setup-card{background:rgba(255,149,0,0.07);border:1px solid rgba(255,149,0,0.3);border-radius:18px;padding:24px;}
+    .setup-t{font-size:17px;font-weight:700;color:#CC7700;margin-bottom:8px;}
+    code{background:var(--fill2);padding:2px 6px;border-radius:6px;font-size:12px;}
+</style>
+}
+
+@if (!tablaOk)
+{
+    <div class="setup-card">
+        <div class="setup-t">La auditoría todavía no está habilitada</div>
+        <p style="font-size:13px;color:var(--label2);line-height:1.6;">
+            Falta crear la tabla <code>Auditoria</code> en la base de datos.
+            Ejecuta el script <strong>Scripts/PanelAdmin.sql</strong> sobre la base
+            <strong>Lanzamientos</strong> y recarga esta página.
+        </p>
+        <p style="font-size:12px;color:var(--label3);margin-top:10px;">
+            Mientras tanto la plataforma sigue funcionando con normalidad: los eventos
+            se registran en el log del servidor, pero no se pueden consultar desde aquí.
+        </p>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">Registro de auditoría</span>
+            <span class="cuenta">@total @(total == 1 ? "evento" : "eventos")</span>
+        </div>
+
+        <form method="get" action="/Auditoria" class="filtros">
+            <div class="fg">
+                <label for="q">Buscar</label>
+                <input type="text" id="q" name="q" value="@fQ" placeholder="Usuario o detalle..." style="min-width:200px"/>
+            </div>
+            <div class="fg">
+                <label for="accion">Acción</label>
+                <select id="accion" name="accion">
+                    <option value="">Todas</option>
+                    @foreach (var a in acciones)
+                    {
+                        <option value="@a" selected="@(a == fAccion)">@a.Replace("_", " ")</option>
+                    }
+                </select>
+            </div>
+            <div class="fg">
+                <label for="desde">Desde</label>
+                <input type="date" id="desde" name="desde" value="@fDesde"/>
+            </div>
+            <div class="fg">
+                <label for="hasta">Hasta</label>
+                <input type="date" id="hasta" name="hasta" value="@fHasta"/>
+            </div>
+            <button type="submit" class="btn btn-azul">Filtrar</button>
+            <a href="/Auditoria" class="btn btn-soft">Limpiar</a>
+        </form>
+
+        @if (eventos.Count > 0)
+        {
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Cuándo</th><th>Usuario</th><th>Acción</th>
+                            <th>Detalle</th><th>Origen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var e in eventos)
+                    {
+                        string acc = e.Accion as string ?? "";
+                        <tr>
+                            <td class="cuando">@e.Cuando</td>
+                            <td>
+                                <div class="usuario">@(string.IsNullOrWhiteSpace(e.Usuario as string) ? "(anónimo)" : e.Usuario)</div>
+                                @if (!string.IsNullOrWhiteSpace(e.Rol as string))
+                                {
+                                    <div class="rol">@e.Rol</div>
+                                }
+                            </td>
+                            <td><span class="acc @ColorAccion(acc)">@acc.Replace("_", " ")</span></td>
+                            <td class="detalle">@e.Detalle</td>
+                            <td class="ip">@e.Ip</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (totalPag > 1)
+            {
+                <div class="paginator">
+                    @{
+                        int ini = Math.Max(1, page - 4);
+                        int fin = Math.Min(totalPag, ini + 9);
+                        string Qs(int p) => $"?page={p}&accion={Uri.EscapeDataString(fAccion)}&q={Uri.EscapeDataString(fQ)}&desde={fDesde}&hasta={fHasta}";
+                    }
+                    @if (ini > 1)
+                    {
+                        <a href="@Qs(1)" class="page-btn">1</a>
+                        <span style="color:var(--label3)">…</span>
+                    }
+                    @for (int i = ini; i <= fin; i++)
+                    {
+                        <a href="@Qs(i)" class="page-btn @(i == page ? "active" : "")">@i</a>
+                    }
+                    @if (fin < totalPag)
+                    {
+                        <span style="color:var(--label3)">…</span>
+                        <a href="@Qs(totalPag)" class="page-btn">@totalPag</a>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div class="vacio">No hay eventos que coincidan con el filtro.</div>
+        }
+    </div>
+}
