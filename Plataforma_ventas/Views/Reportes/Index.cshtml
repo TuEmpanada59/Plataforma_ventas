@@ -26,6 +26,10 @@
         catch { ahoraCol = DateTime.UtcNow.AddHours(-5); }
     }
     var esCO       = new System.Globalization.CultureInfo("es-CO");
+    bool esHoy     = ViewBag.EsHoy != null && (bool)ViewBag.EsHoy;
+    string fDesde  = ViewBag.Desde as string ?? "";
+    string fHasta  = ViewBag.Hasta as string ?? "";
+    string rotulo  = esHoy ? "hoy" : "en el periodo";
     double pctV    = total > 0 ? Math.Round((double)vendidos    / total * 100, 1) : 0;
     double pctD    = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
     double pctR    = total > 0 ? Math.Round((double)reservados  / total * 100, 1) : 0;
@@ -34,6 +38,14 @@
 @section Styles {
 <style>
     @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .rango-bar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;background:var(--glass);border:1px solid var(--gb);border-radius:14px;padding:12px 16px;box-shadow:var(--sh);}
+    .rg{display:flex;flex-direction:column;gap:4px;}
+    .rg label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--label3);}
+    .rg input{padding:7px 11px;border:1px solid var(--sep);border-radius:9px;font-size:13px;color:var(--label);background:var(--fill3);outline:none;font-family:inherit;}
+    .rg input:focus{border-color:var(--blue);background:white;}
+    .rango-btn{background:var(--blue);color:white;border:none;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;}
+    .rango-btn:hover{background:var(--mid);}
+    .rango-btn.ghost{background:var(--fill3);color:var(--label);border:1px solid var(--sep);}
     .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
     .kpi{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;padding:14px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
     .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
@@ -123,15 +135,32 @@
 <!-- TABS DE REPORTES -->
 @await Html.PartialAsync("_Tabs", "dashboard")
 
+<form method="get" action="/Reportes" class="rango-bar">
+    <div class="rg"><label for="desde">Desde</label><input type="date" id="desde" name="desde" value="@fDesde"/></div>
+    <div class="rg"><label for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="@fHasta"/></div>
+    <button type="submit" class="rango-btn">Consultar</button>
+    @if (!esHoy)
+    {
+        <a href="/Reportes" class="rango-btn ghost">Volver a hoy</a>
+    }
+</form>
+
 <!-- INFORME DEL DÍA -->
 <div class="hoy-banner">
     <div class="hoy-left">
-        <h2>Informe del día</h2>
-        <p>@System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(ahoraCol.ToString("dddd, dd 'de' MMMM 'de' yyyy", esCO)) · @proyActivo</p>
+        <h2>@(esHoy ? "Informe del día" : "Informe del periodo")</h2>
+        @if (esHoy)
+        {
+            <p>@System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(ahoraCol.ToString("dddd, dd 'de' MMMM 'de' yyyy", esCO)) · @proyActivo</p>
+        }
+        else
+        {
+            <p>@DateTime.Parse(fDesde).ToString("dd 'de' MMMM", esCO) — @DateTime.Parse(fHasta).ToString("dd 'de' MMMM 'de' yyyy", esCO) · @proyActivo</p>
+        }
     </div>
     <div class="hoy-stats">
-        <div class="hoy-stat"><div class="hoy-stat-num">@ventasHoy</div><div class="hoy-stat-lbl">Ventas hoy</div></div>
-        <div class="hoy-stat"><div class="hoy-stat-num">$@string.Format("{0:N0}", valorHoy)</div><div class="hoy-stat-lbl">Valor vendido hoy</div></div>
+        <div class="hoy-stat"><div class="hoy-stat-num">@ventasHoy</div><div class="hoy-stat-lbl">Ventas @rotulo</div></div>
+        <div class="hoy-stat"><div class="hoy-stat-num">$@string.Format("{0:N0}", valorHoy)</div><div class="hoy-stat-lbl">Valor vendido @rotulo</div></div>
         <div class="hoy-stat"><div class="hoy-stat-num">@vendidos</div><div class="hoy-stat-lbl">Total vendidos</div></div>
         <div class="hoy-stat"><div class="hoy-stat-num">@disponibles</div><div class="hoy-stat-lbl">Disponibles</div></div>
         <div class="hoy-stat"><div class="hoy-stat-num">@string.Format("{0:P0}", total > 0 ? (double)vendidos/total : 0)</div><div class="hoy-stat-lbl">% Avance</div></div>

@@ -12,11 +12,17 @@ namespace Plataforma_ventas.Controllers
     public class UsuariosController : Controller
     {
         private readonly string _conn;
+        private readonly Plataforma_ventas.Services.IBloqueoService _bloqueo;
+        private readonly Plataforma_ventas.Services.IAuditoriaService _audit;
 
         /// <summary>Initializes the controller with DB connection string from configuration.</summary>
-        public UsuariosController(IConfiguration config)
+        public UsuariosController(IConfiguration config,
+                                  Plataforma_ventas.Services.IBloqueoService bloqueo,
+                                  Plataforma_ventas.Services.IAuditoriaService audit)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
+            _bloqueo = bloqueo;
+            _audit = audit;
         }
 
         /// <summary>
@@ -83,6 +89,9 @@ namespace Plataforma_ventas.Controllers
             ViewBag.TotalVendedores = usuarios.Count(u => u.Rol == "Vendedor");
             ViewBag.TotalProyectos  = proyectos.Count;
             ViewBag.RolActual       = HttpContext.Session.GetString("Rol") ?? "";
+            // Cuentas bloqueadas por intentos fallidos, para poder liberarlas sin
+            // esperar los 15 minutos.
+            ViewBag.Bloqueadas      = _bloqueo.Listar();
             return View();
         }
 
@@ -256,5 +265,28 @@ namespace Plataforma_ventas.Controllers
             TempData["Exito"] = "Usuario eliminado correctamente.";
             return RedirectToAction("Index");
         }
+
+        /// <summary>
+        /// Libera manualmente una cuenta bloqueada por intentos fallidos, sin esperar
+        /// a que expire el bloqueo. Útil si un asesor se bloquea en pleno lanzamiento.
+        /// </summary>
+        /// <param name="usuario">Nombre de usuario bloqueado.</param>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> LiberarBloqueo(string usuario)
+        {
+            if (_bloqueo.Liberar(usuario ?? ""))
+            {
+                await _audit.RegistrarAsync(Plataforma_ventas.Services.AccionAudit.Desbloqueo,
+                    "Usuario", null, null, $"Cuenta '{usuario}' liberada manualmente");
+                TempData["Exito"] = $"La cuenta '{usuario}' fue liberada y ya puede iniciar sesión.";
+            }
+            else
+            {
+                TempData["Error"] = $"La cuenta '{usuario}' ya no estaba bloqueada.";
+            }
+            return RedirectToAction("Index");
+        }
+
     }
 }

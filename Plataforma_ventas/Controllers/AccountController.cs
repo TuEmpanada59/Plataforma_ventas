@@ -19,6 +19,7 @@ namespace Plataforma_ventas.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly IEmailService _email;
         private readonly Plataforma_ventas.Services.IAuditoriaService _audit;
+        private readonly Plataforma_ventas.Services.IBloqueoService _bloqueo;
 
         private const int MaxIntentos = 5;
         private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
@@ -26,13 +27,15 @@ namespace Plataforma_ventas.Controllers
 
         public AccountController(IConfiguration config, IMemoryCache cache,
             ILogger<AccountController> logger, IEmailService email,
-            Plataforma_ventas.Services.IAuditoriaService audit)
+            Plataforma_ventas.Services.IAuditoriaService audit,
+            Plataforma_ventas.Services.IBloqueoService bloqueo)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
             _cache = cache;
             _logger = logger;
             _email = email;
             _audit = audit;
+            _bloqueo = bloqueo;
         }
 
         /// <summary>Renders the login page. Redirects already-authenticated users to their dashboard.</summary>
@@ -58,10 +61,7 @@ namespace Plataforma_ventas.Controllers
             if (!ModelState.IsValid) return View(model);
 
             string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocida";
-            string lockKey = $"lockout:{model.Usuario?.ToLower()}";
-            string attemptKey = $"attempts:{model.Usuario?.ToLower()}";
-
-            if (_cache.TryGetValue(lockKey, out _))
+            if (_bloqueo.EstaBloqueado(model.Usuario ?? ""))
             {
                 _logger.LogWarning("Login rechazado: cuenta '{Usuario}' bloqueada. IP: {Ip}", model.Usuario, ip);
                 ModelState.AddModelError("", "Cuenta bloqueada temporalmente. Intenta de nuevo en 15 minutos.");
@@ -83,7 +83,7 @@ namespace Plataforma_ventas.Controllers
             using var reader = await cmd.ExecuteReaderAsync();
             if (await reader.ReadAsync() && BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""))
             {
-                _cache.Remove(attemptKey);
+                _bloqueo.Limpiar(model.Usuario ?? "");
 
                 // Anti session-fixation: descartar cualquier sesión previa antes de
                 // establecer la identidad autenticada
@@ -128,16 +128,13 @@ namespace Plataforma_ventas.Controllers
                 return RedirectSegunRol();
             }
 
-            _cache.TryGetValue<int>(attemptKey, out int intentos);
-            intentos++;
-            _cache.Set(attemptKey, intentos, new MemoryCacheEntryOptions { SlidingExpiration = LockoutDuration });
+            int intentos = _bloqueo.RegistrarFallo(model.Usuario ?? "");
             _logger.LogWarning("Login fallido #{Intento} para '{Usuario}'. IP: {Ip}", intentos, model.Usuario, ip);
             await _audit.RegistrarAsync(Services.AccionAudit.LoginFallido, "Usuario", null, null, $"Usuario '{model.Usuario}' · intento {intentos} de {MaxIntentos}");
 
             if (intentos >= MaxIntentos)
             {
-                _cache.Set(lockKey, true, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = LockoutDuration });
-                _cache.Remove(attemptKey);
+                _bloqueo.Bloquear(model.Usuario ?? "");
                 _logger.LogWarning("Cuenta '{Usuario}' bloqueada por {Min} minutos tras {Max} intentos. IP: {Ip}",
                     model.Usuario, LockoutDuration.TotalMinutes, MaxIntentos, ip);
                 await _audit.RegistrarAsync(Services.AccionAudit.Bloqueo, "Usuario", null, null, $"Usuario '{model.Usuario}' bloqueado {LockoutDuration.TotalMinutes:0} minutos tras {MaxIntentos} intentos");
@@ -294,8 +291,7 @@ namespace Plataforma_ventas.Controllers
             string? usuario = (await cmdUser.ExecuteScalarAsync())?.ToString();
             if (!string.IsNullOrEmpty(usuario))
             {
-                _cache.Remove($"lockout:{usuario.ToLower()}");
-                _cache.Remove($"attempts:{usuario.ToLower()}");
+                _bloqueo.Limpiar(usuario);
             }
 
             string ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "desconocida";

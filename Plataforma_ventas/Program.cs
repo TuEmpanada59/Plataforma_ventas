@@ -8,6 +8,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<Plataforma_ventas.Services.IEmailService, Plataforma_ventas.Services.SmtpEmailService>();
 builder.Services.AddScoped<Plataforma_ventas.Services.IAuditoriaService, Plataforma_ventas.Services.AuditoriaService>();
+// Singleton: el estado de bloqueos debe sobrevivir entre peticiones.
+builder.Services.AddSingleton<Plataforma_ventas.Services.IBloqueoService, Plataforma_ventas.Services.BloqueoService>();
 
 builder.Services.AddSession(options =>
 {

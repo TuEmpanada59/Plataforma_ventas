@@ -30,8 +30,20 @@ namespace Plataforma_ventas.Controllers
         /// destination analysis, property map, and full sale list for the active project.
         /// Performs multiple SELECT queries against Inmuebles, Ventas, Usuarios, and Clientes.
         /// </summary>
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string desde = "", string hasta = "")
         {
+            // Rango consultado. Vacío = el día de hoy, que es el comportamiento
+            // histórico del "Informe del día".
+            var hoyCol = AhoraColombia().Date;
+            bool hayRango = !string.IsNullOrWhiteSpace(desde) || !string.IsNullOrWhiteSpace(hasta);
+            if (!DateTime.TryParse(desde, out var dDesde)) dDesde = hoyCol;
+            if (!DateTime.TryParse(hasta, out var dHasta)) dHasta = hayRango ? dDesde : hoyCol;
+            if (dHasta < dDesde) (dDesde, dHasta) = (dHasta, dDesde);
+            ViewBag.Desde = dDesde.ToString("yyyy-MM-dd");
+            ViewBag.Hasta = dHasta.ToString("yyyy-MM-dd");
+            ViewBag.HayRango = hayRango;
+            ViewBag.EsHoy = !hayRango;
+
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
             ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
@@ -71,11 +83,14 @@ namespace Plataforma_ventas.Controllers
             cmdValor.Parameters.AddWithValue("@id", idProy);
             ViewBag.ValorTotal = (long)(await cmdValor.ExecuteScalarAsync())!;
 
+            // FechaVenta está en UTC; se compara en hora de Colombia (UTC-5).
             var cmdHoy = new SqlCommand(@"
                 SELECT COUNT(*) AS VentasHoy, ISNULL(SUM(PrecioVenta),0) AS ValorHoy
                 FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'
-                  AND CAST(FechaVenta AS DATE) = CAST(GETDATE() AS DATE)", con);
+                  AND CAST(DATEADD(HOUR,-5,FechaVenta) AS DATE) BETWEEN @desde AND @hasta", con);
             cmdHoy.Parameters.AddWithValue("@id", idProy);
+            cmdHoy.Parameters.AddWithValue("@desde", dDesde);
+            cmdHoy.Parameters.AddWithValue("@hasta", dHasta);
             using (var rh = (SqlDataReader)await cmdHoy.ExecuteReaderAsync())
                 if (await rh.ReadAsync())
                 {
@@ -164,8 +179,11 @@ namespace Plataforma_ventas.Controllers
                 JOIN Clientes  c ON v.IdCliente=c.IdCliente
                 JOIN Usuarios  u ON v.IdUsuario=u.IdUsuario
                 WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
+                  AND CAST(DATEADD(HOUR,-5,v.FechaVenta) AS DATE) BETWEEN @desde AND @hasta
                 ORDER BY u.Nombre, v.FechaVenta DESC", con);
             cmdVentas.Parameters.AddWithValue("@id", idProy);
+            cmdVentas.Parameters.AddWithValue("@desde", dDesde);
+            cmdVentas.Parameters.AddWithValue("@hasta", dHasta);
             using (var rvd = (SqlDataReader)await cmdVentas.ExecuteReaderAsync())
                 while (await rvd.ReadAsync())
                     ventas.Add(new

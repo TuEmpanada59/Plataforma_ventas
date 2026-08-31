@@ -11,6 +11,8 @@
     int vendedores  = ViewBag.TotalVendedores != null ? (int)ViewBag.TotalVendedores : 0;
     int totalProy   = ViewBag.TotalProyectos  != null ? (int)ViewBag.TotalProyectos  : 0;
     bool esSuperAdmin = (ViewBag.RolActual as string) == "SuperAdministrador";
+    var bloqueadas = ViewBag.Bloqueadas as IReadOnlyList<Plataforma_ventas.Services.CuentaBloqueada>
+                     ?? new List<Plataforma_ventas.Services.CuentaBloqueada>();
 }
 @section Styles {
 <style>
@@ -62,6 +64,16 @@
     .btn-pwd{background:rgba(255,149,0,0.1);color:#CC7700;}
     .btn-pwd:hover{background:rgba(255,149,0,0.2);}
     .actions-cell{display:flex;gap:5px;align-items:center;}
+    .bloq-card{background:rgba(230,57,70,0.05);border:1px solid rgba(230,57,70,0.28);border-radius:18px;overflow:hidden;margin-bottom:14px;}
+    .bloq-head{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid rgba(230,57,70,0.18);flex-wrap:wrap;gap:8px;}
+    .bloq-title{font-size:15px;font-weight:600;color:var(--rojo);}
+    .bloq-row{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid rgba(230,57,70,0.12);}
+    .bloq-row:last-child{border-bottom:none;}
+    .bloq-usuario{flex:1;font-size:13px;font-weight:600;color:var(--label);}
+    .bloq-tiempo{font-size:12px;color:var(--label3);white-space:nowrap;}
+    .btn-liberar{background:var(--blue);color:white;border:none;padding:6px 14px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn-liberar:hover{background:var(--mid);}
+    .bloq-nota{font-size:11px;color:var(--label3);padding:10px 18px 13px;line-height:1.5;}
     .alerta-exito{background:rgba(0,212,161,0.1);border:1px solid rgba(0,212,161,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:#00896b;margin-bottom:4px;}
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:var(--rojo);margin-bottom:4px;}
     .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.28);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;}
@@ -93,6 +105,32 @@
 @if (TempData["Error"] != null) { <div class="alerta-error">@TempData["Error"]</div> }
 
 <!-- KPIs -->
+@if (bloqueadas.Count > 0)
+{
+    <div class="bloq-card">
+        <div class="bloq-head">
+            <span class="bloq-title">Cuentas bloqueadas por intentos fallidos</span>
+            <span style="font-size:12px;font-weight:700;color:var(--rojo);background:rgba(230,57,70,0.12);padding:3px 10px;border-radius:20px;">@bloqueadas.Count</span>
+        </div>
+        @foreach (var b in bloqueadas)
+        {
+            <div class="bloq-row">
+                <div class="bloq-usuario">@b.Usuario</div>
+                <div class="bloq-tiempo">Se libera sola en @b.MinutosRestantes min</div>
+                <form action="/Usuarios/LiberarBloqueo" method="post" style="margin:0">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="usuario" value="@b.Usuario"/>
+                    <button type="submit" class="btn-liberar">Liberar ahora</button>
+                </form>
+            </div>
+        }
+        <p class="bloq-nota">
+            Una cuenta se bloquea 15 minutos tras 5 intentos fallidos. Libérala si el
+            asesor necesita entrar de inmediato; la acción queda registrada en la auditoría.
+        </p>
+    </div>
+}
+
 <div class="kpi-row">
     <div class="kpi k1">
         <div class="kpi-top"><div class="kpi-dot"></div><span class="kpi-tag">Total</span></div>
