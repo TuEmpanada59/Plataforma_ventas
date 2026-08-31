@@ -25,6 +25,10 @@
     string ultAsesor= ViewBag.UltimaAsesor as string ?? "";
     var actividad   = ViewBag.Actividad  as List<dynamic> ?? new List<dynamic>();
     var listasArea  = ViewBag.ListasArea as List<dynamic> ?? new List<dynamic>();
+    var estancados  = ViewBag.Estancados as List<dynamic> ?? new List<dynamic>();
+    var vencidas    = ViewBag.ReservasVencidas as List<dynamic> ?? new List<dynamic>();
+    int minEstancado= ViewBag.MinutosEstancado != null ? (int)ViewBag.MinutosEstancado : 45;
+    int horasVigencia = ViewBag.HorasVigencia != null ? (int)ViewBag.HorasVigencia : 0;
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
 
     // "hace X" legible
@@ -83,6 +87,21 @@
     .feed-area{font-size:11px;color:var(--label3);}
     .feed-bdg{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(230,57,70,0.1);color:var(--rojo);letter-spacing:.03em;}
     .feed-vacio{padding:28px;text-align:center;color:var(--label3);font-size:12.5px;}
+    /* Alertas accionables */
+    .alertas{border-color:rgba(255,149,0,0.35);}
+    .alerta-cuenta{background:rgba(255,149,0,0.15);color:#CC7700;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;}
+    .alerta-lista{display:flex;flex-direction:column;}
+    .alerta-row{display:flex;align-items:center;gap:11px;padding:11px 18px;border-bottom:1px solid var(--sep2);}
+    .alerta-row:last-child{border-bottom:none;}
+    .alerta-pin{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    .alerta-pin.proc{background:#5A5AC8;}
+    .alerta-pin.res{background:#CC7700;}
+    .alerta-txt{flex:1;font-size:13px;color:var(--label);}
+    .alerta-sub{font-size:11.5px;color:var(--label3);margin-top:2px;}
+    .alerta-area{font-size:11px;color:var(--label3);}
+    .btn-liberar{background:rgba(230,57,70,0.1);color:var(--rojo);border:none;padding:6px 14px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s;}
+    .btn-liberar:hover{background:rgba(230,57,70,0.2);}
+    .alerta-nota{font-size:11px;color:var(--label3);padding:10px 18px 14px;line-height:1.5;}
     /* Listas por área */
     .lista-link{font-size:11px;font-weight:600;color:var(--blue);text-decoration:none;}
     .lista-link:hover{text-decoration:underline;}
@@ -266,6 +285,66 @@
         </div>
     </div>
 </div>
+
+@if (estancados.Count > 0 || vencidas.Count > 0)
+{
+    <!-- ALERTAS ACCIONABLES -->
+    <div class="card alertas">
+        <div class="card-head">
+            <span class="card-title">Requiere tu atención</span>
+            <span class="alerta-cuenta">@(estancados.Count + vencidas.Count)</span>
+        </div>
+        <div class="alerta-lista">
+            @foreach (var e in estancados)
+            {
+                <div class="alerta-row">
+                    <span class="alerta-pin proc"></span>
+                    <div class="alerta-txt">
+                        <strong>@e.Apto</strong> · @e.Torre <span class="alerta-area">@e.Metros m²</span>
+                        <div class="alerta-sub">
+                            En proceso hace <strong>@HaceTexto(e.Minutos).Replace("hace ", "")</strong>
+                            @if (!string.IsNullOrEmpty(e.Quien as string)) { <text>· @e.Quien</text> }
+                        </div>
+                    </div>
+                    <form action="/Inmuebles/CancelarProceso" method="post" style="margin:0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="idInmueble" value="@e.Id"/>
+                        <input type="hidden" name="volverA" value="dashboard"/>
+                        <button type="submit" class="btn-liberar"
+                                onclick="return confirm('¿Liberar el apartamento @e.Apto? Volverá a estar disponible para todos.')">Liberar</button>
+                    </form>
+                </div>
+            }
+            @foreach (var v in vencidas)
+            {
+                <div class="alerta-row">
+                    <span class="alerta-pin res"></span>
+                    <div class="alerta-txt">
+                        <strong>@v.Apto</strong> · @v.Torre <span class="alerta-area">@v.Metros m²</span>
+                        <div class="alerta-sub">
+                            Reserva vencida — @v.Horas h (vigencia: @horasVigencia h)
+                            @if (!string.IsNullOrEmpty(v.Quien as string)) { <text>· @v.Quien</text> }
+                        </div>
+                    </div>
+                    <form action="/Inmuebles/LiberarReserva" method="post" style="margin:0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="idInmueble" value="@v.Id"/>
+                        <input type="hidden" name="volverA" value="dashboard"/>
+                        <button type="submit" class="btn-liberar"
+                                onclick="return confirm('¿Liberar la reserva del apartamento @v.Apto?')">Liberar</button>
+                    </form>
+                </div>
+            }
+        </div>
+        <p class="alerta-nota">
+            Un inmueble en proceso más de @minEstancado minutos es inventario que nadie más puede vender.
+            @if (horasVigencia == 0)
+            {
+                <text>Las reservas de este proyecto no vencen.</text>
+            }
+        </p>
+    </div>
+}
 
 <!-- LISTAS DE PRECIO POR ÁREA (solo lectura) -->
 <div class="card">

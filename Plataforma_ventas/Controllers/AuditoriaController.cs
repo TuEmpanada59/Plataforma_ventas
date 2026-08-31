@@ -107,6 +107,37 @@ namespace Plataforma_ventas.Controllers
                 tablaOk = false;
             }
 
+            // Historial de precios: últimos cambios de lista del proyecto activo.
+            var historial = new List<dynamic>();
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            try
+            {
+                var cmdH = new SqlCommand(@"
+                    SELECT TOP 100
+                           FORMAT(DATEADD(HOUR,-5,Fecha),'dd/MM/yyyy HH:mm') AS Cuando,
+                           Metros, ListaAnterior, ListaNueva, Motivo, Usuario
+                    FROM HistorialListas
+                    WHERE IdProyecto=@id
+                    ORDER BY Fecha DESC", con);
+                cmdH.Parameters.AddWithValue("@id", idProy);
+                using var rH = (SqlDataReader)await cmdH.ExecuteReaderAsync();
+                while (await rH.ReadAsync())
+                    historial.Add(new
+                    {
+                        Cuando = rH["Cuando"]?.ToString() ?? "",
+                        Metros = rH["Metros"]?.ToString() ?? "",
+                        Anterior = Convert.ToInt32(rH["ListaAnterior"]),
+                        Nueva = Convert.ToInt32(rH["ListaNueva"]),
+                        Motivo = rH["Motivo"]?.ToString() ?? "",
+                        Usuario = (rH["Usuario"]?.ToString() ?? "").Trim(),
+                    });
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Number == 208)
+            {
+                // Sin tabla de historial todavía.
+            }
+            ViewBag.Historial = historial;
+
             ViewBag.TablaOk = tablaOk;
             ViewBag.Eventos = eventos;
             ViewBag.Acciones = acciones;

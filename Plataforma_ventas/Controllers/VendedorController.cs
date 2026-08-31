@@ -541,21 +541,17 @@ namespace Plataforma_ventas.Controllers
 
             // Cliente
             int idCliente;
+            bool clienteReutilizado = false;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
                 idCliente = idClienteExistente.Value;
             else
             {
-                var cmdCli = new SqlCommand(@"INSERT INTO Clientes
-                    (Nombre,Apellido,Documento,Celular,Correo,Direccion)
-                    OUTPUT INSERTED.IdCliente
-                    VALUES (@n,@a,@d,@c,@e,@dir)", con, tx);
-                cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
-                cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
-                cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
-                cmdCli.Parameters.AddWithValue("@c", clienteCelular ?? "");
-                cmdCli.Parameters.AddWithValue("@e", clienteCorreo ?? "");
-                cmdCli.Parameters.AddWithValue("@dir", clienteDireccion ?? "");
-                idCliente = (int)(await cmdCli.ExecuteScalarAsync())!;
+                // Reutiliza el cliente si ya existe uno con ese documento, en vez de duplicarlo.
+                var altaCliente = await ClienteRepo.ObtenerOCrearAsync(con, tx,
+                    clienteNombre, clienteApellido, clienteDocumento,
+                    clienteCelular, clienteCorreo, clienteDireccion);
+                idCliente = altaCliente.IdCliente;
+                clienteReutilizado = altaCliente.Reutilizado;
             }
 
             // Marcar como vendido de forma ATÓMICA (verifica reserva + propietario).
@@ -750,21 +746,17 @@ namespace Plataforma_ventas.Controllers
 
             // 3. Cliente (dentro de la transacción).
             int idCliente;
+            bool clienteReutilizado = false;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
                 idCliente = idClienteExistente.Value;
             else
             {
-                var cmdCli = new SqlCommand(@"INSERT INTO Clientes
-                    (Nombre,Apellido,Documento,Celular,Correo,Direccion)
-                    OUTPUT INSERTED.IdCliente
-                    VALUES (@n,@a,@d,@c,@e,@dir)", con, tx);
-                cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
-                cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
-                cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
-                cmdCli.Parameters.AddWithValue("@c", clienteCelular ?? "");
-                cmdCli.Parameters.AddWithValue("@e", clienteCorreo ?? "");
-                cmdCli.Parameters.AddWithValue("@dir", clienteDireccion ?? "");
-                idCliente = (int)(await cmdCli.ExecuteScalarAsync())!;
+                // Reutiliza el cliente si ya existe uno con ese documento, en vez de duplicarlo.
+                var altaCliente = await ClienteRepo.ObtenerOCrearAsync(con, tx,
+                    clienteNombre, clienteApellido, clienteDocumento,
+                    clienteCelular, clienteCorreo, clienteDireccion);
+                idCliente = altaCliente.IdCliente;
+                clienteReutilizado = altaCliente.Reutilizado;
             }
 
             // 4. Marcar VENDIDO de forma ATÓMICA con verificación del estado y propietario previos.
@@ -837,6 +829,9 @@ namespace Plataforma_ventas.Controllers
                         cmdUpArea.Parameters.AddWithValue("@proy", idProy);
                         cmdUpArea.Parameters.AddWithValue("@metros", metrosArea);
                         await cmdUpArea.ExecuteNonQueryAsync();
+                        await HistorialListas.RegistrarAsync(con, null, idProy, metrosArea,
+                            laArea, nuevaListaArea, HistorialListas.Automatico,
+                            idUsuario, QuienSoy());
                         await _hub.Clients.All.ListaAreaActualizada(idProy, metrosArea, nuevaListaArea);
                         TempData["Exito"] = $"¡Venta registrada! ⚡ El área {metrosArea} m² subió a Lista {nuevaListaArea}.";
                         return RedirectToAction("MisVentas");
@@ -844,6 +839,8 @@ namespace Plataforma_ventas.Controllers
                 }
             }
 
+            if (clienteReutilizado)
+                TempData["Aviso"] = "Ya existía un cliente con ese documento: se usó su ficha en vez de crear una nueva.";
             TempData["Exito"] = "¡Venta registrada exitosamente!";
             return RedirectToAction("MisVentas");
         }

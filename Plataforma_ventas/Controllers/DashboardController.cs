@@ -15,12 +15,14 @@ namespace Plataforma_ventas.Controllers
     {
         private readonly string _conn;
         private readonly IHubContext<VentasHub, IVentasClient> _hub;
+        private readonly IConfiguration _config;
 
         /// <summary>Initializes the controller with DB connection and strongly-typed SignalR hub.</summary>
         public DashboardController(IConfiguration config, IHubContext<VentasHub, IVentasClient> hub)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
             _hub = hub;
+            _config = config;
         }
 
         /// <summary>
@@ -249,6 +251,86 @@ namespace Plataforma_ventas.Controllers
                     });
                 }
             ViewBag.ListasArea = listasArea;
+
+            // ── Alertas accionables ────────────────────────────────────────────────
+            // FechaEnProceso ya se venía guardando pero no se consultaba en ninguna
+            // parte: un inmueble tomado hace rato es inventario congelado que nadie
+            // puede vender, y hasta ahora era invisible.
+            int minutosEstancado = _config.GetValue<int?>("Operacion:MinutosProcesoEstancado") ?? 45;
+            ViewBag.MinutosEstancado = minutosEstancado;
+
+            var estancados = new List<dynamic>();
+            var cmdEst = new SqlCommand(@"
+                SELECT i.IdInmuebles, i.Apto, i.Torre, i.Metros,
+                       DATEDIFF(MINUTE, i.FechaEnProceso, GETDATE()) AS Minutos,
+                       ISNULL(u.Nombre + ' ' + u.Apellido, '') AS Quien
+                FROM Inmuebles i
+                LEFT JOIN Usuarios u ON i.IdVendedorEnProceso = u.IdUsuario
+                WHERE i.IdProyecto=@id AND i.Estado='EN PROCESO'
+                  AND i.FechaEnProceso IS NOT NULL
+                  AND DATEDIFF(MINUTE, i.FechaEnProceso, GETDATE()) >= @min
+                ORDER BY i.FechaEnProceso", con);
+            cmdEst.Parameters.AddWithValue("@id", idProy);
+            cmdEst.Parameters.AddWithValue("@min", minutosEstancado);
+            using (var rE = (SqlDataReader)await cmdEst.ExecuteReaderAsync())
+                while (await rE.ReadAsync())
+                    estancados.Add(new
+                    {
+                        Id = Convert.ToInt32(rE["IdInmuebles"]),
+                        Apto = rE["Apto"]?.ToString() ?? "",
+                        Torre = rE["Torre"]?.ToString() ?? "",
+                        Metros = rE["Metros"]?.ToString() ?? "",
+                        Minutos = Convert.ToInt32(rE["Minutos"]),
+                        Quien = (rE["Quien"]?.ToString() ?? "").Trim(),
+                    });
+            ViewBag.Estancados = estancados;
+
+            // Reservas vencidas según la vigencia del proyecto.
+            // HorasVigenciaReserva = 0 significa que las reservas no vencen, que es
+            // el comportamiento histórico y el valor por defecto.
+            int horasVigencia = 0;
+            var vencidas = new List<dynamic>();
+            try
+            {
+                var cmdVig = new SqlCommand(
+                    "SELECT ISNULL(HorasVigenciaReserva,0) FROM Proyectos WHERE IdProyectos=@id", con);
+                cmdVig.Parameters.AddWithValue("@id", idProy);
+                horasVigencia = Convert.ToInt32(await cmdVig.ExecuteScalarAsync() ?? 0);
+
+                if (horasVigencia > 0)
+                {
+                    var cmdVenc = new SqlCommand(@"
+                        SELECT i.IdInmuebles, i.Apto, i.Torre, i.Metros, i.PrecioReserva,
+                               DATEDIFF(HOUR, i.FechaReserva, GETDATE()) AS Horas,
+                               ISNULL(u.Nombre + ' ' + u.Apellido, '') AS Quien
+                        FROM Inmuebles i
+                        LEFT JOIN Usuarios u ON i.IdVendedorReserva = u.IdUsuario
+                        WHERE i.IdProyecto=@id AND i.Estado='RESERVADO'
+                          AND i.FechaReserva IS NOT NULL
+                          AND DATEDIFF(HOUR, i.FechaReserva, GETDATE()) >= @horas
+                        ORDER BY i.FechaReserva", con);
+                    cmdVenc.Parameters.AddWithValue("@id", idProy);
+                    cmdVenc.Parameters.AddWithValue("@horas", horasVigencia);
+                    using var rV = (SqlDataReader)await cmdVenc.ExecuteReaderAsync();
+                    while (await rV.ReadAsync())
+                        vencidas.Add(new
+                        {
+                            Id = Convert.ToInt32(rV["IdInmuebles"]),
+                            Apto = rV["Apto"]?.ToString() ?? "",
+                            Torre = rV["Torre"]?.ToString() ?? "",
+                            Metros = rV["Metros"]?.ToString() ?? "",
+                            Horas = Convert.ToInt32(rV["Horas"]),
+                            Quien = (rV["Quien"]?.ToString() ?? "").Trim(),
+                        });
+                }
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid column name"))
+            {
+                // Scripts/PanelAdmin.sql aún no se ha ejecutado: sin vencimiento de reservas.
+                horasVigencia = 0;
+            }
+            ViewBag.HorasVigencia = horasVigencia;
+            ViewBag.ReservasVencidas = vencidas;
 
             return View();
         }

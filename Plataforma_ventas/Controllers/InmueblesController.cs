@@ -28,11 +28,15 @@ namespace Plataforma_ventas.Controllers
         private readonly IHubContext<VentasHub, IVentasClient> _hub;
 
         /// <summary>Initializes the controller with DB connection and strongly-typed SignalR hub.</summary>
-        public InmueblesController(IConfiguration config, IHubContext<VentasHub, IVentasClient> hub)
+        public InmueblesController(IConfiguration config, IHubContext<VentasHub, IVentasClient> hub,
+                                   Plataforma_ventas.Services.IAuditoriaService audit)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
             _hub = hub;
+            _audit = audit;
         }
+
+        private readonly Plataforma_ventas.Services.IAuditoriaService _audit;
 
         /// <summary>
         /// Lists all active projects with their property counts and estados.
@@ -523,21 +527,17 @@ namespace Plataforma_ventas.Controllers
             int listaAplicada = Convert.ToInt32((await cmdListaApl.ExecuteScalarAsync()) ?? 1);
 
             int idCliente;
+            bool clienteReutilizado = false;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
                 idCliente = idClienteExistente.Value;
             else
             {
-                var cmdCli = new SqlCommand(@"INSERT INTO Clientes
-                    (Nombre,Apellido,Documento,Celular,Correo,Direccion)
-                    OUTPUT INSERTED.IdCliente
-                    VALUES (@n,@a,@d,@c,@e,@dir)", con, tx);
-                cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
-                cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
-                cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
-                cmdCli.Parameters.AddWithValue("@c", clienteCelular ?? "");
-                cmdCli.Parameters.AddWithValue("@e", clienteCorreo ?? "");
-                cmdCli.Parameters.AddWithValue("@dir", clienteDireccion ?? "");
-                idCliente = (int)(await cmdCli.ExecuteScalarAsync())!;
+                // Reutiliza el cliente si ya existe uno con ese documento, en vez de duplicarlo.
+                var altaCliente = await ClienteRepo.ObtenerOCrearAsync(con, tx,
+                    clienteNombre, clienteApellido, clienteDocumento,
+                    clienteCelular, clienteCorreo, clienteDireccion);
+                idCliente = altaCliente.IdCliente;
+                clienteReutilizado = altaCliente.Reutilizado;
             }
 
             // Marcar vendido de forma ATÓMICA (verifica reserva + proyecto).
@@ -578,11 +578,16 @@ namespace Plataforma_ventas.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> LiberarReserva(int idInmueble)
+        public async Task<IActionResult> LiberarReserva(int idInmueble, string volverA = "")
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            var cmdApto = new SqlCommand("SELECT Apto FROM Inmuebles WHERE IdInmuebles=@id", con);
+            cmdApto.Parameters.AddWithValue("@id", idInmueble);
+            var apto = (await cmdApto.ExecuteScalarAsync())?.ToString() ?? "";
+
             var cmd = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='DISPONIBLE', IdVendedorReserva=NULL,
                     PrecioReserva=NULL, FechaReserva=NULL
@@ -590,8 +595,10 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@id", idInmueble);
             await cmd.ExecuteNonQueryAsync();
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
-            TempData["Exito"] = "Reserva liberada correctamente.";
-            return RedirectToAction("Index");
+            await _audit.RegistrarAsync(Services.AccionAudit.ReservaLiberada, "Inmueble", idInmueble, idProy,
+                $"Apto {apto} · reserva liberada por el administrador");
+            TempData["Exito"] = $"Reserva del apartamento {apto} liberada correctamente.";
+            return volverA == "dashboard" ? RedirectToAction("Index", "Dashboard") : RedirectToAction("Index");
         }
 
         /// <summary>
@@ -630,18 +637,27 @@ namespace Plataforma_ventas.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CancelarProceso(int idInmueble)
+        public async Task<IActionResult> CancelarProceso(int idInmueble, string volverA = "")
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            // Se toma el apto antes de limpiar, para dejarlo en la auditoría.
+            var cmdApto = new SqlCommand("SELECT Apto FROM Inmuebles WHERE IdInmuebles=@id", con);
+            cmdApto.Parameters.AddWithValue("@id", idInmueble);
+            var apto = (await cmdApto.ExecuteScalarAsync())?.ToString() ?? "";
+
             var cmd = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='DISPONIBLE', IdVendedorEnProceso=NULL, FechaEnProceso=NULL
                 WHERE IdInmuebles=@id", con);
             cmd.Parameters.AddWithValue("@id", idInmueble);
             await cmd.ExecuteNonQueryAsync();
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
-            return RedirectToAction("Index");
+            await _audit.RegistrarAsync(Services.AccionAudit.ProcesoCancelado, "Inmueble", idInmueble, idProy,
+                $"Apto {apto} · proceso cancelado por el administrador");
+            TempData["Exito"] = $"Proceso del apartamento {apto} cancelado. Vuelve a estar disponible.";
+            return volverA == "dashboard" ? RedirectToAction("Index", "Dashboard") : RedirectToAction("Index");
         }
 
         /// <summary>
@@ -749,6 +765,14 @@ namespace Plataforma_ventas.Controllers
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+            // Lista vigente antes del cambio, para el historial.
+            var cmdPrev = new SqlCommand(
+                "SELECT ISNULL(ListaActual,1) FROM ProyectoAreaListas WHERE IdProyecto=@p AND Metros=@m", con);
+            cmdPrev.Parameters.AddWithValue("@p", idProy);
+            cmdPrev.Parameters.AddWithValue("@m", metros ?? "");
+            var prevRes = await cmdPrev.ExecuteScalarAsync();
+            int listaAnterior = prevRes != null && prevRes != DBNull.Value ? Convert.ToInt32(prevRes) : 1;
+
             var cmd = new SqlCommand(@"
                 MERGE ProyectoAreaListas AS target
                 USING (SELECT @proy AS IdProyecto, @metros AS Metros) AS source
@@ -760,6 +784,11 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@metros", metros ?? "");
             cmd.Parameters.AddWithValue("@lista", listaActual);
             await cmd.ExecuteNonQueryAsync();
+            int idUsuarioCambio = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uidc) ? uidc : 0;
+            await HistorialListas.RegistrarAsync(con, null, idProy, metros ?? "",
+                listaAnterior, listaActual, HistorialListas.Manual, idUsuarioCambio, QuienSoy());
+            await _audit.RegistrarAsync(Services.AccionAudit.ListaCambiada, "Area", null, idProy,
+                $"Área {metros} m²: Lista {listaAnterior} → Lista {listaActual} (manual)");
             await _hub.Clients.All.ListaAreaActualizada(idProy, metros ?? "", listaActual);
             TempData["Exito"] = $"Lista del área {metros} m² fijada en Lista {listaActual} (modo manual). El escalamiento automático quedó desactivado para esta área.";
             return RedirectToAction("Index");
@@ -899,21 +928,17 @@ namespace Plataforma_ventas.Controllers
             }
 
             int idCliente;
+            bool clienteReutilizado = false;
             if (tipoCliente == "existente" && idClienteExistente.HasValue && idClienteExistente.Value > 0)
                 idCliente = idClienteExistente.Value;
             else
             {
-                var cmdCli = new SqlCommand(@"INSERT INTO Clientes
-                    (Nombre,Apellido,Documento,Celular,Correo,Direccion)
-                    OUTPUT INSERTED.IdCliente
-                    VALUES (@n,@a,@d,@c,@e,@dir)", con, tx);
-                cmdCli.Parameters.AddWithValue("@n", clienteNombre ?? "");
-                cmdCli.Parameters.AddWithValue("@a", clienteApellido ?? "");
-                cmdCli.Parameters.AddWithValue("@d", Texto.SoloDigitos(clienteDocumento));
-                cmdCli.Parameters.AddWithValue("@c", clienteCelular ?? "");
-                cmdCli.Parameters.AddWithValue("@e", clienteCorreo ?? "");
-                cmdCli.Parameters.AddWithValue("@dir", clienteDireccion ?? "");
-                idCliente = (int)(await cmdCli.ExecuteScalarAsync())!;
+                // Reutiliza el cliente si ya existe uno con ese documento, en vez de duplicarlo.
+                var altaCliente = await ClienteRepo.ObtenerOCrearAsync(con, tx,
+                    clienteNombre, clienteApellido, clienteDocumento,
+                    clienteCelular, clienteCorreo, clienteDireccion);
+                idCliente = altaCliente.IdCliente;
+                clienteReutilizado = altaCliente.Reutilizado;
             }
 
             // 3. Marcar VENDIDO de forma ATÓMICA con verificación de estado y propietario.
@@ -997,6 +1022,8 @@ namespace Plataforma_ventas.Controllers
                             cmdUpArea.Parameters.AddWithValue("@proy", idProy);
                             cmdUpArea.Parameters.AddWithValue("@metros", metrosArea);
                             await cmdUpArea.ExecuteNonQueryAsync();
+                            await HistorialListas.RegistrarAsync(con, null, idProy, metrosArea,
+                                laArea, nuevaListaArea, HistorialListas.Automatico, idUsuario, QuienSoy());
                             await _hub.Clients.All.ListaAreaActualizada(idProy, metrosArea, nuevaListaArea);
                             TempData["Exito"] = $"¡Venta registrada! ⚡ El área {metrosArea} m² subió a Lista {nuevaListaArea}.";
                             return RedirectToAction("Index");
@@ -1005,6 +1032,8 @@ namespace Plataforma_ventas.Controllers
                 }
             }
 
+            if (clienteReutilizado)
+                TempData["Aviso"] = "Ya existía un cliente con ese documento: se usó su ficha en vez de crear una nueva.";
             TempData["Exito"] = "¡Venta registrada exitosamente!";
             return RedirectToAction("Index");
         }

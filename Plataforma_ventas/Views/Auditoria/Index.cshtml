@@ -6,6 +6,7 @@
 
     var eventos  = ViewBag.Eventos  as List<dynamic> ?? new List<dynamic>();
     var acciones = ViewBag.Acciones as List<string>  ?? new List<string>();
+    var historial = ViewBag.Historial as List<dynamic> ?? new List<dynamic>();
     bool tablaOk = ViewBag.TablaOk != null && (bool)ViewBag.TablaOk;
     int total    = ViewBag.Total      != null ? (int)ViewBag.Total      : 0;
     int page     = ViewBag.Page       != null ? (int)ViewBag.Page       : 1;
@@ -173,6 +174,44 @@ else
         else
         {
             <div class="vacio">No hay eventos que coincidan con el filtro.</div>
+        }
+    </div>
+
+    <!-- HISTORIAL DE PRECIOS -->
+    <div class="card" style="margin-top:14px">
+        <div class="card-head">
+            <span class="card-title">Historial de listas de precio</span>
+            <span style="font-size:12px;color:var(--label3)">Proyecto activo · últimos 100 cambios</span>
+        </div>
+        @if (historial.Count > 0)
+        {
+            <div class="tbl-wrap">
+                <table class="tbl" style="min-width:640px">
+                    <thead>
+                        <tr><th>Cuándo</th><th>Área</th><th>Cambio</th><th>Motivo</th><th>Quién</th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var h in historial)
+                    {
+                        bool esAuto = (h.Motivo as string) == "AUTOMATICO";
+                        <tr>
+                            <td class="cuando">@h.Cuando</td>
+                            <td style="font-weight:600">@h.Metros m²</td>
+                            <td>Lista @h.Anterior <span style="color:var(--label3)">&#8594;</span> <strong>Lista @h.Nueva</strong></td>
+                            <td><span class="acc @(esAuto ? "verde" : "naranja")">@(esAuto ? "AUTOMÁTICO" : "MANUAL")</span></td>
+                            <td class="detalle">@(string.IsNullOrWhiteSpace(h.Usuario as string) ? "—" : h.Usuario)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="vacio">
+                Aún no hay cambios de lista registrados en este proyecto.<br />
+                <span style="font-size:12px">El historial empieza a registrarse desde ahora.</span>
+            </div>
         }
     </div>
 }
