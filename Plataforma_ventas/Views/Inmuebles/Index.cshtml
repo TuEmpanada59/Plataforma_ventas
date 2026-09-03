@@ -84,8 +84,8 @@
     .tbl tr:hover td{background:var(--fill3);}
     .bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
     .bdg::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;}
-    .bdg.D{background:rgba(52,199,89,0.12);color:#1EA851}.bdg.D::before{background:#34C759}
-    .bdg.V{background:rgba(230,57,70,0.12);color:var(--rojo)}.bdg.V::before{background:var(--rojo)}
+    .bdg.D{background:rgba(230,57,70,0.12);color:var(--rojo)}.bdg.D::before{background:var(--rojo)}
+    .bdg.V{background:rgba(52,199,89,0.12);color:#1EA851}.bdg.V::before{background:#34C759}
     .bdg.R{background:rgba(255,149,0,0.12);color:#CC7700}.bdg.R::before{background:var(--oro)}
     .bdg.EP{background:rgba(90,90,200,0.12);color:#5A5AC8}.bdg.EP::before{background:#5A5AC8}
     .quien{display:inline-block;font-size:11px;font-weight:600;margin-top:3px;}
@@ -202,7 +202,9 @@ else
             @foreach (var g in grupos)
             {
                 var porcVend = g.Total > 0 ? (int)Math.Round((double)g.Vendidos / g.Total * 100) : 0;
-                var fillCls = porcVend >= 80 ? "rojo" : porcVend >= 50 ? "naranja" : "";
+                // Semáforo sobre el % vendido: mucho vendido es buena noticia (verde),
+                // poco vendido es inventario por colocar (rojo).
+                var fillCls = porcVend >= 80 ? "" : porcVend >= 50 ? "naranja" : "rojo";
                 var tipoLabel = g.Tipo?.ToString() ?? "";
                 var tipoClass = tipoLabel == "EXT" ? "area-tipo-ext" : "area-tipo-int";
                 var metrosStr = g.Metros.ToString();

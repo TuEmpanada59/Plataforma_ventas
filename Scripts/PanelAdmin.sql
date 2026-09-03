@@ -89,5 +89,14 @@ IF COL_LENGTH('Proyectos', 'HorasVigenciaReserva') IS NULL
     ALTER TABLE Proyectos ADD HorasVigenciaReserva INT NOT NULL DEFAULT 0;
 GO
 
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 5) Renombrar el destino "Vivienda" a "Uso propio"
+--    Las ventas ya registradas se migran para que los reportes no queden
+--    partidos entre el nombre viejo y el nuevo.
+-- ────────────────────────────────────────────────────────────────────────────
+UPDATE Ventas SET Destino = 'Uso propio' WHERE Destino = 'Vivienda';
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

@@ -33,11 +33,11 @@
     .kpi:hover{transform:translateY(-2px);}
     .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
     .kpi-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
-    .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k2 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k3 .kpi-ico{background:rgba(90,90,200,0.1)}.kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k5 .kpi-ico{background:rgba(230,57,70,0.1)}
+    .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k2 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k3 .kpi-ico{background:rgba(90,90,200,0.1)}.kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k5 .kpi-ico{background:rgba(52,199,89,0.1)}
     .kpi-tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
-    .kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k2 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k3 .kpi-tag{background:rgba(90,90,200,0.1);color:#5A5AC8}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k5 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}
+    .kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k2 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k3 .kpi-tag{background:rgba(90,90,200,0.1);color:#5A5AC8}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k5 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}
     .kpi-num{font-size:28px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
-    .kpi.k1 .kpi-num{color:var(--azul)}.kpi.k2 .kpi-num{color:#1EA851}.kpi.k3 .kpi-num{color:#5A5AC8}.kpi.k4 .kpi-num{color:#CC7700}.kpi.k5 .kpi-num{color:var(--rojo)}
+    .kpi.k1 .kpi-num{color:var(--azul)}.kpi.k2 .kpi-num{color:var(--rojo)}.kpi.k3 .kpi-num{color:#5A5AC8}.kpi.k4 .kpi-num{color:#CC7700}.kpi.k5 .kpi-num{color:#1EA851}
     .kpi-lbl{font-size:12px;color:var(--label2);}
     .areas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;animation:fu 0.35s ease both;}
     .area-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:2px solid var(--gb);border-radius:20px;padding:20px;cursor:pointer;transition:all 0.2s;box-shadow:var(--sh);text-decoration:none;display:block;}
@@ -67,8 +67,8 @@
     .tbl tr:hover td{background:var(--fill3);}
     .bdg{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
     .bdg::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;}
-    .bdg.D{background:rgba(52,199,89,0.12);color:#1EA851}.bdg.D::before{background:#34C759}
-    .bdg.V{background:rgba(230,57,70,0.12);color:var(--rojo)}.bdg.V::before{background:var(--rojo)}
+    .bdg.D{background:rgba(230,57,70,0.12);color:var(--rojo)}.bdg.D::before{background:var(--rojo)}
+    .bdg.V{background:rgba(52,199,89,0.12);color:#1EA851}.bdg.V::before{background:#34C759}
     .bdg.R{background:rgba(255,149,0,0.12);color:#CC7700}.bdg.R::before{background:var(--oro)}
     .bdg.P{background:rgba(90,90,200,0.12);color:#5A5AC8}.bdg.P::before{background:#5A5AC8}
     .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -119,7 +119,9 @@
     <div class="areas-grid">
         @foreach (var g in grupos) {
             var porcVend  = g.Total > 0 ? (int)Math.Round((double)g.Vendidos / g.Total * 100) : 0;
-            var fillCls   = porcVend >= 80 ? "rojo" : porcVend >= 50 ? "naranja" : "";
+            // Semáforo sobre el % vendido: mucho vendido es buena noticia (verde),
+            // poco vendido es inventario por colocar (rojo).
+            var fillCls   = porcVend >= 80 ? "" : porcVend >= 50 ? "naranja" : "rojo";
             var tipoLabel = g.Tipo?.ToString() ?? "";
             var tipoClass = tipoLabel == "EXT" ? "area-tipo-ext" : "area-tipo-int";
             var metrosStr = g.Metros.ToString();

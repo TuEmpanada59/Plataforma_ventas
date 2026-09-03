@@ -49,7 +49,7 @@
                     {
                         var cls = v.Estado == "ACTIVA" ? "AC" : "AN";
                         var dest = v.Destino as string ?? "—";
-                        var destCol = dest == "Vivienda" ? "rgba(0,118,227,0.08);color:var(--blue)" : dest == "Inversión para reventa" ? "rgba(52,199,89,0.1);color:#1EA851" : dest == "Inversión para arriendo" ? "rgba(255,149,0,0.1);color:#CC7700" : dest == "Cesión de derechos" ? "rgba(90,90,200,0.1);color:#5A5AC8" : "rgba(120,120,128,0.08);color:var(--label3)";
+                        var destCol = dest == "Uso propio" ? "rgba(0,118,227,0.08);color:var(--blue)" : dest == "Inversión para reventa" ? "rgba(52,199,89,0.1);color:#1EA851" : dest == "Inversión para arriendo" ? "rgba(255,149,0,0.1);color:#CC7700" : dest == "Cesión de derechos" ? "rgba(90,90,200,0.1);color:#5A5AC8" : "rgba(120,120,128,0.08);color:var(--label3)";
                         <tr>
                             <td style="font-weight:600">@v.Apto</td>
                             <td>@v.Torre</td>

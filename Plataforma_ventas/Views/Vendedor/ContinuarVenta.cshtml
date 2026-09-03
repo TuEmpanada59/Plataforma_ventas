@@ -90,7 +90,7 @@
     <input type="hidden" name="idInmueble" value="@idInmueble" />
     <input type="hidden" name="precioVenta" value="@precioReserva" />
     <input type="hidden" name="tipoCliente" id="tipoCliente" value="existente" />
-    <input type="hidden" name="destino" id="destinoInput" value="Vivienda" />
+    <input type="hidden" name="destino" id="destinoInput" value="Uso propio" />
 
     <div class="form-card">
         <div class="form-card-head">@Iconos.Candado("#1EA851", 20) <span class="form-card-title">Precio bloqueado al reservar</span></div>
@@ -116,9 +116,9 @@
         <div class="form-card-head">@Iconos.Mapa("#1EA851", 20) <span class="form-card-title">Destino del inmueble</span></div>
         <div class="form-body">
             <div class="destino-grid">
-                <div class="destino-opt sel" onclick="selDestino('Vivienda',this)">
+                <div class="destino-opt sel" onclick="selDestino('Uso propio',this)">
                     <div class="destino-ico">@Iconos.Casa("#0076E3", 20)</div>
-                    <div><div class="destino-txt">Vivienda</div><div class="destino-sub">Para uso habitacional</div></div>
+                    <div><div class="destino-txt">Uso propio</div><div class="destino-sub">Para uso habitacional</div></div>
                 </div>
                 <div class="destino-opt" onclick="selDestino('Inversión para reventa',this)">
                     <div class="destino-ico">@Iconos.Grafico("#1EA851", 20)</div>

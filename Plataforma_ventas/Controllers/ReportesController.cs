@@ -453,8 +453,8 @@ namespace Plataforma_ventas.Controllers
                 double sold = Math.Max(pctVend, 0.6);           // mínimo visible
                 double rest = Math.Max(100 - sold, 0);
                 return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 42'>" +
-                       "<circle cx='21' cy='21' r='15.9155' fill='none' stroke='#9BE3B0' stroke-width='5'/>" +
-                       $"<circle cx='21' cy='21' r='15.9155' fill='none' stroke='#E63946' stroke-width='5' " +
+                       "<circle cx='21' cy='21' r='15.9155' fill='none' stroke='#F5B8BE' stroke-width='5'/>" +
+                       $"<circle cx='21' cy='21' r='15.9155' fill='none' stroke='#1A7A35' stroke-width='5' " +
                        $"stroke-dasharray='{sold.ToString(inv)} {rest.ToString(inv)}' transform='rotate(-90 21 21)'/>" +
                        "</svg>";
             }
@@ -500,8 +500,8 @@ namespace Plataforma_ventas.Controllers
                         var kpis = new (string Ico, string Lbl, string Val, string Col, float Fs)[]
                         {
                             ("home",     "TOTAL",         total.ToString(),                    "#003A70", 19f),
-                            ("check",    "DISPONIBLES",   disponibles.ToString(),              "#1A7A35", 19f),
-                            ("key",      "VENDIDOS",      vendidos.ToString(),                 "#E63946", 19f),
+                            ("check",    "DISPONIBLES",   disponibles.ToString(),              "#E63946", 19f),
+                            ("key",      "VENDIDOS",      vendidos.ToString(),                 "#1A7A35", 19f),
                             ("lock",     "RESERVADOS",    reservados.ToString(),               "#CC7700", 19f),
                             ("calendar", "VENTAS HOY",    $"{ventasHoy} · {MoneyM(valorHoy)}", "#0055A5", 10f),
                             ("dollar",   "VALOR VENDIDO", MoneyM(valorTotal),                  "#003A70", 12f),
@@ -563,8 +563,8 @@ namespace Plataforma_ventas.Controllers
                                         lr.ConstantItem(46).AlignMiddle().AlignRight().Text($"{pct.ToString("0.0", esCo)}%").FontSize(10).FontColor(QColor.FromHex("#8A8A8E"));
                                     });
                                 }
-                                Leg("#34C759", "Disponibles", disponibles, pctD);
-                                Leg("#E63946", "Vendidos", vendidos, pctV);
+                                Leg("#E63946", "Disponibles", disponibles, pctD);
+                                Leg("#34C759", "Vendidos", vendidos, pctV);
                                 Leg("#FF9500", "Reservados", reservados, pctR);
 
                                 c.Item().PaddingTop(8);
@@ -578,7 +578,7 @@ namespace Plataforma_ventas.Controllers
                                         br.ConstantItem(52).Text(t.Tipo).FontSize(8.5f).SemiBold().FontColor(QColor.FromHex("#3A3A3C"));
                                         br.RelativeItem().Height(12).Background(QColor.FromHex("#EEEFF1")).Row(bar =>
                                         {
-                                            bar.RelativeItem(fillW).Background(QColor.FromHex("#0077C8"));
+                                            bar.RelativeItem(fillW).Background(QColor.FromHex("#1A7A35"));
                                             if (restW > 0) bar.RelativeItem(restW);
                                         });
                                         br.ConstantItem(78).PaddingLeft(8).Text($"{t.Vend}/{t.Tot} · {p.ToString("0.0", esCo)}%").FontSize(8.5f).FontColor(QColor.FromHex("#8A8A8E"));
@@ -1033,17 +1033,17 @@ namespace Plataforma_ventas.Controllers
             // ── Helpers locales ──
             DColor EstadoColor(string e) => e switch
             {
-                "VENDIDO" => DColor.FromArgb(230, 57, 70),
+                "VENDIDO" => DColor.FromArgb(52, 199, 89),
                 "RESERVADO" => DColor.FromArgb(255, 149, 0),
                 "EN PROCESO" => DColor.FromArgb(90, 90, 200),
-                _ => DColor.FromArgb(52, 199, 89)
+                _ => DColor.FromArgb(230, 57, 70)
             };
             DColor EstadoTinte(string e) => e switch
             {
-                "VENDIDO" => DColor.FromArgb(250, 224, 227),
+                "VENDIDO" => DColor.FromArgb(223, 246, 230),
                 "RESERVADO" => DColor.FromArgb(255, 238, 214),
                 "EN PROCESO" => DColor.FromArgb(228, 228, 247),
-                _ => DColor.FromArgb(223, 246, 230)
+                _ => DColor.FromArgb(250, 224, 227)
             };
             int PisoNum(string p) { int.TryParse(p, out int n); return n; }
             double AreaNum(string m)

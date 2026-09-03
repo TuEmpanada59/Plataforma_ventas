@@ -332,6 +332,37 @@ namespace Plataforma_ventas.Controllers
             ViewBag.HorasVigencia = horasVigencia;
             ViewBag.ReservasVencidas = vencidas;
 
+            // ── Últimos cambios de lista de precios ────────────────────────────────
+            // Da trazabilidad de precios: por qué un inmueble se vendió a cierto valor.
+            var histListas = new List<dynamic>();
+            try
+            {
+                var cmdHL = new SqlCommand(@"
+                    SELECT TOP 8
+                           FORMAT(DATEADD(HOUR,-5,Fecha),'dd/MM HH:mm') AS Cuando,
+                           Metros, ListaAnterior, ListaNueva, Motivo, Usuario
+                    FROM HistorialListas
+                    WHERE IdProyecto=@id
+                    ORDER BY Fecha DESC", con);
+                cmdHL.Parameters.AddWithValue("@id", idProy);
+                using var rHL = (SqlDataReader)await cmdHL.ExecuteReaderAsync();
+                while (await rHL.ReadAsync())
+                    histListas.Add(new
+                    {
+                        Cuando = rHL["Cuando"]?.ToString() ?? "",
+                        Metros = rHL["Metros"]?.ToString() ?? "",
+                        Anterior = Convert.ToInt32(rHL["ListaAnterior"]),
+                        Nueva = Convert.ToInt32(rHL["ListaNueva"]),
+                        Motivo = rHL["Motivo"]?.ToString() ?? "",
+                        Usuario = (rHL["Usuario"]?.ToString() ?? "").Trim(),
+                    });
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Number == 208)
+            {
+                // Scripts/PanelAdmin.sql aún no ejecutado: sin historial todavía.
+            }
+            ViewBag.HistorialListas = histListas;
+
             return View();
         }
 

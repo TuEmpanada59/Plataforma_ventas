@@ -114,16 +114,16 @@
                     @{ int idx = 1; }
                     @foreach (var v in ventas) {
                         var dest    = v.Destino as string ?? "&#8212;";
-                        var destIco = dest == "Vivienda" ? "&#127968;" :
+                        var destIco = dest == "Uso propio" ? "&#127968;" :
                                       dest == "Inversión para reventa" ? "&#128200;" :
                                       dest == "Inversión para arriendo" ? "&#128273;" :
                                       dest == "Cesión de derechos" ? "&#128203;" : "&#8212;";
-                        var destBg  = dest == "Vivienda"                 ? "rgba(0,118,227,0.08)"   :
+                        var destBg  = dest == "Uso propio"                 ? "rgba(0,118,227,0.08)"   :
                                       dest == "Inversión para reventa"   ? "rgba(52,199,89,0.1)"    :
                                       dest == "Inversión para arriendo"  ? "rgba(255,149,0,0.1)"    :
                                       dest == "Cesión de derechos"       ? "rgba(90,90,200,0.1)"    :
                                                                            "rgba(120,120,128,0.08)";
-                        var destFg  = dest == "Vivienda"                 ? "var(--blue)"   :
+                        var destFg  = dest == "Uso propio"                 ? "var(--blue)"   :
                                       dest == "Inversión para reventa"   ? "#1EA851"       :
                                       dest == "Inversión para arriendo"  ? "#CC7700"       :
                                       dest == "Cesión de derechos"       ? "#5A5AC8"       :

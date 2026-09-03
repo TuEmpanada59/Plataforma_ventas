@@ -25,6 +25,7 @@
     string ultAsesor= ViewBag.UltimaAsesor as string ?? "";
     var actividad   = ViewBag.Actividad  as List<dynamic> ?? new List<dynamic>();
     var listasArea  = ViewBag.ListasArea as List<dynamic> ?? new List<dynamic>();
+    var histListas  = ViewBag.HistorialListas as List<dynamic> ?? new List<dynamic>();
     var estancados  = ViewBag.Estancados as List<dynamic> ?? new List<dynamic>();
     var vencidas    = ViewBag.ReservasVencidas as List<dynamic> ?? new List<dynamic>();
     int minEstancado= ViewBag.MinutosEstancado != null ? (int)ViewBag.MinutosEstancado : 45;
@@ -52,10 +53,10 @@
     .kpi-num{font-size:28px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
     .kpi-lbl{font-size:11px;color:var(--label2);}
     .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
-    .kpi.k2 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k2 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k2 .kpi-num{color:#1EA851}
+    .kpi.k2 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k2 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k2 .kpi-num{color:var(--rojo)}
     .kpi.k3 .kpi-ico{background:rgba(90,90,200,0.1)}.kpi.k3 .kpi-tag{background:rgba(90,90,200,0.1);color:#5A5AC8}.kpi.k3 .kpi-num{color:#5A5AC8}
     .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
-    .kpi.k5 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k5 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k5 .kpi-num{color:var(--rojo)}
+    .kpi.k5 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k5 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k5 .kpi-num{color:#1EA851}
     .kpi.k6 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k6 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k6 .kpi-num{color:#1EA851}
     .kpi-num.money{font-size:17px;letter-spacing:-0.5px;padding-top:6px;}
     /* Pulso del día */
@@ -190,10 +191,10 @@
 <!-- KPIs -->
 <div class="kpi-row">
     <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851", 17)</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#E63946", 17)</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
     <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Reloj("#5A5AC8", 17)</div><span class="kpi-tag">En proceso</span></div><div class="kpi-num">@enProceso</div><div class="kpi-lbl">Gestionando</div></div>
     <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Candado("#CC7700", 17)</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
-    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#E63946", 17)</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
+    <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#1EA851", 17)</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
     <div class="kpi k6"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#1EA851", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num money">$@string.Format("{0:N0}", valorTotal)</div><div class="kpi-lbl">Valor vendido</div></div>
 </div>
 
@@ -270,15 +271,15 @@
                     <svg width="88" height="88" viewBox="0 0 36 36">
                         <circle cx="18" cy="18" r="14" fill="none" stroke="var(--fill3)" stroke-width="3.5"/>
                         @{double circ=87.96;}
-                        <circle cx="18" cy="18" r="14" fill="none" stroke="#E63946" stroke-width="3.5" stroke-dasharray="@(circ*pctV/100) @(circ*(1-pctV/100))" stroke-dashoffset="0" stroke-linecap="round"/>
-                        <circle cx="18" cy="18" r="14" fill="none" stroke="#34C759" stroke-width="3.5" stroke-dasharray="@(circ*pctD/100) @(circ*(1-pctD/100))" stroke-dashoffset="@(-(circ*pctV/100))" stroke-linecap="round"/>
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="#1EA851" stroke-width="3.5" stroke-dasharray="@(circ*pctV/100) @(circ*(1-pctV/100))" stroke-dashoffset="0" stroke-linecap="round"/>
+                        <circle cx="18" cy="18" r="14" fill="none" stroke="#E63946" stroke-width="3.5" stroke-dasharray="@(circ*pctD/100) @(circ*(1-pctD/100))" stroke-dashoffset="@(-(circ*pctV/100))" stroke-linecap="round"/>
                         <circle cx="18" cy="18" r="14" fill="none" stroke="#FF9500" stroke-width="3.5" stroke-dasharray="@(circ*pctR/100) @(circ*(1-pctR/100))" stroke-dashoffset="@(-(circ*pctV/100+circ*pctD/100))" stroke-linecap="round"/>
                     </svg>
                     <div class="donut-center"><div class="donut-pct">@pctV%</div><div class="donut-sub">Vendido</div></div>
                 </div>
                 <div class="legend">
-                    <div class="leg-row"><div class="leg-dot" style="background:var(--rojo)"></div>Vendidos<span class="leg-num" style="color:var(--rojo)">@vendidos</span></div>
-                    <div class="leg-row"><div class="leg-dot" style="background:#34C759"></div>Disponibles<span class="leg-num" style="color:#1EA851">@disponibles</span></div>
+                    <div class="leg-row"><div class="leg-dot" style="background:#34C759"></div>Vendidos<span class="leg-num" style="color:#1EA851">@vendidos</span></div>
+                    <div class="leg-row"><div class="leg-dot" style="background:var(--rojo)"></div>Disponibles<span class="leg-num" style="color:var(--rojo)">@disponibles</span></div>
                     <div class="leg-row"><div class="leg-dot" style="background:#FF9500"></div>Reservados<span class="leg-num" style="color:#CC7700">@reservados</span></div>
                 </div>
             </div>
@@ -402,6 +403,36 @@
     }
 </div>
 
+@if (histListas.Count > 0)
+{
+    <!-- ÚLTIMOS CAMBIOS DE LISTA -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">Últimos cambios de lista</span>
+            <span style="font-size:11px;color:var(--label3)">Trazabilidad de precios</span>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl-listas">
+                <thead>
+                    <tr><th>Cuándo</th><th>Área</th><th>Cambio</th><th>Motivo</th><th>Quién</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var h in histListas)
+                {
+                    bool esAuto = (h.Motivo as string) == "AUTOMATICO";
+                    <tr>
+                        <td class="de num">@h.Cuando</td>
+                        <td class="area">@h.Metros m²</td>
+                        <td>Lista @h.Anterior <span class="de">&#8594;</span> <strong>Lista @h.Nueva</strong></td>
+                        <td><span class="modo @(esAuto ? "modo-auto" : "modo-fijo")">@(esAuto ? "Automático" : "Manual")</span></td>
+                        <td class="de">@(string.IsNullOrWhiteSpace(h.Usuario as string) ? "—" : h.Usuario)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
 
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
@@ -437,7 +468,7 @@ var connection = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAu
 
 connection.on("InmuebleActualizado", function(idProyecto, idInmueble, estado, quien){
     if(idProyecto !== PROY) return;
-    var color = estado === 'VENDIDO' ? 'rgba(230,57,70,0.1);color:var(--rojo)'
+    var color = estado === 'VENDIDO' ? 'rgba(52,199,89,0.12);color:#1EA851'
               : estado === 'RESERVADO' ? 'rgba(255,149,0,0.12);color:#CC7700'
               : 'rgba(90,90,200,0.12);color:#5A5AC8';
     var sub = quien ? quien : 'Liberado — vuelve a estar disponible';

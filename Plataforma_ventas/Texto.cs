@@ -31,12 +31,12 @@ public static class Texto
     }
 
     private static readonly string[] DestinosPermitidos =
-        { "Vivienda", "Inversión para reventa", "Inversión para arriendo", "Cesión de derechos" };
+        { "Uso propio", "Inversión para reventa", "Inversión para arriendo", "Cesión de derechos" };
 
     /// <summary>
     /// Valida el destino de una venta contra la lista blanca. Si no coincide,
-    /// devuelve "Vivienda" (valor por defecto), evitando datos arbitrarios.
+    /// devuelve "Uso propio" (valor por defecto), evitando datos arbitrarios.
     /// </summary>
     public static string DestinoVenta(string? destino)
-        => System.Array.IndexOf(DestinosPermitidos, destino) >= 0 ? destino! : "Vivienda";
+        => System.Array.IndexOf(DestinosPermitidos, destino) >= 0 ? destino! : "Uso propio";
 }

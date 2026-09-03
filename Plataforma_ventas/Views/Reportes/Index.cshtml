@@ -54,8 +54,8 @@
     .kpi-num{font-size:26px;font-weight:300;letter-spacing:-1.5px;line-height:1;margin-bottom:3px;}
     .kpi-lbl{font-size:11px;color:var(--label2);}
     .kpi.k1 .kpi-ico{background:rgba(0,118,227,0.1)}.kpi.k1 .kpi-tag{background:rgba(0,118,227,0.1);color:var(--blue)}.kpi.k1 .kpi-num{color:var(--azul)}
-    .kpi.k2 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k2 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k2 .kpi-num{color:#1EA851}
-    .kpi.k3 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k3 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k3 .kpi-num{color:var(--rojo)}
+    .kpi.k2 .kpi-ico{background:rgba(230,57,70,0.1)}.kpi.k2 .kpi-tag{background:rgba(230,57,70,0.1);color:var(--rojo)}.kpi.k2 .kpi-num{color:var(--rojo)}
+    .kpi.k3 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k3 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k3 .kpi-num{color:#1EA851}
     .kpi.k4 .kpi-ico{background:rgba(255,149,0,0.1)}.kpi.k4 .kpi-tag{background:rgba(255,149,0,0.1);color:#CC7700}.kpi.k4 .kpi-num{color:#CC7700}
     .kpi.k5 .kpi-ico{background:rgba(52,199,89,0.1)}.kpi.k5 .kpi-tag{background:rgba(52,199,89,0.1);color:#1EA851}.kpi.k5 .kpi-num{color:#1EA851;font-size:15px;}
     .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease 0.15s both;display:flex;flex-direction:column;}
@@ -94,7 +94,7 @@
     .mapa-torre{font-size:11px;color:var(--label2);flex:1;}
     .mapa-quien{font-size:11px;font-weight:600;white-space:nowrap;margin-right:4px;}
     .mapa-bdg{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
-    .mapa-D{background:rgba(52,199,89,0.12);color:#1EA851}.mapa-V{background:rgba(230,57,70,0.12);color:var(--rojo)}
+    .mapa-D{background:rgba(230,57,70,0.12);color:var(--rojo)}.mapa-V{background:rgba(52,199,89,0.12);color:#1EA851}
     .mapa-R{background:rgba(255,149,0,0.12);color:#CC7700}.mapa-P{background:rgba(90,90,200,0.12);color:#5A5AC8}
     .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
     .destino-row{display:flex;align-items:center;gap:10px;}
@@ -170,8 +170,8 @@
 <!-- KPIs -->
 <div class="kpi-row">
     <div class="kpi k1"><div class="kpi-top"><div class="kpi-ico">@Iconos.Edificio("#0076E3", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num">@total</div><div class="kpi-lbl">Inmuebles</div></div>
-    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#1EA851", 17)</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
-    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#E63946", 17)</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
+    <div class="kpi k2"><div class="kpi-top"><div class="kpi-ico">@Iconos.Check("#E63946", 17)</div><span class="kpi-tag">@pctD%</span></div><div class="kpi-num">@disponibles</div><div class="kpi-lbl">Disponibles</div></div>
+    <div class="kpi k3"><div class="kpi-top"><div class="kpi-ico">@Iconos.Llave("#1EA851", 17)</div><span class="kpi-tag">@pctV%</span></div><div class="kpi-num">@vendidos</div><div class="kpi-lbl">Vendidos</div></div>
     <div class="kpi k4"><div class="kpi-top"><div class="kpi-ico">@Iconos.Candado("#CC7700", 17)</div><span class="kpi-tag">@pctR%</span></div><div class="kpi-num">@reservados</div><div class="kpi-lbl">Reservados</div></div>
     <div class="kpi k5"><div class="kpi-top"><div class="kpi-ico">@Iconos.Dolar("#1EA851", 17)</div><span class="kpi-tag">Total</span></div><div class="kpi-num">$@string.Format("{0:N0}", valorTotal)</div><div class="kpi-lbl">Valor vendido</div></div>
 </div>
@@ -181,8 +181,8 @@
     <div class="card">
         <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Grafico("#0076E3", 17) Progreso del proyecto</span></div>
         <div class="card-body">
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:var(--rojo)">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:#1EA851">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
+            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:#1EA851">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
+            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:var(--rojo)">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctR)%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div></div>
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">En proceso</span><span class="prog-val" style="color:#5A5AC8">@enProceso / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctP)%;background:linear-gradient(90deg,#5A5AC8,#7878E0)"></div></div></div>
         </div>
@@ -231,13 +231,13 @@
                     <tr data-tipo="@t.Tipo">
                         <td style="font-weight:600">@t.Tipo</td>
                         <td>@t.Total</td>
-                        <td style="color:var(--rojo);font-weight:600">@t.Vendidos</td>
-                        <td style="color:#1EA851">@t.Disponibles</td>
+                        <td style="color:#1EA851;font-weight:600">@t.Vendidos</td>
+                        <td style="color:var(--rojo)">@t.Disponibles</td>
                         <td style="color:#CC7700">@t.Reservados</td>
                         <td>
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <div style="flex:1;height:6px;background:var(--fill3);border-radius:20px;overflow:hidden;"><div style="width:@pctTipo%;height:100%;background:var(--rojo);border-radius:20px;"></div></div>
-                                <span style="font-size:11px;font-weight:600;color:var(--rojo)">@pctTipo%</span>
+                                <div style="flex:1;height:6px;background:var(--fill3);border-radius:20px;overflow:hidden;"><div style="width:@pctTipo%;height:100%;background:#1EA851;border-radius:20px;"></div></div>
+                                <span style="font-size:11px;font-weight:600;color:#1EA851">@pctTipo%</span>
                             </div>
                         </td>
                     </tr>
@@ -254,8 +254,8 @@
         <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Edificio("#0076E3", 17) Mapa de inmuebles</span>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div style="display:flex;gap:10px;font-size:11px;">
-                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#1EA851;display:inline-block;"></span>Disponible</span>
-                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--rojo);display:inline-block;"></span>Vendido</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--rojo);display:inline-block;"></span>Disponible</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#1EA851;display:inline-block;"></span>Vendido</span>
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#CC7700;display:inline-block;"></span>Reservado</span>
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#5A5AC8;display:inline-block;"></span>En proceso</span>
             </div>
@@ -268,7 +268,7 @@
         <div class="mapa-wrap">
             @foreach (var m in mapa) {
                 var clsE = m.Estado == "DISPONIBLE" ? "D" : m.Estado == "VENDIDO" ? "V" : m.Estado == "RESERVADO" ? "R" : "P";
-                var colE = m.Estado == "DISPONIBLE" ? "#1EA851" : m.Estado == "VENDIDO" ? "var(--rojo)" : m.Estado == "RESERVADO" ? "#CC7700" : "#5A5AC8";
+                var colE = m.Estado == "DISPONIBLE" ? "var(--rojo)" : m.Estado == "VENDIDO" ? "#1EA851" : m.Estado == "RESERVADO" ? "#CC7700" : "#5A5AC8";
                 string quien = m.Estado == "EN PROCESO" ? (string)m.EnProcesoPor
                              : m.Estado == "RESERVADO"  ? (string)m.ReservadoPor : "";
                 <div class="mapa-row">
@@ -334,7 +334,7 @@
                         <td>
                             @{
                                 var dest = v.Destino as string ?? "—";
-                                var destCol = dest == "Vivienda" ? "rgba(0,118,227,0.08);color:var(--blue)" :
+                                var destCol = dest == "Uso propio" ? "rgba(0,118,227,0.08);color:var(--blue)" :
                                               dest == "Inversión para reventa" ? "rgba(52,199,89,0.1);color:#1EA851" :
                                               dest == "Inversión para arriendo" ? "rgba(255,149,0,0.1);color:#CC7700" :
                                               dest == "Cesión de derechos" ? "rgba(90,90,200,0.1);color:#5A5AC8" :
