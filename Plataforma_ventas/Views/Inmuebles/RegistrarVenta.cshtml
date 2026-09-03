@@ -80,6 +80,11 @@
     .sag-ok{display:flex;align-items:center;gap:8px;background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;color:#1EA851;margin-top:12px;}
     .sag-reset{margin-left:auto;background:none;border:none;color:#1EA851;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit;}
     @@media(max-width:700px){.destino-grid{grid-template-columns:1fr!important;}.form-grid{grid-template-columns:1fr!important;}}
+    .obs-venta{margin-top:14px;}
+    .obs-lbl{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--label2);margin-bottom:6px;}
+    .obs-opt{text-transform:none;letter-spacing:0;font-weight:500;color:var(--label3);}
+    .obs-input{width:100%;padding:10px 12px;border:1px solid var(--sep);border-radius:10px;font-size:13px;font-family:inherit;color:var(--label);background:var(--fill3);outline:none;resize:vertical;}
+    .obs-input:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.08);}
 </style>
 }
 
@@ -149,6 +154,12 @@
                     <div class="destino-ico">@Iconos.Lista("#5A5AC8", 20)</div>
                     <div><div class="destino-txt">Cesión de derechos</div><div class="destino-sub">Transferencia de contrato</div></div>
                 </div>
+            </div>
+
+            <div class="obs-venta">
+                <label class="obs-lbl" for="observaciones">Observaciones de la venta <span class="obs-opt">(opcional)</span></label>
+                <textarea name="observaciones" id="observaciones" rows="3" maxlength="1000" class="obs-input"
+                          placeholder="Acuerdos, condiciones especiales, notas para cartera..."></textarea>
             </div>
         </div>
     </div>

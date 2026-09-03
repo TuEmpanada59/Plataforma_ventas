@@ -13,11 +13,12 @@
     var pCel       = ViewBag.PerfilCelular  as string ?? "—";
     var reservas   = ViewBag.Reservas   as List<dynamic> ?? new List<dynamic>();
     var listasArea = ViewBag.ListasArea as List<dynamic> ?? new List<dynamic>();
+    var mapa       = ViewBag.Mapa       as List<dynamic> ?? new List<dynamic>();
     var iniciales  = ((pNombre.Length>=1?pNombre.Substring(0,1):"") + (pApellido.Length>=1?pApellido.Substring(0,1):"")).ToUpper();
 
     // Pestaña inicial: si vienen de liberar/continuar una reserva, abrir en reservas.
     var tabInicial = Context.Request.Query["tab"].ToString();
-    if (tabInicial != "reservas" && tabInicial != "listas") tabInicial = "datos";
+    if (tabInicial != "reservas" && tabInicial != "listas" && tabInicial != "mapa") tabInicial = "datos";
     if (TempData["Exito"] != null || TempData["Error"] != null) tabInicial = "reservas";
 }
 @section Styles {
@@ -57,6 +58,24 @@
     .ios-btn.rojo{background:rgba(230,57,70,0.1);color:var(--rojo);}
     .ios-btn.rojo:hover{background:rgba(230,57,70,0.18);}
     .acciones{display:flex;gap:8px;flex-wrap:wrap;}
+    .obs-reserva{font-size:11px;color:var(--label2);background:var(--fill3);border-radius:8px;padding:5px 8px;margin-top:5px;max-width:230px;white-space:normal;line-height:1.4;}
+    .mapa-leyenda{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
+    .mapa-leyenda i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+    .mapa-lista{display:flex;flex-direction:column;max-height:460px;overflow-y:auto;padding:8px;}
+    .mapa-fila{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;font-size:13px;}
+    .mapa-fila:hover{background:var(--fill3);}
+    .mapa-pin{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+    .p-D{background:var(--rojo)}.p-V{background:#1EA851}.p-R{background:#CC7700}.p-P{background:#5A5AC8}
+    .mapa-apto{font-weight:600;min-width:62px;}
+    .mapa-torre{color:var(--label2);font-size:12px;flex:1;}
+    .mapa-meta{color:var(--label3);font-size:11px;min-width:58px;}
+    .mapa-quien{font-size:11px;font-weight:600;white-space:nowrap;}
+    .q-R{color:#CC7700}.q-P{color:#5A5AC8}
+    .mapa-est{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+    .e-D{background:rgba(230,57,70,0.12);color:var(--rojo)}
+    .e-V{background:rgba(52,199,89,0.12);color:#1EA851}
+    .e-R{background:rgba(255,149,0,0.12);color:#CC7700}
+    .e-P{background:rgba(90,90,200,0.12);color:#5A5AC8}
     .vacio{padding:36px;text-align:center;color:var(--label3);font-size:13px;}
     .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:#1EA851;display:flex;align-items:center;gap:8px;}
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:var(--rojo);display:flex;align-items:center;gap:8px;}
@@ -79,6 +98,7 @@
         <button type="button" id="tabDatos"    class="tab-btn" onclick="verTab('datos')">Mis datos</button>
         <button type="button" id="tabReservas" class="tab-btn" onclick="verTab('reservas')">Mis reservas @if (reservas.Count > 0) { <span class="cuenta" style="margin-left:5px">@reservas.Count</span> }</button>
         <button type="button" id="tabListas"   class="tab-btn" onclick="verTab('listas')">Listas por área</button>
+        <button type="button" id="tabMapa"     class="tab-btn" onclick="verTab('mapa')">Mapa de ventas</button>
     </div>
 
     @if (TempData["Exito"] != null)
@@ -130,7 +150,13 @@
                             <td>@r.Metros m²</td>
                             <td>@r.Tipo</td>
                             <td class="precio num">$@string.Format("{0:N0}", r.PrecioReserva)</td>
-                            <td class="de">@r.FechaReserva</td>
+                            <td class="de">
+                                @r.FechaReserva
+                                @if (!string.IsNullOrWhiteSpace(r.Observacion as string))
+                                {
+                                    <div class="obs-reserva" title="@r.Observacion">@r.Observacion</div>
+                                }
+                            </td>
                             <td>
                                 <div class="acciones">
                                     <a href="/Vendedor/ContinuarVenta?idInmueble=@r.Id" class="ios-btn">Continuar venta</a>
@@ -211,12 +237,53 @@
         }
     </div>
 
+    <!-- ── MAPA DE VENTAS ── -->
+    <div id="paneMapa" class="perfil-card">
+        <div class="card-head">
+            <span class="card-title">Mapa de ventas</span>
+            <div class="mapa-leyenda">
+                <span><i style="background:var(--rojo)"></i>Disponible</span>
+                <span><i style="background:#1EA851"></i>Vendido</span>
+                <span><i style="background:#CC7700"></i>Reservado</span>
+                <span><i style="background:#5A5AC8"></i>En proceso</span>
+            </div>
+        </div>
+        @if (mapa.Count > 0)
+        {
+            <div class="mapa-lista">
+            @foreach (var m in mapa)
+            {
+                string est = m.Estado as string ?? "";
+                string cls = est == "DISPONIBLE" ? "D" : est == "VENDIDO" ? "V" : est == "RESERVADO" ? "R" : "P";
+                string quien = est == "EN PROCESO" ? (string)m.EnProcesoPor
+                             : est == "RESERVADO"  ? (string)m.ReservadoPor : "";
+                <div class="mapa-fila">
+                    <span class="mapa-pin p-@cls"></span>
+                    <span class="mapa-apto">@m.Apto</span>
+                    <span class="mapa-torre">@m.Torre</span>
+                    <span class="mapa-meta">@m.Metros m²</span>
+                    @if (!string.IsNullOrEmpty(quien))
+                    {
+                        <span class="mapa-quien q-@cls">@quien</span>
+                    }
+                    <span class="mapa-est e-@cls">@est</span>
+                </div>
+            }
+            </div>
+            <p class="nota">Estado en vivo de las @mapa.Count unidades de @proyActivo.</p>
+        }
+        else
+        {
+            <div class="vacio">Este proyecto aún no tiene inmuebles cargados.</div>
+        }
+    </div>
+
 </div>
 
 @section Scripts {
 <script>
     function verTab(cual) {
-        ['datos', 'reservas', 'listas'].forEach(function (t) {
+        ['datos', 'reservas', 'listas', 'mapa'].forEach(function (t) {
             var pane = document.getElementById('pane' + t.charAt(0).toUpperCase() + t.slice(1));
             var btn  = document.getElementById('tab'  + t.charAt(0).toUpperCase() + t.slice(1));
             if (pane) pane.style.display = (t === cual) ? '' : 'none';

@@ -291,7 +291,7 @@ namespace Plataforma_ventas.Controllers
         /// <param name="idInmueble">Property to reserve.</param>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ReservarInmueble(int idInmueble)
+        public async Task<IActionResult> ReservarInmueble(int idInmueble, string observacion = "")
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
@@ -324,10 +324,12 @@ namespace Plataforma_ventas.Controllers
             var cmd = new SqlCommand(@"
                 UPDATE Inmuebles
                 SET Estado='RESERVADO', IdVendedorReserva=@uid,
-                    PrecioReserva=@precio, FechaReserva=GETDATE()
+                    PrecioReserva=@precio, FechaReserva=GETDATE(),
+                    ObservacionReserva=@obs
                 WHERE IdInmuebles=@id AND Estado='DISPONIBLE'", con);
             cmd.Parameters.AddWithValue("@uid", idUsuario);
             cmd.Parameters.AddWithValue("@precio", precioReserva);
+            cmd.Parameters.AddWithValue("@obs", (observacion ?? "").Trim());
             cmd.Parameters.AddWithValue("@id", idInmueble);
             var affected = await cmd.ExecuteNonQueryAsync();
             if (affected == 0)
@@ -466,6 +468,7 @@ namespace Plataforma_ventas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVentaReserva(int idInmueble, long precioVenta,
             int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
+            string observaciones,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
@@ -543,7 +546,7 @@ namespace Plataforma_ventas.Controllers
             // Marcar vendido de forma ATÓMICA (verifica reserva + proyecto).
             var cmdInm = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='VENDIDO', IdVendedorReserva=NULL,
-                    PrecioReserva=NULL, FechaReserva=NULL
+                    PrecioReserva=NULL, FechaReserva=NULL, ObservacionReserva=NULL
                 WHERE IdInmuebles=@id AND Estado='RESERVADO' AND IdProyecto=@proy", con, tx);
             cmdInm.Parameters.AddWithValue("@id", idInmueble);
             cmdInm.Parameters.AddWithValue("@proy", idProy);
@@ -554,8 +557,8 @@ namespace Plataforma_ventas.Controllers
             }
 
             var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
-                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado)
-                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con, tx);
+                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado,Observaciones)
+                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA',@obsVenta)", con, tx);
             cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
             cmdVenta.Parameters.AddWithValue("@cli", idCliente);
             cmdVenta.Parameters.AddWithValue("@usr", idUsuario);
@@ -563,6 +566,7 @@ namespace Plataforma_ventas.Controllers
             cmdVenta.Parameters.AddWithValue("@lista", listaAplicada);
             cmdVenta.Parameters.AddWithValue("@precio", precioFijo);
             cmdVenta.Parameters.AddWithValue("@destino", Texto.DestinoVenta(destino));
+            cmdVenta.Parameters.AddWithValue("@obsVenta", (observaciones ?? "").Trim());
             await cmdVenta.ExecuteNonQueryAsync();
 
             await tx.CommitAsync();
@@ -590,7 +594,7 @@ namespace Plataforma_ventas.Controllers
 
             var cmd = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='DISPONIBLE', IdVendedorReserva=NULL,
-                    PrecioReserva=NULL, FechaReserva=NULL
+                    PrecioReserva=NULL, FechaReserva=NULL, ObservacionReserva=NULL
                 WHERE IdInmuebles=@id", con);
             cmd.Parameters.AddWithValue("@id", idInmueble);
             await cmd.ExecuteNonQueryAsync();
@@ -860,6 +864,7 @@ namespace Plataforma_ventas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVenta(int idInmueble, string accion,
             int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
+            string observaciones,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
@@ -955,8 +960,8 @@ namespace Plataforma_ventas.Controllers
 
             // 4. Registrar la venta con precio/lista del servidor y destino validado.
             var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
-                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado)
-                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con, tx);
+                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado,Observaciones)
+                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA',@obsVenta)", con, tx);
             cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
             cmdVenta.Parameters.AddWithValue("@cli", idCliente);
             cmdVenta.Parameters.AddWithValue("@usr", idUsuario);
@@ -964,6 +969,7 @@ namespace Plataforma_ventas.Controllers
             cmdVenta.Parameters.AddWithValue("@lista", listaAplicada);
             cmdVenta.Parameters.AddWithValue("@precio", precioVenta);
             cmdVenta.Parameters.AddWithValue("@destino", Texto.DestinoVenta(destino));
+            cmdVenta.Parameters.AddWithValue("@obsVenta", (observaciones ?? "").Trim());
             await cmdVenta.ExecuteNonQueryAsync();
 
             await tx.CommitAsync();

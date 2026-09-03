@@ -102,7 +102,7 @@ namespace Plataforma_ventas.Controllers
                        ISNULL(v.Destino,'—') AS Destino,
                        v.PrecioVenta,
                        FORMAT(v.FechaVenta,'dd/MM/yyyy HH:mm') AS FechaVenta,
-                       v.Estado, v.ListaAplicada
+                       v.Estado, v.ListaAplicada, ISNULL(v.Observaciones,'') AS Observaciones
                 FROM Ventas v
                 JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
                 JOIN Clientes  c ON v.IdCliente  = c.IdCliente
@@ -131,7 +131,8 @@ namespace Plataforma_ventas.Controllers
                     PrecioVenta = reader["PrecioVenta"]?.ToString() ?? "0",
                     FechaVenta = reader["FechaVenta"]?.ToString() ?? "",
                     Estado = reader["Estado"]?.ToString() ?? "",
-                    Lista = reader["ListaAplicada"]?.ToString() ?? ""
+                    Lista = reader["ListaAplicada"]?.ToString() ?? "",
+                    Observaciones = reader["Observaciones"]?.ToString() ?? ""
                 });
             }
 
@@ -214,7 +215,7 @@ namespace Plataforma_ventas.Controllers
                     UPDATE Inmuebles
                     SET Estado='DISPONIBLE',
                         IdVendedorEnProceso=NULL, FechaEnProceso=NULL,
-                        IdVendedorReserva=NULL,  FechaReserva=NULL, PrecioReserva=NULL
+                        IdVendedorReserva=NULL,  FechaReserva=NULL, PrecioReserva=NULL, ObservacionReserva=NULL
                     WHERE IdInmuebles=@inm", con, tx);
                 cmdInm.Parameters.AddWithValue("@inm", idInmueble);
                 await cmdInm.ExecuteNonQueryAsync();

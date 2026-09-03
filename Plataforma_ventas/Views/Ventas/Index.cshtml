@@ -68,6 +68,7 @@
     .btn-cancelar{background:var(--fill3);color:var(--label);border:1px solid var(--sep);padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
     .btn-confirmar{background:var(--rojo);color:white;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
     .btn-confirmar:hover{background:#B02030;}
+    .obs-venta-txt{font-size:11px;font-weight:400;color:var(--label2);background:var(--fill3);border-radius:8px;padding:5px 8px;margin-top:5px;max-width:240px;white-space:normal;line-height:1.4;}
     .empty{padding:60px;text-align:center;}
     .empty-ico{font-size:40px;opacity:0.3;margin-bottom:8px;}
     .empty-txt{font-size:15px;font-weight:600;color:var(--label2);}
@@ -134,7 +135,13 @@
                             <td>@v.Torre</td>
                             <td>@v.Piso</td>
                             <td>@v.Tipo</td>
-                            <td style="font-weight:500">@v.Cliente</td>
+                            <td style="font-weight:500">
+                                @v.Cliente
+                                @if (!string.IsNullOrWhiteSpace(v.Observaciones as string))
+                                {
+                                    <div class="obs-venta-txt" title="@v.Observaciones">@v.Observaciones</div>
+                                }
+                            </td>
                             <td style="color:var(--label2)">@v.Documento</td>
                             <td style="color:var(--label2)">@v.Celular</td>
                             <td style="color:var(--blue);font-weight:500">@v.Asesor</td>

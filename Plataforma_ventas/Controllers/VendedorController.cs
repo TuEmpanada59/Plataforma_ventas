@@ -335,7 +335,7 @@ namespace Plataforma_ventas.Controllers
         /// <param name="idInmueble">Property to reserve.</param>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ReservarInmueble(int idInmueble)
+        public async Task<IActionResult> ReservarInmueble(int idInmueble, string observacion = "")
         {
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
@@ -368,10 +368,12 @@ namespace Plataforma_ventas.Controllers
             // Atomic reserve: only succeeds if still DISPONIBLE — prevents double-booking
             var cmd = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='RESERVADO', IdVendedorReserva=@uid,
-                    PrecioReserva=@precio, FechaReserva=GETDATE()
+                    PrecioReserva=@precio, FechaReserva=GETDATE(),
+                    ObservacionReserva=@obs
                 WHERE IdInmuebles=@id AND Estado='DISPONIBLE'", con);
             cmd.Parameters.AddWithValue("@uid", idUsuario);
             cmd.Parameters.AddWithValue("@precio", precioReserva);
+            cmd.Parameters.AddWithValue("@obs", (observacion ?? "").Trim());
             cmd.Parameters.AddWithValue("@id", idInmueble);
             var affected = await cmd.ExecuteNonQueryAsync();
             if (affected == 0)
@@ -400,7 +402,7 @@ namespace Plataforma_ventas.Controllers
             await con.OpenAsync();
             var cmd = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='DISPONIBLE', IdVendedorReserva=NULL,
-                    PrecioReserva=NULL, FechaReserva=NULL
+                    PrecioReserva=NULL, FechaReserva=NULL, ObservacionReserva=NULL
                 WHERE IdInmuebles=@id AND IdVendedorReserva=@uid", con);
             cmd.Parameters.AddWithValue("@id", idInmueble);
             cmd.Parameters.AddWithValue("@uid", idUsuario);
@@ -477,6 +479,7 @@ namespace Plataforma_ventas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVentaReserva(int idInmueble, long precioVenta,
             int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
+            string observaciones,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
@@ -557,7 +560,7 @@ namespace Plataforma_ventas.Controllers
             // Marcar como vendido de forma ATÓMICA (verifica reserva + propietario).
             var cmdInm = new SqlCommand(@"UPDATE Inmuebles
                 SET Estado='VENDIDO', IdVendedorReserva=NULL,
-                    PrecioReserva=NULL, FechaReserva=NULL
+                    PrecioReserva=NULL, FechaReserva=NULL, ObservacionReserva=NULL
                 WHERE IdInmuebles=@id AND Estado='RESERVADO' AND IdVendedorReserva=@uid", con, tx);
             cmdInm.Parameters.AddWithValue("@id", idInmueble);
             cmdInm.Parameters.AddWithValue("@uid", idUsuario);
@@ -569,8 +572,8 @@ namespace Plataforma_ventas.Controllers
 
             // Registrar venta con el precio bloqueado al reservar y destino validado.
             var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
-                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado)
-                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con, tx);
+                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado,Observaciones)
+                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA',@obsVenta)", con, tx);
             cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
             cmdVenta.Parameters.AddWithValue("@cli", idCliente);
             cmdVenta.Parameters.AddWithValue("@usr", idUsuario);
@@ -578,6 +581,7 @@ namespace Plataforma_ventas.Controllers
             cmdVenta.Parameters.AddWithValue("@lista", listaAplicada);
             cmdVenta.Parameters.AddWithValue("@precio", precioFijo);
             cmdVenta.Parameters.AddWithValue("@destino", Texto.DestinoVenta(destino));
+            cmdVenta.Parameters.AddWithValue("@obsVenta", (observaciones ?? "").Trim());
             await cmdVenta.ExecuteNonQueryAsync();
 
             await tx.CommitAsync();
@@ -679,6 +683,7 @@ namespace Plataforma_ventas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVenta(int idInmueble, string accion,
             int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
+            string observaciones,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
@@ -773,8 +778,8 @@ namespace Plataforma_ventas.Controllers
 
             // 5. Registrar la venta con precio/lista del servidor y destino validado.
             var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
-                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado)
-                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA')", con, tx);
+                (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,Destino,Estado,Observaciones)
+                VALUES (@inm,@cli,@usr,@proy,@lista,@precio,@destino,'ACTIVA',@obsVenta)", con, tx);
             cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
             cmdVenta.Parameters.AddWithValue("@cli", idCliente);
             cmdVenta.Parameters.AddWithValue("@usr", idUsuario);
@@ -782,6 +787,7 @@ namespace Plataforma_ventas.Controllers
             cmdVenta.Parameters.AddWithValue("@lista", listaAplicada);
             cmdVenta.Parameters.AddWithValue("@precio", precioVenta);
             cmdVenta.Parameters.AddWithValue("@destino", Texto.DestinoVenta(destino));
+            cmdVenta.Parameters.AddWithValue("@obsVenta", (observaciones ?? "").Trim());
             await cmdVenta.ExecuteNonQueryAsync();
 
             await tx.CommitAsync();
@@ -919,7 +925,7 @@ namespace Plataforma_ventas.Controllers
             var reservas = new List<dynamic>();
             var cmdRes = new SqlCommand(@"
                 SELECT IdInmuebles, Apto, Torre, Piso, Metros, Tipo,
-                       PrecioReserva, FechaReserva
+                       PrecioReserva, FechaReserva, ISNULL(ObservacionReserva,'') AS Observacion
                 FROM Inmuebles
                 WHERE IdProyecto=@proy AND Estado='RESERVADO' AND IdVendedorReserva=@uid
                 ORDER BY Apto", con);
@@ -938,6 +944,7 @@ namespace Plataforma_ventas.Controllers
                         PrecioReserva = rr["PrecioReserva"] == DBNull.Value ? 0L : (long)rr["PrecioReserva"],
                         FechaReserva = rr["FechaReserva"] == DBNull.Value ? "" :
                                         ((DateTime)rr["FechaReserva"]).ToString("dd/MM/yyyy HH:mm"),
+                        Observacion = rr["Observacion"]?.ToString() ?? "",
                     });
             ViewBag.Reservas = reservas;
 
@@ -1000,6 +1007,33 @@ namespace Plataforma_ventas.Controllers
                 });
             }
             ViewBag.ListasArea = listasArea;
+
+            // ── Pestaña "Mapa de ventas": estado de cada inmueble del proyecto ──
+            var mapa = new List<dynamic>();
+            var cmdMapa = new SqlCommand(@"
+                SELECT i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros, i.Estado,
+                       ISNULL(up.Nombre + ' ' + up.Apellido, '') AS EnProcesoPor,
+                       ISNULL(ur.Nombre + ' ' + ur.Apellido, '') AS ReservadoPor
+                FROM Inmuebles i
+                LEFT JOIN Usuarios up ON i.IdVendedorEnProceso = up.IdUsuario
+                LEFT JOIN Usuarios ur ON i.IdVendedorReserva   = ur.IdUsuario
+                WHERE i.IdProyecto=@id
+                ORDER BY i.Torre, TRY_CONVERT(int, i.Piso) DESC, i.Apto", con);
+            cmdMapa.Parameters.AddWithValue("@id", idProy);
+            using (var rm = (SqlDataReader)await cmdMapa.ExecuteReaderAsync())
+                while (await rm.ReadAsync())
+                    mapa.Add(new
+                    {
+                        Apto = rm["Apto"]?.ToString() ?? "",
+                        Torre = rm["Torre"]?.ToString() ?? "",
+                        Piso = rm["Piso"]?.ToString() ?? "",
+                        Tipo = rm["Tipo"]?.ToString() ?? "",
+                        Metros = rm["Metros"]?.ToString() ?? "",
+                        Estado = rm["Estado"]?.ToString() ?? "",
+                        EnProcesoPor = (rm["EnProcesoPor"]?.ToString() ?? "").Trim(),
+                        ReservadoPor = (rm["ReservadoPor"]?.ToString() ?? "").Trim(),
+                    });
+            ViewBag.Mapa = mapa;
 
             return View();
         }

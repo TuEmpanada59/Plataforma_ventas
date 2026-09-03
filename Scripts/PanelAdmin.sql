@@ -98,5 +98,19 @@ GO
 UPDATE Ventas SET Destino = 'Uso propio' WHERE Destino = 'Vivienda';
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 6) Observaciones en reservas y en ventas
+--    La observación de la reserva vive en el inmueble (junto al resto del
+--    estado de la reserva) y se limpia cuando la reserva se libera o se vende.
+--    La de la venta queda en el registro de la venta, de forma permanente.
+-- ────────────────────────────────────────────────────────────────────────────
+IF COL_LENGTH('Inmuebles', 'ObservacionReserva') IS NULL
+    ALTER TABLE Inmuebles ADD ObservacionReserva NVARCHAR(500) NULL;
+GO
+
+IF COL_LENGTH('Ventas', 'Observaciones') IS NULL
+    ALTER TABLE Ventas ADD Observaciones NVARCHAR(1000) NULL;
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO
