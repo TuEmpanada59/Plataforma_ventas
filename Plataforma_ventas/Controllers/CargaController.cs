@@ -1,22 +1,32 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using OfficeOpenXml;
 using Plataforma_ventas.Filters;
 
 namespace Plataforma_ventas.Controllers
 {
-    [RolAutorizado("Administrador")]
+    /// <summary>
+    /// Administrator controller for bulk data loading: uploading Excel files to create
+    /// new projects with their property inventory, regenerating access codes,
+    /// and deleting projects with all associated data.
+    /// </summary>
+    [RolAutorizado("Administrador", "SuperAdministrador")]
     public class CargaController : Controller
     {
         private readonly string _conn;
 
+        /// <summary>Initializes the controller with DB connection string from configuration.</summary>
         public CargaController(IConfiguration config)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
             ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
         }
 
-        public IActionResult Index()
+        /// <summary>
+        /// Displays the project upload page with the list of projects owned by this admin.
+        /// Performs a SELECT query on Proyectos.
+        /// </summary>
+        public async Task<IActionResult> Index()
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre");
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido");
@@ -24,17 +34,16 @@ namespace Plataforma_ventas.Controllers
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var proyectos = new List<(int Id, string Nombre, string Codigo)>();
             var tiposProy = new Dictionary<int, string>();
 
             var cmdList = new SqlCommand(@"SELECT IdProyectos, Nombre, CodigoAcceso, TipProyecto
-             FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@uid 
-             ORDER BY FechaCarga DESC", con);
-            cmdList.Parameters.AddWithValue("@uid", idAdmin);
-            using (var r = cmdList.ExecuteReader())
-                while (r.Read())
+                FROM Proyectos WHERE Activo=1
+                ORDER BY FechaCarga DESC", con);
+            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
+                while (await r.ReadAsync())
                 {
                     int id = (int)r["IdProyectos"];
                     proyectos.Add((id, r["Nombre"]?.ToString() ?? "", r["CodigoAcceso"]?.ToString() ?? ""));
@@ -47,8 +56,17 @@ namespace Plataforma_ventas.Controllers
             return View();
         }
 
+        /// <summary>
+        /// Parses an uploaded Excel file and creates a new project with all its properties.
+        /// Detects up to 5 active price lists from columns LISTA1–LISTA10 (skipping empty ones).
+        /// Performs INSERT queries on Proyectos, Inmuebles, and ProyectoAreaListas.
+        /// </summary>
+        /// <param name="archivo">The Excel (.xlsx) file to parse.</param>
+        /// <param name="nombreProyecto">Display name for the new project.</param>
+        /// <param name="tipoProyecto">Project type: "APARTAMENTOS" or "LOTES".</param>
         [HttpPost]
-        public IActionResult Subir(IFormFile archivo, string nombreProyecto, string tipoProyecto)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Subir(IFormFile archivo, string nombreProyecto, string tipoProyecto)
         {
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
 
@@ -57,19 +75,41 @@ namespace Plataforma_ventas.Controllers
                 TempData["Error"] = "Debes seleccionar un archivo Excel.";
                 return RedirectToAction("Index");
             }
+            // Validación de tipo y tamaño (defensa contra DoS por memoria / archivos no válidos).
+            const long maxBytes = 10 * 1024 * 1024; // 10 MB
+            if (archivo.Length > maxBytes)
+            {
+                TempData["Error"] = "El archivo supera el tamaño máximo permitido (10 MB).";
+                return RedirectToAction("Index");
+            }
+            if (Path.GetExtension(archivo.FileName).ToLowerInvariant() != ".xlsx")
+            {
+                TempData["Error"] = "El archivo debe ser un Excel con extensión .xlsx.";
+                return RedirectToAction("Index");
+            }
             if (string.IsNullOrWhiteSpace(nombreProyecto))
             {
                 TempData["Error"] = "Debes ingresar el nombre del proyecto.";
                 return RedirectToAction("Index");
             }
 
-            if (tipoProyecto != "APARTAMENTOS" && tipoProyecto != "LOTES")
+            if (tipoProyecto != "APARTAMENTOS" && tipoProyecto != "LOTES" &&
+                tipoProyecto != "SUITES" && tipoProyecto != "SALUD" && tipoProyecto != "OFICINAS")
                 tipoProyecto = "APARTAMENTOS";
+
+            // Nombre de la columna principal según el tipo de producto
+            string colNombreUnidad = tipoProyecto switch
+            {
+                "SUITES"   => "SUITE",
+                "SALUD"    => "CONSULTORIO",
+                "OFICINAS" => "OFICINA",
+                _          => "APTO"   // APARTAMENTOS y LOTES
+            };
 
             try
             {
                 using var stream = new MemoryStream();
-                archivo.CopyTo(stream);
+                await archivo.CopyToAsync(stream);
                 stream.Position = 0;
 
                 using var package = new ExcelPackage(stream);
@@ -92,7 +132,7 @@ namespace Plataforma_ventas.Controllers
                 for (int c = 1; c <= totalCols; c++)
                 {
                     var header = ws.Cells[1, c].Text?.Trim().ToUpper() ?? "";
-                    if (header == "APTO") colApto = c;
+                    if (header == colNombreUnidad) colApto = c;
                     if (header == "TIPO1" || header == "TIPO") colTipo = c;
                     if (header == "PISO") colPiso = c;
                     if (header == "METROS") colMetros = c;
@@ -122,29 +162,64 @@ namespace Plataforma_ventas.Controllers
 
                 int listasDetectadas = slot;
 
-                if (colProyecto > 0)
+                // ── Validaciones de columnas obligatorias ──────────────────────────────
+                if (colApto < 0)
                 {
-                    var nombreEnExcel = ws.Cells[2, colProyecto].Text?.Trim() ?? "";
-                    if (!string.IsNullOrEmpty(nombreEnExcel))
+                    TempData["Error"] = $"El archivo no contiene la columna '{colNombreUnidad}' requerida para proyectos de tipo {tipoProyecto}. Verifica que el tipo de proyecto sea el correcto.";
+                    return RedirectToAction("Index");
+                }
+                if (colMetros < 0)
+                {
+                    TempData["Error"] = "El archivo debe incluir la columna METROS.";
+                    return RedirectToAction("Index");
+                }
+                if (colProyecto < 0)
+                {
+                    TempData["Error"] = "El archivo debe incluir la columna PROYECTO con el nombre del proyecto.";
+                    return RedirectToAction("Index");
+                }
+
+                // Validar que el nombre en la columna PROYECTO coincida con el ingresado
+                var nombreEnExcel = ws.Cells[2, colProyecto].Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(nombreEnExcel))
+                {
+                    var baseIngresado = nombreProyecto.Trim().Split(' ')[0].ToUpper();
+                    var baseExcel = nombreEnExcel.Split(' ')[0].ToUpper();
+                    if (!baseExcel.Equals(baseIngresado, StringComparison.OrdinalIgnoreCase))
                     {
-                        var baseIngresado = nombreProyecto.Trim().Split(' ')[0].ToUpper();
-                        var baseExcel = nombreEnExcel.Split(' ')[0].ToUpper();
-                        if (!baseExcel.Equals(baseIngresado, StringComparison.OrdinalIgnoreCase))
-                        {
-                            TempData["Error"] = $"El Excel pertenece al proyecto '{nombreEnExcel}', no coincide con '{nombreProyecto}'. Verifica el nombre ingresado.";
-                            return RedirectToAction("Index");
-                        }
+                        TempData["Error"] = $"El Excel pertenece al proyecto '{nombreEnExcel}', no coincide con '{nombreProyecto}'. Verifica el nombre ingresado.";
+                        return RedirectToAction("Index");
                     }
                 }
 
-                using var con = new SqlConnection(_conn);
-                con.Open();
+                // ── Contar filas válidas ANTES de tocar la BD ──────────────────────────
+                // Una fila es válida si tiene: unidad + metros + al menos un precio > 0
+                int filasValidas = 0;
+                for (int row = 2; row <= totalRows; row++)
+                {
+                    var unidad = ws.Cells[row, colApto].Text?.Trim();
+                    var metros = ws.Cells[row, colMetros].Text?.Trim();
+                    if (string.IsNullOrEmpty(unidad) || string.IsNullOrEmpty(metros)) continue;
+                    bool tieneListaPrecio = false;
+                    for (int li = 0; li < 10 && !tieneListaPrecio; li++)
+                        if (colListas[li] > 0 && ParsearPrecio(ws.Cells[row, colListas[li]].Text) > 0)
+                            tieneListaPrecio = true;
+                    if (tieneListaPrecio) filasValidas++;
+                }
+                if (filasValidas == 0)
+                {
+                    TempData["Error"] = $"El archivo no contiene inmuebles válidos. Cada inmueble debe tener {colNombreUnidad}, METROS y al menos un precio en una columna LISTA.";
+                    return RedirectToAction("Index");
+                }
 
-                var cmdCheck = new SqlCommand(@"SELECT COUNT(*) FROM Proyectos 
+                using var con = new SqlConnection(_conn);
+                await con.OpenAsync();
+
+                var cmdCheck = new SqlCommand(@"SELECT COUNT(*) FROM Proyectos
                     WHERE UPPER(Nombre)=UPPER(@n) AND IdAdminCreador=@admin AND Activo=1", con);
                 cmdCheck.Parameters.AddWithValue("@n", nombreProyecto.Trim());
                 cmdCheck.Parameters.AddWithValue("@admin", idAdmin);
-                if ((int)cmdCheck.ExecuteScalar() > 0)
+                if ((int)(await cmdCheck.ExecuteScalarAsync())! > 0)
                 {
                     TempData["Error"] = $"Ya tienes un proyecto activo llamado '{nombreProyecto}'. Elimínalo primero antes de volver a cargarlo.";
                     return RedirectToAction("Index");
@@ -152,36 +227,39 @@ namespace Plataforma_ventas.Controllers
 
                 string codigo = GenerarCodigo(nombreProyecto);
 
-                var cmdProy = new SqlCommand(@"INSERT INTO Proyectos 
-                    (Nombre, FechaCarga, Activo, ListaActual, IdAdminCreador, CodigoAcceso, TipProyecto) 
-                    OUTPUT INSERTED.IdProyectos 
-                    VALUES (@n, GETDATE(), 1, 1, @admin, @codigo, @tipo)", con);
+                // ── Transacción: proyecto + inmuebles + áreas ──────────────────────────
+                using var tx = con.BeginTransaction();
+
+                var cmdProy = new SqlCommand(@"INSERT INTO Proyectos
+                    (Nombre, FechaCarga, Activo, ListaActual, IdAdminCreador, CodigoAcceso, TipProyecto)
+                    OUTPUT INSERTED.IdProyectos
+                    VALUES (@n, GETDATE(), 1, 1, @admin, @codigo, @tipo)", con, tx);
                 cmdProy.Parameters.AddWithValue("@n", nombreProyecto.Trim());
                 cmdProy.Parameters.AddWithValue("@admin", idAdmin);
                 cmdProy.Parameters.AddWithValue("@codigo", codigo);
                 cmdProy.Parameters.AddWithValue("@tipo", tipoProyecto);
-                int idProyecto = (int)cmdProy.ExecuteScalar();
+                int idProyecto = (int)(await cmdProy.ExecuteScalarAsync())!;
 
                 int insertados = 0;
                 for (int row = 2; row <= totalRows; row++)
                 {
-                    var apto = ws.Cells[row, colApto > 0 ? colApto : 1].Text?.Trim();
+                    var apto = ws.Cells[row, colApto].Text?.Trim();
                     if (string.IsNullOrEmpty(apto)) continue;
 
-                    long GetLista(int slot) =>
-                        mapeoListas[slot] >= 0 && colListas[mapeoListas[slot]] > 0
-                            ? ParsearPrecio(ws.Cells[row, colListas[mapeoListas[slot]]].Text)
+                    long GetLista(int s) =>
+                        mapeoListas[s] >= 0 && colListas[mapeoListas[s]] > 0
+                            ? ParsearPrecio(ws.Cells[row, colListas[mapeoListas[s]]].Text)
                             : 0;
 
-                    var cmdInm = new SqlCommand(@"INSERT INTO Inmuebles 
+                    var cmdInm = new SqlCommand(@"INSERT INTO Inmuebles
                         (IdProyecto,Apto,Tipo,Piso,Metros,Lista1,Lista2,Lista3,Lista4,Lista5,Estado,Torre)
-                        VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre)", con);
+                        VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre)", con, tx);
 
                     cmdInm.Parameters.AddWithValue("@proy", idProyecto);
                     cmdInm.Parameters.AddWithValue("@apto", apto);
                     cmdInm.Parameters.AddWithValue("@tipo", colTipo > 0 ? ws.Cells[row, colTipo].Text?.Trim() ?? "" : "");
                     cmdInm.Parameters.AddWithValue("@piso", colPiso > 0 ? ws.Cells[row, colPiso].Text?.Trim() ?? "" : "");
-                    cmdInm.Parameters.AddWithValue("@metros", colMetros > 0 ? ws.Cells[row, colMetros].Text?.Trim() ?? "" : "");
+                    cmdInm.Parameters.AddWithValue("@metros", ws.Cells[row, colMetros].Text?.Trim() ?? "");
                     cmdInm.Parameters.AddWithValue("@l1", GetLista(0));
                     cmdInm.Parameters.AddWithValue("@l2", GetLista(1));
                     cmdInm.Parameters.AddWithValue("@l3", GetLista(2));
@@ -192,83 +270,108 @@ namespace Plataforma_ventas.Controllers
                         : "DISPONIBLE");
                     cmdInm.Parameters.AddWithValue("@torre", colTorre > 0 ? ws.Cells[row, colTorre].Text?.Trim() ?? "" : "");
 
-                    cmdInm.ExecuteNonQuery();
+                    await cmdInm.ExecuteNonQueryAsync();
                     insertados++;
                 }
 
-                // ── Insertar áreas en ProyectoAreaListas (una fila por Metros+Tipo) ──
+                // Insertar áreas en ProyectoAreaListas (una fila por Metros+Tipo)
                 var cmdAreas = new SqlCommand(@"
                     INSERT INTO ProyectoAreaListas (IdProyecto, Metros, ListaActual)
                     SELECT DISTINCT @proy, Metros, 1
                     FROM Inmuebles
-                    WHERE IdProyecto = @proy AND Metros IS NOT NULL AND Metros != ''", con);
+                    WHERE IdProyecto = @proy AND Metros IS NOT NULL AND Metros != ''", con, tx);
                 cmdAreas.Parameters.AddWithValue("@proy", idProyecto);
-                cmdAreas.ExecuteNonQuery();
+                await cmdAreas.ExecuteNonQueryAsync();
+
+                tx.Commit();
 
                 HttpContext.Session.SetString("ProyectoId", idProyecto.ToString());
                 HttpContext.Session.SetString("ProyectoNombre", nombreProyecto.Trim());
                 HttpContext.Session.SetString("TipProyecto", tipoProyecto);
 
-                string tipoLabel = tipoProyecto == "LOTES" ? "lotes" : "inmuebles";
+                string tipoLabel = tipoProyecto switch
+                {
+                    "LOTES"    => "lotes",
+                    "SUITES"   => "suites",
+                    "SALUD"    => "consultorios",
+                    "OFICINAS" => "oficinas",
+                    _          => "apartamentos"
+                };
                 TempData["Exito"] = $"Proyecto '{nombreProyecto}' cargado con {insertados} {tipoLabel}. Listas detectadas: {listasDetectadas}.";
                 TempData["Codigo"] = codigo;
             }
             catch (Exception ex)
             {
+                // using var tx hace rollback automático al hacer Dispose sin Commit previo
                 TempData["Error"] = "Error al procesar el archivo: " + ex.Message;
             }
 
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Regenerates the access code for an existing project.
+        /// Performs an UPDATE query on Proyectos.
+        /// </summary>
+        /// <param name="idProyecto">Project whose code to regenerate.</param>
+        /// <param name="nombreProyecto">Project name (used as prefix in the new code).</param>
         [HttpPost]
-        public IActionResult RegenerarCodigo(int idProyecto, string nombreProyecto)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RegenerarCodigo(int idProyecto, string nombreProyecto)
         {
             string nuevoCodigo = GenerarCodigo(nombreProyecto);
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
             var cmd = new SqlCommand("UPDATE Proyectos SET CodigoAcceso=@c WHERE IdProyectos=@id", con);
             cmd.Parameters.AddWithValue("@c", nuevoCodigo);
             cmd.Parameters.AddWithValue("@id", idProyecto);
-            cmd.ExecuteNonQuery();
+            await cmd.ExecuteNonQueryAsync();
             TempData["Exito"] = "Código regenerado correctamente.";
             TempData["Codigo"] = nuevoCodigo;
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Permanently deletes a project and all its associated data (sales, properties,
+        /// vendor assignments) in the correct FK order inside a transaction.
+        /// Clears the session if the deleted project was the active one.
+        /// Performs DELETE/UPDATE queries wrapped in a transaction for atomicity.
+        /// </summary>
+        /// <param name="idProyecto">Project identifier to delete.</param>
         [HttpPost]
-        public IActionResult EliminarProyecto(int idProyecto)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EliminarProyecto(int idProyecto)
         {
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
             using var tx = con.BeginTransaction();
             try
             {
-                void Exec(string sql)
+                async Task Exec(string sql)
                 {
                     var cmd = new SqlCommand(sql, con, tx);
                     cmd.Parameters.AddWithValue("@id", idProyecto);
-                    cmd.ExecuteNonQuery();
+                    await cmd.ExecuteNonQueryAsync();
                 }
 
                 // Orden obligatorio para respetar todas las FK:
                 // 1. Ventas (FK → Proyectos, Inmuebles, Clientes, Usuarios)
-                Exec("DELETE FROM Ventas WHERE IdProyecto = @id");
+                await Exec("DELETE FROM Ventas WHERE IdProyecto = @id");
 
                 // 2. Clientes (FK → Proyectos)
-                Exec("UPDATE Clientes SET IdProyecto = NULL WHERE IdProyecto = @id");
+                await Exec("UPDATE Clientes SET IdProyecto = NULL WHERE IdProyecto = @id");
 
                 // 3. Inmuebles (FK → Proyectos)
-                Exec("DELETE FROM Inmuebles WHERE IdProyecto = @id");
+                await Exec("DELETE FROM Inmuebles WHERE IdProyecto = @id");
 
                 // 4. Usuarios — desasignar vendedores (FK → Proyectos)
-                Exec("UPDATE Usuarios SET IdProyecto = NULL WHERE IdProyecto = @id");
+                await Exec("UPDATE Usuarios SET IdProyecto = NULL WHERE IdProyecto = @id");
 
                 // 5. Proyectos hijos si los hay (FK → Proyectos padre)
-                Exec("UPDATE Proyectos SET IdProyecto = NULL WHERE IdProyecto = @id");
+                await Exec("UPDATE Proyectos SET IdProyecto = NULL WHERE IdProyecto = @id");
 
                 // 6. Por último eliminar el proyecto
-                Exec("DELETE FROM Proyectos WHERE IdProyectos = @id");
+                await Exec("DELETE FROM Proyectos WHERE IdProyectos = @id");
 
                 tx.Commit();
             }

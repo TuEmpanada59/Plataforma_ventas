@@ -94,4 +94,29 @@
         if (sb && !sb.id) sb.id = 'sidebar';
     });
 
-})();s
+})();
+
+/* ═══════════════════════════════════════════
+   Sincronización de sesión entre pestañas
+   - La sesión (cookie) ya se comparte entre pestañas del mismo navegador,
+     así que abrir una pestaña nueva mantiene la misma sesión iniciada.
+   - Si se cierra sesión en una pestaña, todas las demás también salen.
+═══════════════════════════════════════════ */
+(function () {
+    var CANAL = 'lg_sesion_evento';
+
+    /* Escuchar el cierre de sesión hecho en otra pestaña */
+    window.addEventListener('storage', function (e) {
+        if (e.key === CANAL && e.newValue && e.newValue.indexOf('logout') === 0) {
+            window.location.replace('/Account/Login');
+        }
+    });
+
+    /* Avisar a las demás pestañas cuando se cierra sesión desde esta */
+    document.addEventListener('click', function (e) {
+        var a = e.target && e.target.closest && e.target.closest('a[href*="/Account/Logout"]');
+        if (a) {
+            try { localStorage.setItem(CANAL, 'logout|' + Date.now()); } catch (err) { }
+        }
+    });
+})();

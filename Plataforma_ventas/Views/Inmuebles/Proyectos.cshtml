@@ -1,298 +1,110 @@
 @{
-    Layout = null;
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Todos los proyectos";
+    ViewBag.ActiveNav = "inmuebles";
+    ViewBag.TbBread   = "Todos los proyectos";
+
     var nombre = ViewBag.Nombre as string ?? "Admin";
     var apellido = ViewBag.Apellido as string ?? "";
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     var proyectosGrid = ViewBag.ProyectosGrid as List<dynamic> ?? new List<dynamic>();
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
+    ViewBag.Iniciales = iniciales;
     var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>Proyectos · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        :root {
-            --azul: #003A70; --mid: #0055A5; --blue: #0077C8;
-            --rojo: #E63946; --verde: #34C759; --oro: #FF9500;
-            --label: rgba(0,0,0,0.85); --label2: rgba(60,60,67,0.6);
-            --label3: rgba(60,60,67,0.3); --sep: rgba(60,60,67,0.12);
-            --sep2: rgba(60,60,67,0.06); --fill2: rgba(120,120,128,0.12);
-            --fill3: rgba(120,120,128,0.08); --glass: rgba(255,255,255,0.75);
-            --gb: rgba(255,255,255,0.6); --sh: 0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);
-            --sh2: 0 20px 60px rgba(0,0,0,0.10),0 4px 20px rgba(0,0,0,0.06);
-        }
-        html,body { background:#EEF2F7; color:var(--label); overflow-x:hidden; }
-        * { font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
-        body::before { content:''; position:fixed; inset:0; z-index:0;
-            background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,119,200,0.12) 0%,transparent 55%),#EEF2F7;
-            pointer-events:none; }
-        .app { display:flex; min-height:100vh; position:relative; z-index:1; }
-        .sidebar { width:230px; flex-shrink:0; background:var(--glass); backdrop-filter:blur(40px) saturate(180%);
-            border-right:1px solid var(--gb); display:flex; flex-direction:column;
-            position:sticky; top:0; height:100vh; overflow-y:auto; }
-        .sb-app { font-size:17px; font-weight:700; color:var(--label); letter-spacing:-0.4px; }
-        .sb-sub { font-size:11px; color:var(--label3); margin-top:1px; }
-        .sb-proy { margin:14px 10px 0; background:rgba(0,119,200,0.08); border:1px solid rgba(0,119,200,0.18);
-            border-radius:14px; padding:10px 12px; cursor:pointer; transition:background 0.2s; }
-        .sb-proy:hover { background:rgba(0,119,200,0.13); }
-        .sb-proy-lbl { font-size:9px; text-transform:uppercase; letter-spacing:0.1em; color:var(--label3); font-weight:600; margin-bottom:2px; }
-        .sb-proy-name { font-size:14px; font-weight:700; color:var(--azul); }
-        .sb-proy-meta { display:flex; align-items:center; gap:4px; margin-top:3px; font-size:11px; color:var(--label2); }
-        .pulse { width:5px; height:5px; border-radius:50%; background:#34C759; flex-shrink:0;
-            animation:pring 2.5s ease infinite; display:inline-block; }
-        @@keyframes pring { 0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)} 70%{box-shadow:0 0 0 5px rgba(52,199,89,0)} 100%{box-shadow:0 0 0 0 rgba(52,199,89,0)} }
-        .proy-drop { display:none; margin:4px 10px 4px; background:white; border:1px solid var(--sep);
-            border-radius:14px; overflow:hidden; box-shadow:var(--sh); }
-        .proy-drop.open { display:block; }
-        .proy-drop-item { width:100%; padding:10px 14px; background:none; border:none;
-            border-bottom:1px solid var(--sep2); text-align:left; font-size:13px; font-weight:500;
-            cursor:pointer; color:var(--label); display:flex; align-items:center; gap:8px; transition:background 0.15s; }
-        .proy-drop-item:hover { background:var(--fill3); }
-        .proy-drop-link { display:flex; align-items:center; gap:8px; padding:10px 14px; font-size:13px;
-            font-weight:600; color:var(--blue); text-decoration:none; background:rgba(0,119,200,0.04); }
-        .sb-sec { padding:16px 16px 4px; font-size:10px; font-weight:600; text-transform:uppercase;
-            letter-spacing:0.07em; color:var(--label3); }
-        .nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; margin:1px 6px;
-            border-radius:11px; font-size:14px; color:var(--label2); text-decoration:none; transition:all 0.2s; }
-        .nav-item:hover { background:var(--fill3); color:var(--label); }
-        .nav-item.active { background:var(--blue); color:white; font-weight:600; box-shadow:0 4px 12px rgba(0,119,200,0.28); }
-        .nav-ico { width:26px; height:26px; border-radius:7px; display:flex; align-items:center;
-            justify-content:center; font-size:13px; background:var(--fill3); flex-shrink:0; }
-        .nav-item.active .nav-ico { background:rgba(255,255,255,0.2); }
-        .sb-footer { margin-top:auto; padding:10px 12px 20px; border-top:1px solid var(--sep2);
-            display:flex; align-items:center; gap:8px; }
-        .sb-av { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,var(--mid),var(--blue));
-            display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:white; }
-        .sb-logout { margin-left:auto; width:26px; height:26px; border-radius:7px; background:var(--fill3);
-            display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--label2); text-decoration:none; }
-        .sb-logout:hover { background:rgba(230,57,70,0.1); color:var(--rojo); }
-        .main { flex:1; display:flex; flex-direction:column; min-width:0; }
-        .topbar { height:50px; flex-shrink:0; background:var(--glass); backdrop-filter:blur(40px) saturate(180%);
-            border-bottom:1px solid var(--sep); padding:0 18px; display:flex; align-items:center;
-            justify-content:space-between; position:sticky; top:0; z-index:50; }
-        .tb-bread { font-size:13px; color:var(--label2); }
-        .tb-bread strong { color:var(--label); font-weight:600; }
-        .tb-bread a { color:var(--blue); text-decoration:none; font-weight:500; }
-        .tb-right { display:flex; align-items:center; gap:8px; }
-        .tb-chip { display:flex; align-items:center; gap:5px; background:var(--fill3); border:1px solid var(--sep);
-            padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; color:var(--blue); }
-        .tb-ibtn { width:30px; height:30px; border-radius:9px; background:var(--fill3); display:flex;
-            align-items:center; justify-content:center; font-size:14px; text-decoration:none; color:var(--label); }
-        .view { flex:1; padding:18px; display:flex; flex-direction:column; gap:14px; }
-        @@keyframes fu { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        /* Project grid */
-        .proj-header { animation:fu 0.3s ease both; }
-        .proj-title { font-size:22px; font-weight:700; color:var(--azul); letter-spacing:-0.5px; }
-        .proj-sub { font-size:13px; color:var(--label2); margin-top:4px; }
-        .proj-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
-            gap:16px; animation:fu 0.35s ease 0.05s both; }
-        .proj-card-form { margin:0; }
-        .proj-card { width:100%; background:var(--glass); backdrop-filter:blur(20px) saturate(180%);
-            border:2px solid var(--gb); border-radius:20px; padding:20px; text-align:left;
-            cursor:pointer; transition:all 0.2s; box-shadow:var(--sh); }
-        .proj-card:hover { border-color:var(--blue); transform:translateY(-3px); box-shadow:var(--sh2); }
-        .proj-card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; gap:8px; }
-        .proj-nombre { font-size:16px; font-weight:700; color:var(--azul); letter-spacing:-0.3px; line-height:1.3; }
-        .proj-tipo { font-size:10px; font-weight:700; padding:3px 9px; border-radius:20px; flex-shrink:0;
-            background:rgba(0,119,200,0.1); color:var(--blue); }
-        .proj-tipo.lotes { background:rgba(255,149,0,0.12); color:#CC7700; }
-        .proj-admin { font-size:11px; color:var(--label2); margin-bottom:14px; }
-        .proj-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
-        .proj-stat { text-align:center; background:var(--fill3); border-radius:10px; padding:8px 4px; }
-        .proj-stat-num { font-size:18px; font-weight:300; color:var(--azul); letter-spacing:-0.5px; }
-        .proj-stat-num.disp { color:#1EA851; }
-        .proj-stat-num.vend { color:var(--rojo); }
-        .proj-stat-num.proc { color:#5A5AC8; }
-        .proj-stat-lbl { font-size:9px; color:var(--label3); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-top:1px; }
-        .proj-prog { margin-bottom:14px; }
-        .proj-prog-bar { height:5px; border-radius:10px; background:var(--fill2); overflow:hidden; }
-        .proj-prog-fill { height:100%; border-radius:10px; background:linear-gradient(90deg,var(--verde),#1EA851); }
-        .proj-prog-fill.naranja { background:linear-gradient(90deg,var(--oro),#CC7700); }
-        .proj-prog-fill.rojo { background:linear-gradient(90deg,var(--rojo),#B02030); }
-        .proj-prog-lbl { display:flex; justify-content:space-between; font-size:10px; color:var(--label3); margin-top:3px; }
-        .proj-btn { width:100%; padding:9px; border-radius:11px; border:none;
-            background:linear-gradient(135deg,var(--mid),var(--blue)); color:white;
-            font-size:13px; font-weight:600; cursor:pointer; transition:opacity 0.2s; }
-        .proj-btn:hover { opacity:0.88; }
-        .proj-empty { padding:60px; text-align:center; animation:fu 0.3s ease both; }
-        .proj-empty-ico { font-size:44px; opacity:0.35; margin-bottom:10px; }
-        .proj-empty-txt { font-size:15px; font-weight:600; color:var(--label2); }
-        .hamburger { display:none; flex-direction:column; gap:5px; cursor:pointer; padding:6px;
-            border-radius:8px; background:var(--fill3); border:none; }
-        .hamburger span { display:block; width:18px; height:2px; background:var(--label); border-radius:2px; }
-        @@media(max-width:1200px){ .sidebar{width:185px!important} }
-        @@media(max-width:700px){
-            html,body{height:auto!important;overflow:auto!important}
-            .app{flex-direction:column!important}
-            .sidebar{position:fixed!important;top:0!important;left:-270px!important;width:260px!important;
-                height:100vh!important;z-index:100!important;overflow-y:auto!important;transition:left 0.3s!important}
-            .sidebar.open{left:0!important}
-            .main{width:100%!important}
-            .hamburger{display:flex!important}
-            .tb-chip{display:none!important}
-            .proj-grid{grid-template-columns:1fr!important}
-        }
-    </style>
-</head>
-<body>
-<div class="app">
-    <div class="sidebar" id="sidebar">
-        <div style="display:flex;align-items:center;gap:10px;padding:18px 14px 0;">
-            <div style="width:42px;height:42px;border-radius:12px;overflow:hidden;flex-shrink:0;box-shadow:0 4px 12px rgba(0,85,165,0.25);">
-                <img src="data:image/png;base64,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" style="width:100%;height:100%;object-fit:cover;display:block;" alt="LG" />
-            </div>
-            <div><div class="sb-app">Londoño Gómez</div><div class="sb-sub">Sistema de Lanzamientos</div></div>
-        </div>
-        <div class="sb-proy" id="proyBtn" onclick="toggleDrop()">
-            <div class="sb-proy-lbl">PROYECTO ACTIVO ▾</div>
-            <div class="sb-proy-name">@proyActivo</div>
-            <div class="sb-proy-meta"><span class="pulse"></span>Toca para cambiar</div>
-        </div>
-        <div class="proy-drop" id="proyDrop">
-            @if (proyectos != null)
-            {
-                foreach (var p in proyectos)
-                {
-                    <form action="/Inmuebles/SeleccionarProyecto" method="post" style="margin:0">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="idProyecto" value="@p.Id" />
-                        <input type="hidden" name="nombreProyecto" value="@p.Nombre" />
-                        <button type="submit" class="proy-drop-item">🏗 @p.Nombre</button>
-                    </form>
-                }
-            }
-            <a href="/Carga/Index" class="proy-drop-link">＋ Cargar nuevo proyecto</a>
-        </div>
-        <div class="sb-sec">Principal</div>
-        <a class="nav-item" href="/Dashboard"><div class="nav-ico">⊞</div>Inicio</a>
-        <a class="nav-item active" href="/Inmuebles/Proyectos"><div class="nav-ico">🏢</div>Inmuebles</a>
-        <a class="nav-item" href="/Inmuebles/Reservas"><div class="nav-ico">🔒</div>Reservas</a>
-        <a class="nav-item" href="/Ventas"><div class="nav-ico">💲</div>Ventas</a>
-        <a class="nav-item" href="/Clientes"><div class="nav-ico">👤</div>Clientes</a>
-        <div class="sb-sec">General</div>
-        <a class="nav-item" href="/Reportes"><div class="nav-ico">📊</div>Reportes</a>
-        <a class="nav-item" href="/Carga/Index"><div class="nav-ico">📂</div>Cargar Excel</a>
-        <a class="nav-item" href="/Usuarios"><div class="nav-ico">👥</div>Usuarios</a>
-        <div class="sb-footer">
-            <div class="sb-av">@iniciales</div>
-            <div><div style="font-size:12px;font-weight:600">@nombre @apellido</div><div style="font-size:10px;color:var(--label3)">Administrador</div></div>
-            <a class="sb-logout" href="/Account/Logout">↩</a>
-        </div>
-    </div>
-    <div class="main">
-        <div class="topbar">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
-                <span class="tb-bread"><strong>Proyectos</strong></span>
-            </div>
-            <div class="tb-right">
-                <div class="tb-chip"><span class="pulse"></span>@proyectosGrid.Count proyectos</div>
-                <a class="tb-ibtn" href="/Account/Logout">↩</a>
-            </div>
-        </div>
-        <div class="view">
-            @if (TempData["Exito"] != null)
-            {
-                <div style="background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851;">✅ @TempData["Exito"]</div>
-            }
-            @if (TempData["Error"] != null)
-            {
-                <div style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#E63946;">❌ @TempData["Error"]</div>
-            }
-            <div class="proj-header">
-                <div class="proj-title">Selecciona un proyecto</div>
-                <div class="proj-sub">@proyectosGrid.Count proyecto(s) activo(s) · Haz clic para ver los inmuebles</div>
-            </div>
-            @if (proyectosGrid.Count > 0)
-            {
-                <div class="proj-grid">
-                    @foreach (var p in proyectosGrid)
-                    {
-                        int total = (int)p.Total;
-                        int disp = (int)p.Disponibles;
-                        int vend = (int)p.Vendidos;
-                        int res = (int)p.Reservados;
-                        int proc = (int)p.EnProceso;
-                        int pctVend = total > 0 ? (int)Math.Round((double)vend / total * 100) : 0;
-                        string fillCls = pctVend >= 80 ? "rojo" : pctVend >= 50 ? "naranja" : "";
-                        string tipoClass = p.Tipo == "LOTES" ? "proj-tipo lotes" : "proj-tipo";
-                        <form action="/Inmuebles/SeleccionarProyecto" method="post" class="proj-card-form">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="idProyecto" value="@p.Id" />
-                            <input type="hidden" name="nombreProyecto" value="@p.Nombre" />
-                            <button type="submit" class="proj-card">
-                                <div class="proj-card-top">
-                                    <div class="proj-nombre">@p.Nombre</div>
-                                    <span class="@tipoClass">@p.Tipo</span>
-                                </div>
-                                <div class="proj-admin">👤 @p.Admin</div>
-                                <div class="proj-stats">
-                                    <div class="proj-stat">
-                                        <div class="proj-stat-num">@total</div>
-                                        <div class="proj-stat-lbl">Total</div>
-                                    </div>
-                                    <div class="proj-stat">
-                                        <div class="proj-stat-num disp">@disp</div>
-                                        <div class="proj-stat-lbl">Disp.</div>
-                                    </div>
-                                    <div class="proj-stat">
-                                        <div class="proj-stat-num vend">@vend</div>
-                                        <div class="proj-stat-lbl">Vendidos</div>
-                                    </div>
-                                    <div class="proj-stat">
-                                        <div class="proj-stat-num proc">@(res + proc)</div>
-                                        <div class="proj-stat-lbl">Gestion</div>
-                                    </div>
-                                </div>
-                                <div class="proj-prog">
-                                    <div class="proj-prog-bar">
-                                        <div class="proj-prog-fill @fillCls" style="width:@(pctVend)%"></div>
-                                    </div>
-                                    <div class="proj-prog-lbl">
-                                        <span>@disp disponibles · @vend vendidos</span>
-                                        <span>@(pctVend)% vendido</span>
-                                    </div>
-                                </div>
-                                <div class="proj-btn">Ver inmuebles →</div>
-                            </button>
-                        </form>
-                    }
-                </div>
-            }
-            else
-            {
-                <div class="proj-empty">
-                    <div class="proj-empty-ico">🏗</div>
-                    <div class="proj-empty-txt">No hay proyectos activos</div>
-                    <div style="margin-top:10px;font-size:13px;color:var(--label3)">
-                        <a href="/Carga/Index" style="color:var(--blue);text-decoration:none;font-weight:600">Cargar un proyecto →</a>
-                    </div>
-                </div>
-            }
-        </div>
-    </div>
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .proj-header{animation:fu 0.3s ease both;}
+    .proj-title{font-size:22px;font-weight:700;color:var(--azul);letter-spacing:-0.5px;}
+    .proj-sub{font-size:13px;color:var(--label2);margin-top:4px;}
+    .proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;animation:fu 0.35s ease 0.05s both;}
+    .proj-card-form{margin:0;}
+    .proj-card{width:100%;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:2px solid var(--gb);border-radius:20px;padding:20px;text-align:left;cursor:pointer;transition:all 0.2s;box-shadow:var(--sh);}
+    .proj-card:hover{border-color:var(--blue);transform:translateY(-3px);box-shadow:var(--sh2);}
+    .proj-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;gap:8px;}
+    .proj-nombre{font-size:16px;font-weight:700;color:var(--azul);letter-spacing:-0.3px;line-height:1.3;}
+    .proj-tipo{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0;background:rgba(0,118,227,0.1);color:var(--blue);}
+    .proj-tipo.lotes{background:rgba(255,149,0,0.12);color:#CC7700;}
+    .proj-admin{font-size:11px;color:var(--label2);margin-bottom:14px;}
+    .proj-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+    .proj-stat{text-align:center;background:var(--fill3);border-radius:10px;padding:8px 4px;}
+    .proj-stat-num{font-size:18px;font-weight:300;color:var(--azul);letter-spacing:-0.5px;}
+    .proj-stat-num.disp{color:#1EA851;}
+    .proj-stat-num.vend{color:var(--rojo);}
+    .proj-stat-num.proc{color:#5A5AC8;}
+    .proj-stat-lbl{font-size:9px;color:var(--label3);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;margin-top:1px;}
+    .proj-prog{margin-bottom:14px;}
+    .proj-prog-bar{height:5px;border-radius:10px;background:var(--fill2);overflow:hidden;}
+    .proj-prog-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,var(--verde),#1EA851);}
+    .proj-prog-fill.naranja{background:linear-gradient(90deg,var(--oro),#CC7700);}
+    .proj-prog-fill.rojo{background:linear-gradient(90deg,var(--rojo),#B02030);}
+    .proj-prog-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--label3);margin-top:3px;}
+    .proj-btn{width:100%;padding:9px;border-radius:11px;border:none;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;font-size:13px;font-weight:600;cursor:pointer;transition:opacity 0.2s;}
+    .proj-btn:hover{opacity:0.88;}
+    .proj-empty{padding:60px;text-align:center;animation:fu 0.3s ease both;}
+    .proj-empty-ico{font-size:44px;opacity:0.35;margin-bottom:10px;}
+    .proj-empty-txt{font-size:15px;font-weight:600;color:var(--label2);}
+    @@media(max-width:700px){.proj-grid{grid-template-columns:1fr!important;}}
+</style>
+}
+
+@if (TempData["Exito"] != null) {
+    <div style="background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#1EA851;">&#10003; @TempData["Exito"]</div>
+}
+@if (TempData["Error"] != null) {
+    <div style="background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:#E63946;">&#10007; @TempData["Error"]</div>
+}
+<div class="proj-header">
+    <div class="proj-title">Selecciona un proyecto</div>
+    <div class="proj-sub">@proyectosGrid.Count proyecto(s) activo(s) · Haz clic para ver los inmuebles</div>
 </div>
-<div id="sbOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;backdrop-filter:blur(2px);"></div>
-<script>
-    document.addEventListener('click', function(e) {
-        var b = document.getElementById('proyBtn'), d = document.getElementById('proyDrop');
-        if (b && d && !b.contains(e.target) && !d.contains(e.target)) d.classList.remove('open');
-    });
-    function toggleDrop() { document.getElementById('proyDrop').classList.toggle('open'); }
-    function toggleSidebar() {
-        var sb = document.getElementById('sidebar'), ov = document.getElementById('sbOverlay');
-        if (!sb) return; var o = sb.classList.toggle('open');
-        if (ov) ov.style.display = o ? 'block' : 'none';
-    }
-    function closeSidebar() {
-        var sb = document.getElementById('sidebar'), ov = document.getElementById('sbOverlay');
-        if (sb) sb.classList.remove('open'); if (ov) ov.style.display = 'none';
-    }
-</script>
-</body>
-</html>
+@if (proyectosGrid.Count > 0)
+{
+    <div class="proj-grid">
+        @foreach (var p in proyectosGrid)
+        {
+            int total = (int)p.Total;
+            int disp = (int)p.Disponibles;
+            int vend = (int)p.Vendidos;
+            int res = (int)p.Reservados;
+            int proc = (int)p.EnProceso;
+            int pctVend = total > 0 ? (int)Math.Round((double)vend / total * 100) : 0;
+            string fillCls = pctVend >= 80 ? "rojo" : pctVend >= 50 ? "naranja" : "";
+            string tipoClass = p.Tipo == "LOTES" ? "proj-tipo lotes" : "proj-tipo";
+            <form action="/Inmuebles/SeleccionarProyecto" method="post" class="proj-card-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="idProyecto" value="@p.Id"/>
+                <input type="hidden" name="nombreProyecto" value="@p.Nombre"/>
+                <button type="submit" class="proj-card">
+                    <div class="proj-card-top">
+                        <div class="proj-nombre">@p.Nombre</div>
+                        <span class="@tipoClass">@p.Tipo</span>
+                    </div>
+                    <div class="proj-admin">@p.Admin</div>
+                    <div class="proj-stats">
+                        <div class="proj-stat"><div class="proj-stat-num">@total</div><div class="proj-stat-lbl">Total</div></div>
+                        <div class="proj-stat"><div class="proj-stat-num disp">@disp</div><div class="proj-stat-lbl">Disp.</div></div>
+                        <div class="proj-stat"><div class="proj-stat-num vend">@vend</div><div class="proj-stat-lbl">Vendidos</div></div>
+                        <div class="proj-stat"><div class="proj-stat-num proc">@(res + proc)</div><div class="proj-stat-lbl">Gestion</div></div>
+                    </div>
+                    <div class="proj-prog">
+                        <div class="proj-prog-bar"><div class="proj-prog-fill @fillCls" style="width:@(pctVend)%"></div></div>
+                        <div class="proj-prog-lbl"><span>@disp disponibles · @vend vendidos</span><span>@(pctVend)% vendido</span></div>
+                    </div>
+                    <div class="proj-btn">Ver inmuebles &#8594;</div>
+                </button>
+            </form>
+        }
+    </div>
+}
+else
+{
+    <div class="proj-empty">
+        <div class="proj-empty-ico">&#127959;</div>
+        <div class="proj-empty-txt">No hay proyectos activos</div>
+        <div style="margin-top:10px;font-size:13px;color:var(--label3)">
+            <a href="/Carga/Index" style="color:var(--blue);text-decoration:none;font-weight:600">Cargar un proyecto &#8594;</a>
+        </div>
+    </div>
+}
