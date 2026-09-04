@@ -5,6 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!--
+      El Deployment Center de Azure regenera el workflow con un
+      "dotnet publish" sin proyecto, que resuelve la solución completa y
+      empaquetaba también las pruebas (xunit, testhost) dentro del zip que
+      va a App Service. Marcarlo como no publicable deja fuera este proyecto
+      aunque el workflow se vuelva a generar.
+    -->
+    <IsPublishable>false</IsPublishable>
   </PropertyGroup>
 
   <ItemGroup>
