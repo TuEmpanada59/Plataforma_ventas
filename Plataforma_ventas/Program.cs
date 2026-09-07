@@ -50,9 +50,23 @@ var dpBuilder = builder.Services.AddDataProtection()
 
 if (builder.Environment.IsDevelopment())
 {
-    var keysDir = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "Keys"));
-    keysDir.Create(); // ensure directory exists before registering
-    dpBuilder.PersistKeysToFileSystem(keysDir);
+    // Persistir las claves en disco es una comodidad de desarrollo, no un
+    // requisito: si no se puede escribir, la aplicación debe arrancar igual
+    // con claves en memoria. Antes un fallo aquí tumbaba el arranque completo,
+    // que es justo lo que pasa al desplegar con WEBSITE_RUN_FROM_PACKAGE=1
+    // (el sistema de archivos queda de solo lectura) y el entorno quedó
+    // marcado como Development por configuración.
+    try
+    {
+        var keysDir = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "Keys"));
+        keysDir.Create();
+        dpBuilder.PersistKeysToFileSystem(keysDir);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[DataProtection] No se pudieron persistir las claves en disco ({ex.GetType().Name}: {ex.Message}). " +
+                          "Se continúa con claves en memoria: habrá que iniciar sesión de nuevo tras cada reinicio.");
+    }
 }
 
 QuestPDF.Settings.License = LicenseType.Community;
