@@ -12,4 +12,28 @@
 		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
 		<PackageReference Include="QuestPDF" Version="2026.2.4" />
 	</ItemGroup>
+
+	<!--
+		QuestPDF arrastra los binarios nativos de SkiaSharp para todas las
+		plataformas (Linux, macOS, Windows). Cuando el destino es un App Service
+		de Windows, los de las otras plataformas son peso muerto: alrededor de la
+		mitad del paquete.
+
+		Está APAGADO por defecto. Se activa solo al publicar, con:
+		    dotnet publish ... -p:RecortarRuntimesNoWindows=true
+
+		NO lo actives cuando el destino sea Linux (la producción prevista):
+		QuestPDF se quedaría sin su biblioteca nativa y la generación de PDF
+		fallaría en tiempo de ejecución.
+	-->
+	<Target Name="RecortarRuntimesNoWindows" AfterTargets="Publish"
+	        Condition="'$(RecortarRuntimesNoWindows)' == 'true'">
+		<ItemGroup>
+			<_RuntimesAjenos Include="$(PublishDir)runtimes\**\*"
+			                 Exclude="$(PublishDir)runtimes\win*\**\*" />
+		</ItemGroup>
+		<Message Importance="high"
+		         Text="Recortando binarios nativos de plataformas no Windows del paquete de publicación." />
+		<Delete Files="@(_RuntimesAjenos)" ContinueOnError="true" />
+	</Target>
 </Project>
