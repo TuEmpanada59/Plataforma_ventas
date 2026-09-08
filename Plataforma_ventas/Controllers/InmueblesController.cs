@@ -468,7 +468,7 @@ namespace Plataforma_ventas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVentaReserva(int idInmueble, long precioVenta,
             int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
-            string observaciones,
+            string observaciones, string clienteMedio,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
@@ -538,7 +538,7 @@ namespace Plataforma_ventas.Controllers
                 // Reutiliza el cliente si ya existe uno con ese documento, en vez de duplicarlo.
                 var altaCliente = await ClienteRepo.ObtenerOCrearAsync(con, tx,
                     clienteNombre, clienteApellido, clienteDocumento,
-                    clienteCelular, clienteCorreo, clienteDireccion);
+                    clienteCelular, clienteCorreo, clienteDireccion, clienteMedio);
                 idCliente = altaCliente.IdCliente;
                 clienteReutilizado = altaCliente.Reutilizado;
             }
@@ -864,7 +864,7 @@ namespace Plataforma_ventas.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmarVenta(int idInmueble, string accion,
             int? idClienteExistente, string tipoCliente, string destino, bool sagrilaftConsultado,
-            string observaciones,
+            string observaciones, string clienteMedio,
             string clienteNombre, string clienteApellido, string clienteDocumento,
             string clienteCelular, string clienteCorreo, string clienteDireccion)
         {
@@ -941,7 +941,7 @@ namespace Plataforma_ventas.Controllers
                 // Reutiliza el cliente si ya existe uno con ese documento, en vez de duplicarlo.
                 var altaCliente = await ClienteRepo.ObtenerOCrearAsync(con, tx,
                     clienteNombre, clienteApellido, clienteDocumento,
-                    clienteCelular, clienteCorreo, clienteDireccion);
+                    clienteCelular, clienteCorreo, clienteDireccion, clienteMedio);
                 idCliente = altaCliente.IdCliente;
                 clienteReutilizado = altaCliente.Reutilizado;
             }

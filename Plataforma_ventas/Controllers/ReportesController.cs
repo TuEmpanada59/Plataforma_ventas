@@ -166,6 +166,32 @@ namespace Plataforma_ventas.Controllers
                     });
             ViewBag.Mapa = mapa;
 
+            // ── Por dónde se enteraron los compradores ──
+            var medios = new List<dynamic>();
+            try
+            {
+                var cmdMedios = new SqlCommand(@"
+                    SELECT ISNULL(NULLIF(c.MedioPublicitario,''),'Sin especificar') AS Medio,
+                           COUNT(*) AS Total
+                    FROM Ventas v
+                    JOIN Clientes c ON v.IdCliente = c.IdCliente
+                    WHERE v.IdProyecto=@id AND v.Estado='ACTIVA'
+                      AND CAST(DATEADD(HOUR,-5,v.FechaVenta) AS DATE) BETWEEN @desde AND @hasta
+                    GROUP BY ISNULL(NULLIF(c.MedioPublicitario,''),'Sin especificar')
+                    ORDER BY Total DESC", con);
+                cmdMedios.Parameters.AddWithValue("@id", idProy);
+                cmdMedios.Parameters.AddWithValue("@desde", dDesde);
+                cmdMedios.Parameters.AddWithValue("@hasta", dHasta);
+                using var rMed = (SqlDataReader)await cmdMedios.ExecuteReaderAsync();
+                while (await rMed.ReadAsync())
+                    medios.Add(new { Medio = rMed["Medio"]?.ToString() ?? "", Total = Convert.ToInt32(rMed["Total"]) });
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid column name"))
+            {
+                // La migración del medio publicitario aún no se ejecutó en esta base.
+            }
+            ViewBag.Medios = medios;
+
             var ventas = new List<dynamic>();
             var cmdVentas = new SqlCommand(@"
                 SELECT u.Nombre+' '+u.Apellido AS Asesor,

@@ -112,5 +112,14 @@ IF COL_LENGTH('Ventas', 'Observaciones') IS NULL
     ALTER TABLE Ventas ADD Observaciones NVARCHAR(1000) NULL;
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 7) Medio publicitario del cliente
+--    Por dónde se enteró del proyecto. Lista cerrada en Texto.MediosPermitidos:
+--    si fuera texto libre no se podrían agrupar los canales en el informe.
+-- ────────────────────────────────────────────────────────────────────────────
+IF COL_LENGTH('Clientes', 'MedioPublicitario') IS NULL
+    ALTER TABLE Clientes ADD MedioPublicitario NVARCHAR(80) NULL;
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

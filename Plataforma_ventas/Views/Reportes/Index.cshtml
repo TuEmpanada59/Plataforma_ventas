@@ -17,6 +17,7 @@
     var ventas     = ViewBag.Ventas      as List<dynamic> ?? new List<dynamic>();
     var tipologias = ViewBag.Tipologias  as List<dynamic> ?? new List<dynamic>();
     var destinos   = ViewBag.Destinos    as List<dynamic> ?? new List<dynamic>();
+    var medios     = ViewBag.Medios      as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
     DateTime ahoraCol;
     try {
@@ -208,6 +209,37 @@
             <div class="empty">Sin datos de destino</div>
         }
     </div>
+</div>
+
+<!-- ORIGEN DE LOS COMPRADORES -->
+<div class="card">
+    <div class="card-head">
+        <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Persona("#0076E3", 17) ¿Cómo se enteraron del proyecto?</span>
+        <span style="font-size:12px;color:var(--label3)">Compradores @rotulo</span>
+    </div>
+    @if (medios.Count > 0)
+    {
+        <div class="destino-list">
+            @{ int maxMed = (int)medios[0].Total; int totMed = medios.Sum(m => (int)m.Total); }
+            @foreach (var m in medios)
+            {
+                var pctM = maxMed > 0 ? (double)(int)m.Total / maxMed * 100 : 0;
+                var pctReal = totMed > 0 ? (double)(int)m.Total / totMed * 100 : 0;
+                var colsM = new[]{ "#0076e3","#1EA851","#FF9500","#5A5AC8","#E63946","#00A6A6","#B5179E","#8A8A8E" };
+                var ciM = medios.IndexOf(m) % colsM.Length;
+                <div class="destino-row">
+                    <div class="destino-lbl">@m.Medio</div>
+                    <div class="destino-bar-wrap"><div class="destino-bar" style="width:@pctM%;background:@colsM[ciM]"></div></div>
+                    <div class="destino-cnt">@m.Total</div>
+                    <div style="font-size:11px;color:var(--label3);min-width:44px;text-align:right">@pctReal.ToString("0.0")%</div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="empty">Todavía no hay compradores con este dato registrado.</div>
+    }
 </div>
 
 <!-- TIPOLOGÍAS -->

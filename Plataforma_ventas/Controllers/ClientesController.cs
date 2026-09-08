@@ -137,6 +137,7 @@ namespace Plataforma_ventas.Controllers
                 Documento = rC["Documento"]?.ToString() ?? "",
                 Celular = rC["Celular"]?.ToString() ?? "",
                 Correo = rC["Correo"]?.ToString() ?? "",
+                Medio = TieneColumna(rC, "MedioPublicitario") ? rC["MedioPublicitario"]?.ToString() ?? "" : "",
                 Direccion = rC["Direccion"]?.ToString() ?? "",
             };
             rC.Close();
@@ -187,13 +188,14 @@ namespace Plataforma_ventas.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(int idCliente, string nombre, string apellido,
-            string documento, string celular, string correo, string direccion)
+            string documento, string celular, string correo, string direccion, string medio)
         {
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
             var cmd = new SqlCommand(@"UPDATE Clientes
-                SET Nombre=@n, Apellido=@a, Documento=@d, Celular=@c, Correo=@e, Direccion=@dir
+                SET Nombre=@n, Apellido=@a, Documento=@d, Celular=@c, Correo=@e, Direccion=@dir,
+                    MedioPublicitario=@medio
                 WHERE IdCliente=@id", con);
             cmd.Parameters.AddWithValue("@n", nombre ?? "");
             cmd.Parameters.AddWithValue("@a", apellido ?? "");
@@ -201,11 +203,23 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@c", celular ?? "");
             cmd.Parameters.AddWithValue("@e", correo ?? "");
             cmd.Parameters.AddWithValue("@dir", direccion ?? "");
+            cmd.Parameters.AddWithValue("@medio", Texto.MedioPublicitario(medio));
             cmd.Parameters.AddWithValue("@id", idCliente);
             await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Cliente actualizado correctamente.";
             return RedirectToAction("Detalle", new { id = idCliente });
         }
-    }
+    
+        /// <summary>
+        /// Indica si el lector trae esa columna. Permite consumir columnas nuevas
+        /// sin romper si la migración todavía no se ejecutó en esa base.
+        /// </summary>
+        private static bool TieneColumna(SqlDataReader r, string nombre)
+        {
+            for (int i = 0; i < r.FieldCount; i++)
+                if (string.Equals(r.GetName(i), nombre, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+}
 }

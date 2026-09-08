@@ -84,6 +84,15 @@
                 <div class="field-row"><div class="field-lbl">Documento</div><input class="field-input" type="text" name="documento" value="@cli.Documento" inputmode="numeric" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
                 <div class="field-row"><div class="field-lbl">Celular</div><input class="field-input" type="text" name="celular" value="@cli.Celular"/></div>
                 <div class="field-row"><div class="field-lbl">Correo</div><input class="field-input" type="email" name="correo" value="@cli.Correo"/></div>
+                <div class="field-row"><div class="field-lbl">Se enteró por</div>
+                    <select class="field-input" name="medio">
+                        <option value="">— Sin especificar —</option>
+                        @foreach (var m in Texto.MediosPermitidos)
+                        {
+                            <option value="@m" selected="@((cli.Medio as string) == m)">@m</option>
+                        }
+                    </select>
+                </div>
                 <div class="field-row"><div class="field-lbl">Dirección</div><input class="field-input" type="text" name="direccion" value="@cli.Direccion"/></div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
                     <a href="/Clientes" class="ios-btn ghost">Volver</a>

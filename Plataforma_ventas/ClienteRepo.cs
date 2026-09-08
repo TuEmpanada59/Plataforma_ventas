@@ -23,7 +23,7 @@ namespace Plataforma_ventas
         public static async Task<(int IdCliente, bool Reutilizado)> ObtenerOCrearAsync(
             SqlConnection con, SqlTransaction tx,
             string? nombre, string? apellido, string? documento,
-            string? celular, string? correo, string? direccion)
+            string? celular, string? correo, string? direccion, string? medio = null)
         {
             var doc = Texto.SoloDigitos(documento);
 
@@ -38,15 +38,16 @@ namespace Plataforma_ventas
             }
 
             var cmdCli = new SqlCommand(@"INSERT INTO Clientes
-                (Nombre,Apellido,Documento,Celular,Correo,Direccion)
+                (Nombre,Apellido,Documento,Celular,Correo,Direccion,MedioPublicitario)
                 OUTPUT INSERTED.IdCliente
-                VALUES (@n,@a,@d,@c,@e,@dir)", con, tx);
+                VALUES (@n,@a,@d,@c,@e,@dir,@medio)", con, tx);
             cmdCli.Parameters.AddWithValue("@n", nombre ?? "");
             cmdCli.Parameters.AddWithValue("@a", apellido ?? "");
             cmdCli.Parameters.AddWithValue("@d", doc);
             cmdCli.Parameters.AddWithValue("@c", celular ?? "");
             cmdCli.Parameters.AddWithValue("@e", correo ?? "");
             cmdCli.Parameters.AddWithValue("@dir", direccion ?? "");
+            cmdCli.Parameters.AddWithValue("@medio", Texto.MedioPublicitario(medio));
             return (Convert.ToInt32(await cmdCli.ExecuteScalarAsync()), false);
         }
     }
