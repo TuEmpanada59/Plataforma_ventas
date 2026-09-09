@@ -267,6 +267,38 @@ namespace Plataforma_ventas.Controllers
                     });
             ViewBag.VentasHoraArea = vha;
 
+            // ── Visitas vs ventas ──────────────────────────────────────────────────
+            // Las visitas se capturan por franja horaria (opcional); si el evento no
+            // tiene franjas cargadas, no hay curva que comparar y la vista lo dice.
+            var ev = await CargarEventoAsync(con, idProy);
+            var visitas = new List<dynamic>();
+            if (ev.TablaOk)
+                foreach (var d in ev.Dias)
+                    foreach (var f in (List<dynamic>)d.Franjas)
+                        visitas.Add(new
+                        {
+                            Desde = (int)f.Desde,
+                            Hasta = (int)f.Hasta,
+                            Familias = (int)f.Familias,
+                        });
+
+            // Se agrupan las franjas de todos los días del evento: la pregunta es
+            // "a qué hora del día viene la gente", no "qué día vino".
+            var franjas = visitas
+                .GroupBy(v => new { Desde = (int)v.Desde, Hasta = (int)v.Hasta })
+                .Select(g => new
+                {
+                    g.Key.Desde,
+                    g.Key.Hasta,
+                    Familias = g.Sum(x => (int)x.Familias),
+                    // Ventas que caen dentro de la franja, con la misma hora local.
+                    Ventas = vha.Where(x => (int)x.Hora >= g.Key.Desde && (int)x.Hora < g.Key.Hasta)
+                                .Sum(x => (int)x.Num),
+                })
+                .OrderBy(f => f.Desde)
+                .ToList();
+            ViewBag.Franjas = franjas;
+
             // Indicadores destacados (hora pico, área líder, combinación top).
             if (vha.Count > 0)
             {
@@ -1472,6 +1504,30 @@ namespace Plataforma_ventas.Controllers
                         cmdDia.Parameters.AddWithValue("@acl", JInt(dia, "asisteCitaLucia"));
                         int idDia = (int)(await cmdDia.ExecuteScalarAsync())!;
 
+                        // Franjas horarias del día (opcionales). Solo se guardan las
+                        // que traen conteo, para no llenar la tabla de ceros.
+                        if (dia.TryGetProperty("franjas", out var frEl) && frEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            int ordenFranja = 0;
+                            foreach (var fr in frEl.EnumerateArray())
+                            {
+                                int fam = JInt(fr, "familias");
+                                int hDesde = JInt(fr, "desde");
+                                int hHasta = JInt(fr, "hasta");
+                                if (fam <= 0) { ordenFranja++; continue; }
+
+                                var cmdFr = new SqlCommand(@"INSERT INTO AsistenciaFranja
+                                    (IdDia,Orden,HoraDesde,HoraHasta,Familias)
+                                    VALUES (@d,@o,@hd,@hh,@fa)", con, tx);
+                                cmdFr.Parameters.AddWithValue("@d", idDia);
+                                cmdFr.Parameters.AddWithValue("@o", ordenFranja++);
+                                cmdFr.Parameters.AddWithValue("@hd", hDesde);
+                                cmdFr.Parameters.AddWithValue("@hh", hHasta);
+                                cmdFr.Parameters.AddWithValue("@fa", fam);
+                                await cmdFr.ExecuteNonQueryAsync();
+                            }
+                        }
+
                         int ordenTorre = 0;
                         if (dia.TryGetProperty("torres", out var torresEl) && torresEl.ValueKind == System.Text.Json.JsonValueKind.Array)
                         {
@@ -1783,11 +1839,34 @@ namespace Plataforma_ventas.Controllers
                                     Ventas = (int)rt["Ventas"], ValorVenta = (long)rt["ValorVenta"],
                                     Opciones = (int)rt["Opciones"], ValorOpciones = (long)rt["ValorOpciones"],
                                 });
+                        // Franjas horarias (opcionales): pueden no existir todavía
+                        // ni la tabla ni datos para ese día.
+                        var franjas = new List<dynamic>();
+                        try
+                        {
+                            var cmdFr = new SqlCommand(
+                                "SELECT Orden, HoraDesde, HoraHasta, Familias FROM AsistenciaFranja WHERE IdDia=@d ORDER BY Orden", con);
+                            cmdFr.Parameters.AddWithValue("@d", (int)d.IdDia);
+                            using var rf = (SqlDataReader)await cmdFr.ExecuteReaderAsync();
+                            while (await rf.ReadAsync())
+                                franjas.Add(new
+                                {
+                                    Orden = Convert.ToInt32(rf["Orden"]),
+                                    Desde = Convert.ToInt32(rf["HoraDesde"]),
+                                    Hasta = Convert.ToInt32(rf["HoraHasta"]),
+                                    Familias = Convert.ToInt32(rf["Familias"]),
+                                });
+                        }
+                        catch (SqlException ex) when (ex.Message.Contains("Invalid object name") || ex.Number == 208)
+                        {
+                            // Migración de franjas sin ejecutar: se sigue sin ellas.
+                        }
+
                         dias.Add(new
                         {
                             d.IdDia, d.Fecha, d.NombreDia, d.Familias, d.Adultos, d.Ninos, d.Mascotas,
                             d.AsisteCita, d.Carros, d.Motos, d.Caminando, d.AgendadosEquipo, d.AgendadosLucia,
-                            d.AsisteCitaLucia, Torres = torres,
+                            d.AsisteCitaLucia, Torres = torres, Franjas = franjas,
                         });
                     }
                 }

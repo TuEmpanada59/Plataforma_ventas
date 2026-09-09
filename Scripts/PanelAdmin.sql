@@ -121,5 +121,31 @@ IF COL_LENGTH('Clientes', 'MedioPublicitario') IS NULL
     ALTER TABLE Clientes ADD MedioPublicitario NVARCHAR(80) NULL;
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 8) Asistencia por franja horaria (opcional)
+--    Las ventas tienen hora exacta, pero la asistencia se captura como total
+--    del día, así que no se podían cruzar para ver picos dentro de la jornada.
+--    Esta tabla guarda SOLO el conteo de familias por franja: es el dato que
+--    dibuja la curva, y pedir las nueve métricas por franja haría inviable el
+--    conteo durante el evento.
+--    Es OPCIONAL: si un día no tiene franjas, el informe compara por día.
+-- ────────────────────────────────────────────────────────────────────────────
+IF OBJECT_ID('AsistenciaFranja', 'U') IS NULL
+BEGIN
+    CREATE TABLE AsistenciaFranja (
+        IdFranja  INT           IDENTITY(1,1) PRIMARY KEY,
+        IdDia     INT           NOT NULL,
+        Orden     INT           NOT NULL DEFAULT 0,
+        HoraDesde INT           NOT NULL,          -- hora de inicio (0-23)
+        HoraHasta INT           NOT NULL,          -- hora de fin, excluyente
+        Familias  INT           NOT NULL DEFAULT 0,
+        CONSTRAINT FK_AsistFranja_Dia FOREIGN KEY (IdDia)
+            REFERENCES AsistenciaDia (IdDia) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IX_AsistFranja_Dia ON AsistenciaFranja (IdDia, Orden);
+END
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

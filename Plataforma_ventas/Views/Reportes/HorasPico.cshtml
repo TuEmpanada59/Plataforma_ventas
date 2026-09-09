@@ -6,6 +6,8 @@
 
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     var vhaRaw     = ViewBag.VentasHoraArea as List<dynamic> ?? new List<dynamic>();
+    var franjas    = ViewBag.Franjas as System.Collections.IEnumerable;
+    var franjasL   = franjas?.Cast<dynamic>().ToList() ?? new List<dynamic>();
 
     // Se materializa a tipos concretos: el resto de la vista trabaja sin dynamic.
     var vha = vhaRaw.Select(x => new {
@@ -73,6 +75,14 @@
     Func<int, string> FmtHora = h => $"{(h % 12 == 0 ? 12 : h % 12)}:00 {(h < 12 ? "a. m." : "p. m.")}";
     var totalesHora = horas.Select(h => vha.Where(x => x.Hora == h).Sum(x => x.Num)).ToList();
     var valoresHora = horas.Select(h => vha.Where(x => x.Hora == h).Sum(x => x.Valor)).ToList();
+    string EtiquetaFranja(int d, int h) =>
+        $"{(d % 12 == 0 ? 12 : d % 12)}–{(h % 12 == 0 ? 12 : h % 12)} {(h <= 12 ? "a. m." : "p. m.")}";
+    var visitasJson = System.Text.Json.JsonSerializer.Serialize(new
+    {
+        labels   = franjasL.Select(f => EtiquetaFranja((int)f.Desde, (int)f.Hasta)).ToList(),
+        visitas  = franjasL.Select(f => (int)f.Familias).ToList(),
+        ventas   = franjasL.Select(f => (int)f.Ventas).ToList(),
+    });
     var chartJson = System.Text.Json.JsonSerializer.Serialize(new {
         labels = horas.Select(h => FmtHora(h)).ToList(),
         series,
@@ -163,6 +173,33 @@
                 }
             </p>
         </div>
+    </div>
+
+    <!-- VISITAS VS VENTAS -->
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">@Iconos.Grafico("#eb6834", 17) Visitas contra ventas</span>
+            <span style="font-size:12px;color:var(--label3)">Por franja horaria</span>
+        </div>
+        @if (franjasL.Count > 0)
+        {
+            <div class="card-body">
+                <div class="chart-box" style="height:320px"><canvas id="chartVisitas"></canvas></div>
+                <p class="nota">
+                    Las barras son las familias que visitaron la sala; la línea, las ventas cerradas
+                    en esa misma franja. Una franja con muchas visitas y pocas ventas señala dónde
+                    se está perdiendo la conversión.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="vacio" style="padding:28px;text-align:center;color:var(--label3);font-size:13px;line-height:1.6">
+                Todavía no hay visitas cargadas por franja horaria.<br />
+                Regístralas en <a href="/Reportes/Asistencia" style="color:var(--blue);font-weight:600">Cuadro de asistencia</a>,
+                en la sección «Familias por franja horaria» de cada día.
+            </div>
+        }
     </div>
 
     <!-- TABLA DE DATOS -->
@@ -310,6 +347,64 @@ else
                                 if (!items.length) return '';
                                 var t = D.totales[items[0].dataIndex] || 0;
                                 return 'Total de la hora: ' + t + (t === 1 ? ' venta' : ' ventas');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+
+    /* Visitas contra ventas por franja: barras de visitas + línea de ventas.
+       Comparten eje porque ambas son conteos de personas/operaciones; lo que
+       importa es la forma de las dos curvas, no su escala absoluta. */
+    (function () {
+        var V = @Html.Raw(visitasJson);
+        var cv = document.getElementById('chartVisitas');
+        if (!cv || typeof Chart === 'undefined' || !V.labels.length) return;
+        new Chart(cv.getContext('2d'), {
+            data: {
+                labels: V.labels,
+                datasets: [
+                    {
+                        type: 'bar', label: 'Familias que visitaron', data: V.visitas,
+                        backgroundColor: 'rgba(42,120,214,0.35)', borderColor: '#2a78d6',
+                        borderWidth: 1, borderRadius: 5, order: 2
+                    },
+                    {
+                        type: 'line', label: 'Ventas cerradas', data: V.ventas,
+                        borderColor: '#1baf7a', backgroundColor: '#1baf7a',
+                        borderWidth: 2, tension: 0.35, pointRadius: 4, pointHoverRadius: 6,
+                        pointBorderColor: '#ffffff', pointBorderWidth: 2, fill: false, order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#6E6E73', font: { size: 11 } } },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Personas / ventas', color: '#6E6E73', font: { size: 11, weight: '600' } },
+                        grid: { color: 'rgba(60,60,67,0.07)' },
+                        ticks: { precision: 0, color: '#6E6E73', font: { size: 11 } }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle',
+                                  padding: 14, color: '#3C3C43', font: { size: 11 } }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(28,28,30,0.94)', padding: 11,
+                        callbacks: {
+                            footer: function (items) {
+                                var i = items[0].dataIndex;
+                                var vis = V.visitas[i] || 0, ven = V.ventas[i] || 0;
+                                if (!vis) return '';
+                                return 'Conversión: ' + (ven / vis * 100).toFixed(1) + '%';
                             }
                         }
                     }

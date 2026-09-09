@@ -21,6 +21,9 @@
     .fg input:focus,.fg textarea:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.08);}
     .fg input[type=number]{text-align:right;}
     .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .franja-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+    .franja label{font-size:10px;color:var(--label2);}
+    .franja input{text-align:right;}
     .dia-block{border:1px solid var(--sep);border-radius:14px;padding:16px;margin-bottom:14px;background:rgba(255,255,255,0.4);}
     .dia-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
     .dia-title{font-size:14px;font-weight:700;color:var(--azul);}
@@ -46,7 +49,7 @@
     .tbl .lbl{font-weight:600;color:var(--azul);text-align:left;}
     .tbl .tot{font-weight:700;background:rgba(0,118,227,0.04);}
     .tbl .sec td{background:rgba(0,58,112,0.06);font-weight:700;color:var(--azul);font-size:11px;text-transform:uppercase;}
-    @@media(max-width:900px){.metric-grid{grid-template-columns:repeat(2,1fr)!important;}.torre-row{grid-template-columns:1fr 1fr!important;}}
+    @@media(max-width:900px){.metric-grid,.franja-grid{grid-template-columns:repeat(2,1fr)!important;}.torre-row{grid-template-columns:1fr 1fr!important;}}
 </style>
 }
 
@@ -147,6 +150,14 @@ function diaTemplate(idx) {
         ${numField('Caminando','caminando')}
       </div>
 
+      <div class="sec-lbl">Familias por franja horaria <span style="text-transform:none;font-weight:400;color:var(--label3)">— opcional, permite comparar visitas contra ventas dentro del día</span></div>
+      <div class="franja-grid">
+        ${franjaField(0, 9, 12)}
+        ${franjaField(1, 12, 15)}
+        ${franjaField(2, 15, 18)}
+        ${franjaField(3, 18, 21)}
+      </div>
+
       <div class="sec-lbl">Citas / agendamiento</div>
       <div class="metric-grid">
         ${numField('Agendados equipo comercial','agendadosEquipo')}
@@ -177,6 +188,15 @@ function torreTemplate() {
 }
 
 let diaCount = 0;
+function franjaField(idx, desde, hasta) {
+    const et = (h) => (h % 12 === 0 ? 12 : h % 12) + (h < 12 ? ' a.m.' : ' p.m.');
+    return `
+      <div class="fg franja" data-desde="${desde}" data-hasta="${hasta}">
+        <label>${et(desde)} – ${et(hasta)}</label>
+        <input type="number" min="0" class="f-franja" placeholder="0"/>
+      </div>`;
+}
+
 function agregarDia(data) {
     const cont = document.getElementById('diasContainer');
     const wrap = document.createElement('div');
@@ -237,6 +257,12 @@ function llenarDia(block, d) {
         asisteCita:'AsisteCita',carros:'Carros',motos:'Motos',caminando:'Caminando',
         agendadosEquipo:'AgendadosEquipo',agendadosLucia:'AgendadosLucia',asisteCitaLucia:'AsisteCitaLucia'};
     for (const k in map) setVal(block, '.m-'+k, d[map[k]]);
+    // Franjas guardadas: se emparejan por hora de inicio, no por posición,
+    // para que sigan cuadrando si algún día se cambian los tramos.
+    (d.Franjas||[]).forEach(f => {
+        const celda = block.querySelector('.franja[data-desde="' + f.Desde + '"] .f-franja');
+        if (celda) celda.value = f.Familias;
+    });
     const tc = block.querySelector('.torres-container');
     (d.Torres||[]).forEach(t => agregarTorre(tc.nextElementSibling, t));
     if (!(d.Torres||[]).length) agregarTorre(tc.nextElementSibling);
@@ -260,8 +286,16 @@ function recolectar() {
                 opciones: gt('.t-opciones'), valorOpciones: gt('.t-valorOpciones'),
             });
         });
+        const franjas = [];
+        b.querySelectorAll('.franja').forEach(f => {
+            franjas.push({
+                desde: parseInt(f.dataset.desde),
+                hasta: parseInt(f.dataset.hasta),
+                familias: parseInt(f.querySelector('.f-franja')?.value || 0) || 0,
+            });
+        });
         dias.push({
-            fecha, nombreDia,
+            fecha, nombreDia, franjas,
             familias:gi('.m-familias'), adultos:gi('.m-adultos'), ninos:gi('.m-ninos'), mascotas:gi('.m-mascotas'),
             asisteCita:gi('.m-asisteCita'), carros:gi('.m-carros'), motos:gi('.m-motos'), caminando:gi('.m-caminando'),
             agendadosEquipo:gi('.m-agendadosEquipo'), agendadosLucia:gi('.m-agendadosLucia'), asisteCitaLucia:gi('.m-asisteCitaLucia'),
