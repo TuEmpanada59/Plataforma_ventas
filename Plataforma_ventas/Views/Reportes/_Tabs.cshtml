@@ -1,0 +1,14 @@
+@*
+    Barra de pestañas compartida de Reportes.
+    Uso:  @await Html.PartialAsync("_Tabs", "dashboard")   // "dashboard" | "horas" | "asistencia"
+    Los estilos (.tab-bar / .tab-btn) viven en wwwroot/css/platform.css.
+*@
+@model string
+@{
+    var activa = Model ?? "dashboard";
+}
+<div class="tab-bar">
+    <a href="/Reportes" class="tab-btn @(activa == "dashboard" ? "active" : "")">Dashboard</a>
+    <a href="/Reportes/HorasPico" class="tab-btn @(activa == "horas" ? "active" : "")">Horas pico y área</a>
+    <a href="/Reportes/Asistencia" class="tab-btn @(activa == "asistencia" ? "active" : "")">Cuadro de asistencia</a>
+</div>

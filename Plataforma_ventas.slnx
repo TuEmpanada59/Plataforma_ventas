@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="Plataforma_ventas/Plataforma_ventas.csproj" />
+  <Project Path="PruebasLanzamientos/PruebasLanzamientos.csproj" Id="1c097142-2a9b-479a-9fdd-cf398cf64892" />
 </Solution>

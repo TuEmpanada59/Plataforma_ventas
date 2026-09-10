@@ -1,0 +1,57 @@
+name: Deploy a VPS (InterServer)
+
+# Cada push a la rama de producción compila y despliega automáticamente.
+# La compilación ocurre en los servidores de GitHub (no en tu VPS), así que
+# no consume la RAM de la VPS. Al VPS solo llega la app ya compilada.
+on:
+  push:
+    branches: [ master ]      # cambia a tu rama de producción si usas otra
+  workflow_dispatch:           # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar y publicar
+        run: dotnet publish Plataforma_ventas/Plataforma_ventas.csproj -c Release -o publish
+
+      - name: Empaquetar artefacto
+        run: tar -czf app.tar.gz -C publish .
+
+      - name: Copiar al VPS por SSH
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: app.tar.gz
+          target: /tmp
+
+      - name: Desplegar y reiniciar el servicio
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            set -e
+            sudo mkdir -p /var/www/plataforma
+            # Extrae la nueva versión en una carpeta temporal y la intercambia
+            rm -rf /tmp/plataforma_new && mkdir -p /tmp/plataforma_new
+            tar -xzf /tmp/app.tar.gz -C /tmp/plataforma_new
+            sudo rsync -a --delete /tmp/plataforma_new/ /var/www/plataforma/
+            sudo chown -R www-data:www-data /var/www/plataforma
+            rm -f /tmp/app.tar.gz
+            sudo systemctl restart plataforma
+            sleep 3
+            sudo systemctl is-active plataforma

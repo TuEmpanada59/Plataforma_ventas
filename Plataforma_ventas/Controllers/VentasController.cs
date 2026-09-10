@@ -1,23 +1,44 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.SqlClient;
 using Plataforma_ventas.Filters;
+using Plataforma_ventas.Hubs;
+using Plataforma_ventas.Services;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Drawing;
 
 namespace Plataforma_ventas.Controllers
 {
+    /// <summary>
+    /// Administrator controller for viewing and exporting sales records
+    /// for the active project.
+    /// </summary>
     [RolAutorizado("Administrador")]
     public class VentasController : Controller
     {
         private readonly string _conn;
+        private readonly IHubContext<VentasHub, IVentasClient> _hub;
+        private readonly IAuditoriaService _audit;
 
-        public VentasController(IConfiguration config)
+        /// <summary>Initializes the controller with DB connection, SignalR hub and audit service.</summary>
+        public VentasController(IConfiguration config,
+                                IHubContext<VentasHub, IVentasClient> hub,
+                                IAuditoriaService audit)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
+            _hub = hub;
+            _audit = audit;
         }
 
-        public IActionResult Index()
+        /// <summary>
+        /// Lists all sales for the active project with server-side pagination.
+        /// Results are ordered by FechaVenta descending (newest first).
+        /// Performs a COUNT query for total pages and a paginated SELECT query for the current page.
+        /// </summary>
+        /// <param name="page">1-based page number. Defaults to 1.</param>
+        /// <param name="pageSize">Number of sales per page. Defaults to 25.</param>
+        public async Task<IActionResult> Index([FromQuery] int page = 1, [FromQuery] int pageSize = 25)
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
@@ -27,19 +48,50 @@ namespace Plataforma_ventas.Controllers
             int idProy = int.TryParse(proyIdStr, out int pid) ? pid : 0;
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
 
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 25;
+
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             // Solo proyectos de este admin
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand("SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 AND IdAdminCreador=@admin ORDER BY FechaCarga DESC", con);
             cmdList.Parameters.AddWithValue("@admin", idAdmin);
-            using (var r = cmdList.ExecuteReader())
-                while (r.Read())
+            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
+                while (await r.ReadAsync())
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
-            // Todas las ventas del proyecto
+            // COUNT for pagination
+            var cmdCount = new SqlCommand(
+                "SELECT COUNT(*) FROM Ventas WHERE IdProyecto = @proy", con);
+            cmdCount.Parameters.AddWithValue("@proy", idProy);
+            int total = (int)(await cmdCount.ExecuteScalarAsync())!;
+            int totalPages = (int)Math.Ceiling((double)total / pageSize);
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            ViewBag.Page = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.Total = total;
+
+            // Sum the full project total (all pages). NOTE: this scalar query MUST run
+            // before the paginated reader below is opened — a `using var` reader stays
+            // open until the end of the method, and executing another command on the
+            // same connection while a DataReader is open throws InvalidOperationException.
+            // Solo las ventas ACTIVAS suman: una venta anulada no es valor vendido.
+            var cmdSum = new SqlCommand(
+                "SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@proy AND Estado='ACTIVA'", con);
+            cmdSum.Parameters.AddWithValue("@proy", idProy);
+            ViewBag.TotalValor = Convert.ToInt64(await cmdSum.ExecuteScalarAsync());
+
+            var cmdAnul = new SqlCommand(
+                "SELECT COUNT(*) FROM Ventas WHERE IdProyecto=@proy AND Estado<>'ACTIVA'", con);
+            cmdAnul.Parameters.AddWithValue("@proy", idProy);
+            ViewBag.TotalAnuladas = Convert.ToInt32(await cmdAnul.ExecuteScalarAsync());
+
+            // Paginated query — sales ordered newest first
             var ventas = new List<dynamic>();
             var cmd = new SqlCommand(@"
                 SELECT v.IdVenta,
@@ -50,16 +102,19 @@ namespace Plataforma_ventas.Controllers
                        ISNULL(v.Destino,'—') AS Destino,
                        v.PrecioVenta,
                        FORMAT(v.FechaVenta,'dd/MM/yyyy HH:mm') AS FechaVenta,
-                       v.Estado, v.ListaAplicada
+                       v.Estado, v.ListaAplicada, ISNULL(v.Observaciones,'') AS Observaciones
                 FROM Ventas v
                 JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
                 JOIN Clientes  c ON v.IdCliente  = c.IdCliente
                 JOIN Usuarios  u ON v.IdUsuario  = u.IdUsuario
                 WHERE v.IdProyecto = @proy
-                ORDER BY v.FechaVenta DESC", con);
+                ORDER BY v.FechaVenta DESC
+                OFFSET (@page-1)*@pageSize ROWS FETCH NEXT @pageSize ROWS ONLY", con);
             cmd.Parameters.AddWithValue("@proy", idProy);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            cmd.Parameters.AddWithValue("@page", page);
+            cmd.Parameters.AddWithValue("@pageSize", pageSize);
+            using var reader = (SqlDataReader)await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
                 ventas.Add(new
                 {
@@ -76,32 +131,137 @@ namespace Plataforma_ventas.Controllers
                     PrecioVenta = reader["PrecioVenta"]?.ToString() ?? "0",
                     FechaVenta = reader["FechaVenta"]?.ToString() ?? "",
                     Estado = reader["Estado"]?.ToString() ?? "",
-                    Lista = reader["ListaAplicada"]?.ToString() ?? ""
+                    Lista = reader["ListaAplicada"]?.ToString() ?? "",
+                    Observaciones = reader["Observaciones"]?.ToString() ?? ""
                 });
             }
 
             ViewBag.Ventas = ventas;
             ViewBag.TotalVentas = ventas.Count;
-            ViewBag.TotalValor = ventas.Sum(v => long.TryParse(v.PrecioVenta, out long p) ? p : 0);
 
             return View();
         }
 
-        // ── Generar mapa Excel ──
-        public IActionResult GenerarMapa()
+        /// <summary>
+        /// Anula una venta registrada: la marca como ANULADA (no la borra) y devuelve
+        /// el inmueble a DISPONIBLE, todo dentro de una transacción. Exige un motivo
+        /// y queda registrado en la auditoría.
+        /// </summary>
+        /// <param name="idVenta">Venta a anular. Debe estar en estado ACTIVA.</param>
+        /// <param name="motivo">Razón de la anulación (obligatoria, queda en el registro).</param>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AnularVenta(int idVenta, string motivo)
+        {
+            motivo = (motivo ?? "").Trim();
+            if (motivo.Length < 5)
+            {
+                TempData["Error"] = "Debe indicar el motivo de la anulación (mínimo 5 caracteres).";
+                return RedirectToAction("Index");
+            }
+
+            int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            // Datos de la venta, para el mensaje y la auditoría.
+            int idInmueble = 0; string apto = "", torre = ""; long precio = 0;
+            var cmdInfo = new SqlCommand(@"
+                SELECT v.IdInmueble, v.PrecioVenta, i.Apto, i.Torre
+                FROM Ventas v JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
+                WHERE v.IdVenta=@id AND v.IdProyecto=@proy AND v.Estado='ACTIVA'", con);
+            cmdInfo.Parameters.AddWithValue("@id", idVenta);
+            cmdInfo.Parameters.AddWithValue("@proy", idProy);
+            using (var r = (SqlDataReader)await cmdInfo.ExecuteReaderAsync())
+                if (await r.ReadAsync())
+                {
+                    idInmueble = (int)r["IdInmueble"];
+                    precio = Convert.ToInt64(r["PrecioVenta"]);
+                    apto = r["Apto"]?.ToString() ?? "";
+                    torre = r["Torre"]?.ToString() ?? "";
+                }
+
+            if (idInmueble == 0)
+            {
+                TempData["Error"] = "La venta no existe, no pertenece a este proyecto o ya fue anulada.";
+                return RedirectToAction("Index");
+            }
+
+            using var tx = (SqlTransaction)await con.BeginTransactionAsync();
+            try
+            {
+                // UPDATE con guardia de estado: si otro administrador la anuló primero,
+                // afecta 0 filas y no se toca el inmueble.
+                var cmdAnula = new SqlCommand(@"
+                    UPDATE Ventas
+                    SET Estado='ANULADA', MotivoAnulacion=@motivo,
+                        FechaAnulacion=GETUTCDATE(), IdUsuarioAnula=@uid
+                    WHERE IdVenta=@id AND Estado='ACTIVA'", con, tx);
+                cmdAnula.Parameters.AddWithValue("@motivo", motivo);
+                cmdAnula.Parameters.AddWithValue("@uid", idUsuario);
+                cmdAnula.Parameters.AddWithValue("@id", idVenta);
+
+                if (await cmdAnula.ExecuteNonQueryAsync() == 0)
+                {
+                    await tx.RollbackAsync();
+                    TempData["Error"] = "Otro usuario anuló esta venta primero. No se realizaron cambios.";
+                    return RedirectToAction("Index");
+                }
+
+                // El inmueble vuelve a estar disponible para todos.
+                var cmdInm = new SqlCommand(@"
+                    UPDATE Inmuebles
+                    SET Estado='DISPONIBLE',
+                        IdVendedorEnProceso=NULL, FechaEnProceso=NULL,
+                        IdVendedorReserva=NULL,  FechaReserva=NULL, PrecioReserva=NULL, ObservacionReserva=NULL
+                    WHERE IdInmuebles=@inm", con, tx);
+                cmdInm.Parameters.AddWithValue("@inm", idInmueble);
+                await cmdInm.ExecuteNonQueryAsync();
+
+                await tx.CommitAsync();
+            }
+            catch (SqlException ex) when (ex.Message.Contains("Invalid column name"))
+            {
+                await tx.RollbackAsync();
+                TempData["Error"] = "La base de datos aún no tiene las columnas de anulación. " +
+                                    "Ejecute Scripts/PanelAdmin.sql y vuelva a intentarlo.";
+                return RedirectToAction("Index");
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
+            await _audit.RegistrarAsync(AccionAudit.VentaAnulada, "Venta", idVenta, idProy,
+                $"Apto {apto} · Torre {torre} · ${precio:N0} · Motivo: {motivo}");
+
+            TempData["Exito"] = $"Venta anulada. El apartamento {apto} volvió a estar disponible.";
+            return RedirectToAction("Index");
+        }
+
+        /// <summary>
+        /// Generates an Excel workbook with a colour-coded property map
+        /// showing the current estado of every unit in the active project.
+        /// Performs a SELECT query for all properties ordered by Torre/Piso/Apto.
+        /// </summary>
+        public async Task<IActionResult> GenerarMapa()
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
 
             using var con = new SqlConnection(_conn);
-            con.Open();
+            await con.OpenAsync();
 
             var inmuebles = new List<dynamic>();
-            var cmd = new SqlCommand(@"SELECT Apto, Piso, Torre, Tipo, Estado FROM Inmuebles 
+            var cmd = new SqlCommand(@"SELECT Apto, Piso, Torre, Tipo, Estado FROM Inmuebles
                 WHERE IdProyecto=@id ORDER BY Torre, Piso DESC, Apto", con);
             cmd.Parameters.AddWithValue("@id", idProy);
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            using var reader = (SqlDataReader)await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
                 inmuebles.Add(new { Apto = reader["Apto"]?.ToString() ?? "", Piso = reader["Piso"]?.ToString() ?? "", Torre = reader["Torre"]?.ToString() ?? "", Tipo = reader["Tipo"]?.ToString() ?? "", Estado = reader["Estado"]?.ToString() ?? "" });
             reader.Close();
 

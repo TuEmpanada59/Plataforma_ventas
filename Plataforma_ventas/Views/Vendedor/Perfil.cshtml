@@ -1,152 +1,296 @@
-﻿@{
-    Layout = null;
-    var nombre     = ViewBag.Nombre as string ?? "";
-    var apellido   = ViewBag.Apellido as string ?? "";
+@{
+    Layout = "~/Views/Shared/_VendedorLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Mi perfil";
+    ViewBag.ActiveNav = "vendedor-perfil";
+    ViewBag.TbBread   = "Mi perfil";
+
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
-    var iniciales  = ((nombre.Length>=1?nombre.Substring(0,1):"") + (apellido.Length>=1?apellido.Substring(0,1):"")).ToUpper();
     var pNombre    = ViewBag.PerfilNombre   as string ?? "";
     var pApellido  = ViewBag.PerfilApellido as string ?? "";
     var pUsuario   = ViewBag.PerfilUsuario  as string ?? "";
     var pCorreo    = ViewBag.PerfilCorreo   as string ?? "";
     var pDoc       = ViewBag.PerfilDocumento as string ?? "—";
     var pCel       = ViewBag.PerfilCelular  as string ?? "—";
+    var reservas   = ViewBag.Reservas   as List<dynamic> ?? new List<dynamic>();
+    var listasArea = ViewBag.ListasArea as List<dynamic> ?? new List<dynamic>();
+    var mapa       = ViewBag.Mapa       as List<dynamic> ?? new List<dynamic>();
+    var iniciales  = ((pNombre.Length>=1?pNombre.Substring(0,1):"") + (pApellido.Length>=1?pApellido.Substring(0,1):"")).ToUpper();
+
+    // Pestaña inicial: si vienen de liberar/continuar una reserva, abrir en reservas.
+    var tabInicial = Context.Request.Query["tab"].ToString();
+    if (tabInicial != "reservas" && tabInicial != "listas" && tabInicial != "mapa") tabInicial = "datos";
+    if (TempData["Exito"] != null || TempData["Error"] != null) tabInicial = "reservas";
 }
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Mi Perfil · Londoño Gómez</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{--azul:#003A70;--mid:#0055A5;--blue:#0077C8;--rojo:#E63946;--label:rgba(0,0,0,0.85);--label2:rgba(60,60,67,0.6);--label3:rgba(60,60,67,0.3);--sep:rgba(60,60,67,0.12);--sep2:rgba(60,60,67,0.06);--fill3:rgba(120,120,128,0.08);--glass:rgba(255,255,255,0.75);--gb:rgba(255,255,255,0.6);--sh:0 8px 32px rgba(0,0,0,0.08),0 2px 8px rgba(0,0,0,0.04);}
-        html,body{background:#EEF2F7;color:var(--label);}
-        *{font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
-        body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 10% 0%,rgba(0,119,200,0.12) 0%,transparent 55%),#EEF2F7;pointer-events:none;}
-        .app{display:flex;min-height:100vh;position:relative;z-index:1;}
-        .sidebar{width:230px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-right:1px solid var(--gb);display:flex;flex-direction:column;}
-        .sb-top{padding:20px 14px 0;}
-        .sb-icon{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,85,165,0.25);}
-        .sb-app{font-size:17px;font-weight:700;color:var(--label);letter-spacing:-0.4px;}
-        .sb-sub{font-size:11px;color:var(--label3);margin-top:1px;}
-        .sb-vendedor{margin:14px 10px 4px;background:linear-gradient(145deg,var(--azul),var(--blue));border-radius:16px;padding:14px;position:relative;overflow:hidden;}
-        .sb-vendedor::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08);}
-        .sv-av{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;margin-bottom:6px;position:relative;z-index:1;}
-        .sv-nombre{font-size:13px;font-weight:700;color:white;position:relative;z-index:1;}
-        .sv-rol{font-size:10px;color:rgba(255,255,255,0.65);position:relative;z-index:1;}
-        .sb-proy{margin:8px 10px 0;background:rgba(0,119,200,0.08);border:1px solid rgba(0,119,200,0.18);border-radius:12px;padding:8px 12px;}
-        .sb-proy-lbl{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--label3);font-weight:600;margin-bottom:2px;}
-        .sb-proy-name{font-size:13px;font-weight:700;color:var(--azul);}
-        .pulse{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;animation:pring 2.5s ease infinite;display:inline-block;}
-        @@keyframes pring{0%{box-shadow:0 0 0 0 rgba(52,199,89,.4)}70%{box-shadow:0 0 0 5px rgba(52,199,89,0)}100%{box-shadow:0 0 0 0 rgba(52,199,89,0)}}
-        .sb-sec{padding:14px 16px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--label3);}
-        .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:1px 6px;border-radius:11px;font-size:14px;color:var(--label2);text-decoration:none;transition:all 0.2s;}
-        .nav-item:hover{background:var(--fill3);color:var(--label);}
-        .nav-item.active{background:var(--blue);color:white;font-weight:600;box-shadow:0 4px 12px rgba(0,119,200,0.28);}
-        .nav-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;background:var(--fill3);flex-shrink:0;}
-        .nav-item.active .nav-ico{background:rgba(255,255,255,0.2);}
-        .sb-footer{margin-top:auto;padding:10px 12px 20px;border-top:1px solid var(--sep2);display:flex;align-items:center;gap:8px;}
-        .sb-av2{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;}
-        .sb-logout{margin-left:auto;width:26px;height:26px;border-radius:7px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--label2);text-decoration:none;}
-        .sb-logout:hover{background:rgba(230,57,70,0.1);color:var(--rojo);}
-        .main{flex:1;display:flex;flex-direction:column;overflow:visible;}
-        .topbar{height:50px;flex-shrink:0;background:var(--glass);backdrop-filter:blur(40px) saturate(180%);border-bottom:1px solid var(--sep);padding:0 18px;display:flex;align-items:center;justify-content:space-between;}
-        .tb-bread{font-size:13px;color:var(--label2);}.tb-bread strong{color:var(--label);font-weight:600;}
-        .tb-right{display:flex;align-items:center;gap:8px;}
-        .tb-chip{display:flex;align-items:center;gap:5px;background:var(--fill3);border:1px solid var(--sep);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:var(--blue);}
-        .tb-ibtn{width:30px;height:30px;border-radius:9px;background:var(--fill3);display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:var(--label);}
-        .view{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;}
-        .view::-webkit-scrollbar{width:0;}
-        @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .perfil-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:24px;padding:32px;width:100%;max-width:500px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
-        .perfil-av{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--mid),var(--blue));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:white;margin:0 auto 12px;box-shadow:0 6px 20px rgba(0,85,165,0.3);}
-        .perfil-nombre{font-size:20px;font-weight:700;color:var(--label);text-align:center;letter-spacing:-0.5px;}
-        .perfil-rol{font-size:12px;color:var(--label3);text-align:center;margin-top:3px;margin-bottom:24px;}
-        .perfil-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-        .perfil-campo{background:var(--fill3);border-radius:14px;padding:14px;}
-        .perfil-campo.full{grid-column:1/-1;}
-        .pc-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--label3);font-weight:600;margin-bottom:4px;}
-        .pc-val{font-size:14px;font-weight:500;color:var(--label);}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .perfil-wrap{width:100%;max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:14px;}
+    .perfil-head{display:flex;align-items:center;gap:16px;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:20px;padding:20px 24px;box-shadow:var(--sh);animation:fu 0.35s ease both;}
+    .perfil-av{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:white;flex-shrink:0;box-shadow:0 6px 20px rgba(0,96,187,0.3);}
+    .perfil-nombre{font-size:19px;font-weight:700;color:var(--label);letter-spacing:-0.5px;}
+    .perfil-rol{font-size:12px;color:var(--label3);margin-top:2px;}
+    .perfil-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:20px;box-shadow:var(--sh);overflow:hidden;animation:fu 0.35s ease 0.1s both;}
+    .perfil-body{padding:20px;}
+    .perfil-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .perfil-campo{background:var(--fill3);border-radius:14px;padding:14px;}
+    .perfil-campo.full{grid-column:1/-1;}
+    .pc-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--label3);font-weight:600;margin-bottom:4px;}
+    .pc-val{font-size:14px;font-weight:500;color:var(--label);}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
+    .card-title{font-size:15px;font-weight:600;color:var(--label);}
+    .cuenta{background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;min-width:640px;}
+    .tbl th{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid var(--sep2);white-space:nowrap;}
+    .tbl td{padding:11px 14px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .tbl .num{font-variant-numeric:tabular-nums;}
+    .tbl .de{color:var(--label3);}
+    .apto{font-weight:600;}
+    .precio{font-weight:600;color:var(--azul);}
+    .lista-bdg{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:rgba(0,118,227,0.1);color:var(--blue);}
+    .modo{font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;}
+    .modo-fijo{background:rgba(120,120,128,0.12);color:var(--label2);}
+    .modo-auto{background:rgba(52,199,89,0.12);color:#1EA851;}
+    .ios-btn{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;border:none;padding:6px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;transition:all 0.2s;}
+    .ios-btn:hover{background:var(--mid);}
+    .ios-btn.rojo{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .ios-btn.rojo:hover{background:rgba(230,57,70,0.18);}
+    .acciones{display:flex;gap:8px;flex-wrap:wrap;}
+    .obs-reserva{font-size:11px;color:var(--label2);background:var(--fill3);border-radius:8px;padding:5px 8px;margin-top:5px;max-width:230px;white-space:normal;line-height:1.4;}
+    .mapa-leyenda{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
+    .mapa-leyenda i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+    .mapa-lista{display:flex;flex-direction:column;max-height:460px;overflow-y:auto;padding:8px;}
+    .mapa-fila{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;font-size:13px;}
+    .mapa-fila:hover{background:var(--fill3);}
+    .mapa-pin{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+    .p-D{background:var(--rojo)}.p-V{background:#1EA851}.p-R{background:#CC7700}.p-P{background:#5A5AC8}
+    .mapa-apto{font-weight:600;min-width:62px;}
+    .mapa-torre{color:var(--label2);font-size:12px;flex:1;}
+    .mapa-meta{color:var(--label3);font-size:11px;min-width:58px;}
+    .mapa-quien{font-size:11px;font-weight:600;white-space:nowrap;}
+    .q-R{color:#CC7700}.q-P{color:#5A5AC8}
+    .mapa-est{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+    .e-D{background:rgba(230,57,70,0.12);color:var(--rojo)}
+    .e-V{background:rgba(52,199,89,0.12);color:#1EA851}
+    .e-R{background:rgba(255,149,0,0.12);color:#CC7700}
+    .e-P{background:rgba(90,90,200,0.12);color:#5A5AC8}
+    .vacio{padding:36px;text-align:center;color:var(--label3);font-size:13px;}
+    .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:#1EA851;display:flex;align-items:center;gap:8px;}
+    .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:var(--rojo);display:flex;align-items:center;gap:8px;}
+    .nota{font-size:11px;color:var(--label3);padding:0 18px 16px;}
+    @@media(max-width:700px){.perfil-grid{grid-template-columns:1fr!important;}.perfil-head{flex-direction:column;text-align:center;}}
+</style>
+}
 
-        /* ═══ RESPONSIVE ═══ */
-        html,body{overflow-x:hidden;}
-        .app{min-height:100vh;height:auto;}
-        .main{min-width:0;overflow:visible;}
-        .view{height:auto;}
-        .sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;}
-        .hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;border-radius:8px;background:var(--fill3);border:none;}
-        .hamburger span{display:block;width:18px;height:2px;background:var(--label);border-radius:2px;}
-        @@media(max-width:1200px){.sidebar{width:200px!important;}.kpi-row{grid-template-columns:repeat(2,1fr)!important;}}
-        @@media(max-width:1024px){.sidebar{width:180px!important;}.action-row{grid-template-columns:1fr!important;}}
-        @@media(max-width:700px){
-            html,body{height:auto!important;overflow:auto!important;}
-            .app{flex-direction:column!important;height:auto!important;}
-            .sidebar{position:fixed!important;top:0!important;left:-270px!important;width:260px!important;height:100vh!important;z-index:100!important;overflow-y:auto!important;transition:left 0.3s!important;}
-            .sidebar.open{left:0!important;}
-            .main{width:100%!important;overflow:visible!important;}
-            .topbar{position:sticky!important;top:0!important;z-index:50!important;}
-            .hamburger{display:flex!important;}
-            .view{overflow-y:visible!important;padding:12px!important;height:auto!important;}
-            .kpi-row{grid-template-columns:1fr 1fr!important;gap:8px!important;}
-            .action-row{grid-template-columns:1fr!important;}
-            .tb-chip{display:none!important;}
-            .tbl-wrap,.tbl-wrap-x{overflow-x:auto!important;}
-            .tbl{min-width:500px!important;}
-            .welcome-banner{flex-direction:column!important;gap:10px!important;}
-            .wb-ico{display:none!important;}
-            .perfil-grid{grid-template-columns:1fr!important;}
-            .perfil-card{max-width:100%!important;}
+<div class="perfil-wrap">
+
+    <div class="perfil-head">
+        <div class="perfil-av">@iniciales</div>
+        <div>
+            <div class="perfil-nombre">@pNombre @pApellido</div>
+            <div class="perfil-rol">Vendedor · @proyActivo</div>
+        </div>
+    </div>
+
+    <div class="tab-bar">
+        <button type="button" id="tabDatos"    class="tab-btn" onclick="verTab('datos')">Mis datos</button>
+        <button type="button" id="tabReservas" class="tab-btn" onclick="verTab('reservas')">Mis reservas @if (reservas.Count > 0) { <span class="cuenta" style="margin-left:5px">@reservas.Count</span> }</button>
+        <button type="button" id="tabListas"   class="tab-btn" onclick="verTab('listas')">Listas por área</button>
+        <button type="button" id="tabMapa"     class="tab-btn" onclick="verTab('mapa')">Mapa de ventas</button>
+    </div>
+
+    @if (TempData["Exito"] != null)
+    {
+        <div class="alerta-exito">@Iconos.Check("#1EA851", 16) @TempData["Exito"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alerta-error">@TempData["Error"]</div>
+    }
+
+    <!-- ── MIS DATOS ── -->
+    <div id="paneDatos" class="perfil-card">
+        <div class="card-head"><span class="card-title">Mis datos</span></div>
+        <div class="perfil-body">
+            <div class="perfil-grid">
+                <div class="perfil-campo"><div class="pc-lbl">Usuario</div><div class="pc-val">@pUsuario</div></div>
+                <div class="perfil-campo"><div class="pc-lbl">Correo</div><div class="pc-val">@pCorreo</div></div>
+                <div class="perfil-campo"><div class="pc-lbl">Documento</div><div class="pc-val">@(string.IsNullOrEmpty(pDoc) ? "—" : pDoc)</div></div>
+                <div class="perfil-campo"><div class="pc-lbl">Celular</div><div class="pc-val">@(string.IsNullOrEmpty(pCel) ? "—" : pCel)</div></div>
+                <div class="perfil-campo full"><div class="pc-lbl">Proyecto activo</div><div class="pc-val">@proyActivo</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MIS RESERVAS ── -->
+    <div id="paneReservas" class="perfil-card">
+        <div class="card-head">
+            <span class="card-title">Inmuebles reservados por mí</span>
+            <span class="cuenta">@reservas.Count @(reservas.Count == 1 ? "reserva" : "reservas")</span>
+        </div>
+        @if (reservas.Count > 0)
+        {
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Apto</th><th>Torre</th><th>Piso</th><th>Área</th><th>Tipo</th>
+                            <th>Precio reservado</th><th>Fecha de reserva</th><th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var r in reservas)
+                    {
+                        <tr>
+                            <td class="apto">@r.Apto</td>
+                            <td>@r.Torre</td>
+                            <td>@r.Piso</td>
+                            <td>@r.Metros m²</td>
+                            <td>@r.Tipo</td>
+                            <td class="precio num">$@string.Format("{0:N0}", r.PrecioReserva)</td>
+                            <td class="de">
+                                @r.FechaReserva
+                                @if (!string.IsNullOrWhiteSpace(r.Observacion as string))
+                                {
+                                    <div class="obs-reserva" title="@r.Observacion">@r.Observacion</div>
+                                }
+                            </td>
+                            <td>
+                                <div class="acciones">
+                                    <a href="/Vendedor/ContinuarVenta?idInmueble=@r.Id" class="ios-btn">Continuar venta</a>
+                                    <form action="/Vendedor/LiberarReserva" method="post" style="margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="idInmueble" value="@r.Id"/>
+                                        <button type="submit" class="ios-btn rojo"
+                                                onclick="return confirm('¿Liberar la reserva del apartamento @r.Apto? Volverá a quedar disponible para todos.')">Liberar</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
         }
+        else
+        {
+            <div class="vacio">No tienes inmuebles reservados en @proyActivo.</div>
+        }
+    </div>
 
-        .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:#1EA851;display:flex;align-items:center;gap:8px;}
-        .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:var(--rojo);display:flex;align-items:center;gap:8px;}
-    </style>
-</head>
-<body>
-<div class="app">
-    <div class="sidebar" id="sidebar">
-                    <div class="sb-top" style="display:flex;align-items:center;gap:10px;padding:18px 14px 0;">
-                <div style="width:42px;height:42px;border-radius:12px;overflow:hidden;flex-shrink:0;box-shadow:0 4px 12px rgba(0,85,165,0.25);"><img src="data:image/png;base64,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" style="width:100%;height:100%;object-fit:cover;display:block;" alt="LG"/></div>
-                <div><div class="sb-app">Londoño Gómez</div><div class="sb-sub">Sistema de Lanzamientos</div></div>
+    <!-- ── LISTAS POR ÁREA ── -->
+    <div id="paneListas" class="perfil-card">
+        <div class="card-head">
+            <span class="card-title">Lista de precios vigente por área</span>
+            <span style="font-size:12px;color:var(--label3)">@proyActivo</span>
+        </div>
+        @if (listasArea.Count > 0)
+        {
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead>
+                        <tr>
+                            <th>Área</th><th>Lista vigente</th><th>Precio</th>
+                            <th>Modo</th><th>Próximo cambio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var l in listasArea)
+                    {
+                        bool auto = l.Apts > 0;
+                        <tr>
+                            <td class="apto">@l.Metros m²</td>
+                            <td><span class="lista-bdg">Lista @l.Lista</span></td>
+                            <td class="precio num">@(l.Precio > 0 ? "$" + string.Format("{0:N0}", l.Precio) : "—")</td>
+                            <td>
+                                @if (auto)
+                                {
+                                    <span class="modo modo-auto">Automático · cada @l.Apts</span>
+                                }
+                                else
+                                {
+                                    <span class="modo modo-fijo">Fijo</span>
+                                }
+                            </td>
+                            <td class="num">
+                                @if (auto)
+                                {
+                                    <text>Sube a Lista @(l.Lista + 1) en <strong>@l.Faltan</strong> venta@(l.Faltan != 1 ? "s" : "")</text>
+                                }
+                                else
+                                {
+                                    <span class="de">No cambia con las ventas</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
             </div>
-        <div class="sb-vendedor">
-            <div class="sv-av">@iniciales</div>
-            <div class="sv-nombre">@nombre @apellido</div>
-            <div class="sv-rol">Vendedor</div>
-        </div>
-        <div class="sb-proy"><div class="sb-proy-lbl"><span class="pulse"></span> Proyecto activo</div><div class="sb-proy-name">@proyActivo</div></div>
-        <div class="sb-sec">Mi espacio</div>
-        <a class="nav-item" href="/Vendedor"><div class="nav-ico">⊞</div>Inicio</a>
-        <a class="nav-item" href="/Vendedor/Inmuebles"><div class="nav-ico">🏢</div>Inmuebles</a>
-        <a class="nav-item" href="/Vendedor/MisVentas"><div class="nav-ico">💲</div>Mis ventas</a>
-        <a class="nav-item " href="/Vendedor/MisReservas"><div class="nav-ico">🔒</div>Mis reservas</a>
-        <a class="nav-item active" href="/Vendedor/Perfil"><div class="nav-ico">👤</div>Mi perfil</a>
-        <div class="sb-footer">
-            <div class="sb-av2">@iniciales</div>
-            <div><div style="font-size:12px;font-weight:600">@nombre</div><div style="font-size:10px;color:var(--label3)">Vendedor</div></div>
-            <a class="sb-logout" href="/Account/Logout">↩</a>
-        </div>
+            <p class="nota">Este es el precio con el que estás vendiendo en cada área. Las áreas en modo <strong>Fijo</strong> mantienen su lista sin importar cuántas unidades se vendan.</p>
+        }
+        else
+        {
+            <div class="vacio">Este proyecto aún no tiene áreas configuradas.</div>
+        }
     </div>
-    <div class="main">
-        <div class="topbar">
-            <div style="display:flex;align-items:center;gap:10px;"><button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button><span class="tb-bread"><strong>Mi perfil</strong></span></div>
-            <div class="tb-right"><div class="tb-chip"><span class="pulse"></span>@proyActivo</div><a class="tb-ibtn" href="/Account/Logout">↩</a></div>
+
+    <!-- ── MAPA DE VENTAS ── -->
+    <div id="paneMapa" class="perfil-card">
+        <div class="card-head">
+            <span class="card-title">Mapa de ventas</span>
+            <div class="mapa-leyenda">
+                <span><i style="background:var(--rojo)"></i>Disponible</span>
+                <span><i style="background:#1EA851"></i>Vendido</span>
+                <span><i style="background:#CC7700"></i>Reservado</span>
+                <span><i style="background:#5A5AC8"></i>En proceso</span>
+            </div>
         </div>
-        <div class="view">
-            <div class="perfil-card">
-                <div class="perfil-av">@iniciales</div>
-                <div class="perfil-nombre">@pNombre @pApellido</div>
-                <div class="perfil-rol">Vendedor · Londoño Gómez</div>
-                <div class="perfil-grid">
-                    <div class="perfil-campo"><div class="pc-lbl">Usuario</div><div class="pc-val">@pUsuario</div></div>
-                    <div class="perfil-campo"><div class="pc-lbl">Correo</div><div class="pc-val">@pCorreo</div></div>
-                    <div class="perfil-campo"><div class="pc-lbl">Documento</div><div class="pc-val">@(string.IsNullOrEmpty(pDoc) ? "—" : pDoc)</div></div>
-                    <div class="perfil-campo"><div class="pc-lbl">Celular</div><div class="pc-val">@(string.IsNullOrEmpty(pCel) ? "—" : pCel)</div></div>
-                    <div class="perfil-campo full"><div class="pc-lbl">Proyecto activo</div><div class="pc-val">@proyActivo</div></div>
+        @if (mapa.Count > 0)
+        {
+            <div class="mapa-lista">
+            @foreach (var m in mapa)
+            {
+                string est = m.Estado as string ?? "";
+                string cls = est == "DISPONIBLE" ? "D" : est == "VENDIDO" ? "V" : est == "RESERVADO" ? "R" : "P";
+                string quien = est == "EN PROCESO" ? (string)m.EnProcesoPor
+                             : est == "RESERVADO"  ? (string)m.ReservadoPor : "";
+                <div class="mapa-fila">
+                    <span class="mapa-pin p-@cls"></span>
+                    <span class="mapa-apto">@m.Apto</span>
+                    <span class="mapa-torre">@m.Torre</span>
+                    <span class="mapa-meta">@m.Metros m²</span>
+                    @if (!string.IsNullOrEmpty(quien))
+                    {
+                        <span class="mapa-quien q-@cls">@quien</span>
+                    }
+                    <span class="mapa-est e-@cls">@est</span>
                 </div>
+            }
             </div>
-        </div>
+            <p class="nota">Estado en vivo de las @mapa.Count unidades de @proyActivo.</p>
+        }
+        else
+        {
+            <div class="vacio">Este proyecto aún no tiene inmuebles cargados.</div>
+        }
     </div>
+
 </div>
-</body>
-</html>
+
+@section Scripts {
+<script>
+    function verTab(cual) {
+        ['datos', 'reservas', 'listas', 'mapa'].forEach(function (t) {
+            var pane = document.getElementById('pane' + t.charAt(0).toUpperCase() + t.slice(1));
+            var btn  = document.getElementById('tab'  + t.charAt(0).toUpperCase() + t.slice(1));
+            if (pane) pane.style.display = (t === cual) ? '' : 'none';
+            if (btn)  btn.classList.toggle('active', t === cual);
+        });
+        try { history.replaceState(null, '', '/Vendedor/Perfil?tab=' + cual); } catch (e) { }
+    }
+    verTab('@tabInicial');
+</script>
+}
