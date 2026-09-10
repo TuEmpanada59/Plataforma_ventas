@@ -3,9 +3,14 @@
 --
 -- Agrega:
 --   1) Columnas de anulación en Ventas
---   2) Tabla Auditoria (registro consultable de acciones)
 --   3) Tabla HistorialListas (trazabilidad de precios)
 --   4) HorasVigenciaReserva en Proyectos (vencimiento de reservas)
+--   5) Migración del destino "Vivienda" a "Uso propio"
+--   6) Observaciones en reservas y en ventas
+--   7) Medio publicitario del cliente
+--   8) Tabla AsistenciaFranja (familias por franja horaria)
+--   9) Relleno de Inmuebles.Torre desde el nombre de la unidad
+--  10) Tablas AjustesPrecio y AjustesPrecioDetalle (ajuste masivo con reversión)
 --
 -- Es IDEMPOTENTE: se puede ejecutar varias veces sin romper nada ni perder datos.
 -- Ejecutar en la base de datos Lanzamientos.
@@ -29,32 +34,13 @@ IF COL_LENGTH('Ventas', 'IdUsuarioAnula') IS NULL
 GO
 
 -- ────────────────────────────────────────────────────────────────────────────
--- 2) Auditoría consultable
---    Hasta ahora los eventos solo iban al log del servidor (ILogger), que en
---    App Service rota y se pierde. Esta tabla los deja consultables desde la
---    plataforma, que es lo que exige una auditoría de cumplimiento.
+-- 2) (Sin uso) Tabla Auditoria
+--    Se retiró: la pantalla de auditoría ya no forma parte de la plataforma.
+--    Los eventos (login, anulaciones, cambios de lista) siguen quedando en el
+--    log de la aplicación. El servicio que los registraba detecta que la tabla
+--    no existe y se desactiva solo, así que no hay nada que crear aquí.
+--    Los números de las secciones siguientes se conservan a propósito.
 -- ────────────────────────────────────────────────────────────────────────────
-IF OBJECT_ID('Auditoria', 'U') IS NULL
-BEGIN
-    CREATE TABLE Auditoria (
-        IdAuditoria  BIGINT        IDENTITY(1,1) PRIMARY KEY,
-        Fecha        DATETIME      NOT NULL DEFAULT GETUTCDATE(),  -- siempre UTC
-        IdUsuario    INT           NULL,                            -- NULL = anónimo (p. ej. login fallido)
-        Usuario      NVARCHAR(150) NOT NULL DEFAULT '',             -- nombre legible, congelado al momento
-        Rol          NVARCHAR(50)  NOT NULL DEFAULT '',
-        Accion       NVARCHAR(60)  NOT NULL,                        -- LOGIN, VENTA_ANULADA, LISTA_CAMBIADA...
-        Entidad      NVARCHAR(60)  NOT NULL DEFAULT '',             -- Inmueble, Venta, Usuario...
-        IdEntidad    INT           NULL,
-        IdProyecto   INT           NULL,
-        Detalle      NVARCHAR(1000) NOT NULL DEFAULT '',
-        Ip           NVARCHAR(60)  NOT NULL DEFAULT ''
-    );
-
-    CREATE INDEX IX_Auditoria_Fecha     ON Auditoria (Fecha DESC);
-    CREATE INDEX IX_Auditoria_Proyecto  ON Auditoria (IdProyecto, Fecha DESC);
-    CREATE INDEX IX_Auditoria_Accion    ON Auditoria (Accion, Fecha DESC);
-END
-GO
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 3) Historial de cambios de lista de precios
