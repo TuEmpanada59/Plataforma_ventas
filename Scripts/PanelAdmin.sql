@@ -162,5 +162,51 @@ WHERE (Torre IS NULL OR LTRIM(RTRIM(Torre)) = '')
   AND PATINDEX('%T[0-9]%', Apto) > 0;
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 10) Ajuste masivo de precios con reversión
+--     Subir un 3 % todas las listas de un proyecto se hacía a mano, inmueble
+--     por inmueble. Estas dos tablas guardan cada ajuste con el precio ANTERIOR
+--     de cada inmueble y cada lista, que es lo único que permite deshacerlo:
+--     sin el detalle, un ajuste mal hecho no tiene vuelta atrás.
+-- ────────────────────────────────────────────────────────────────────────────
+IF OBJECT_ID('AjustesPrecio', 'U') IS NULL
+BEGIN
+    CREATE TABLE AjustesPrecio (
+        IdAjuste       BIGINT        IDENTITY(1,1) PRIMARY KEY,
+        IdProyecto     INT           NOT NULL,
+        Torre          NVARCHAR(50)  NOT NULL DEFAULT '',   -- '' = todas
+        Metros         NVARCHAR(50)  NOT NULL DEFAULT '',   -- '' = todas las áreas
+        Listas         NVARCHAR(20)  NOT NULL DEFAULT '',   -- '1,2,3'
+        Tipo           NVARCHAR(12)  NOT NULL,              -- PESOS | PORCENTAJE
+        Valor          DECIMAL(18,4) NOT NULL,              -- puede ser negativo (bajada)
+        Unidades       INT           NOT NULL DEFAULT 0,
+        IdUsuario      INT           NULL,
+        Usuario        NVARCHAR(150) NOT NULL DEFAULT '',
+        Fecha          DATETIME      NOT NULL DEFAULT GETUTCDATE(),
+        Revertido      BIT           NOT NULL DEFAULT 0,
+        FechaReversion DATETIME      NULL
+    );
+
+    CREATE INDEX IX_AjustesPrecio_Proy ON AjustesPrecio (IdProyecto, Fecha DESC);
+END
+GO
+
+IF OBJECT_ID('AjustesPrecioDetalle', 'U') IS NULL
+BEGIN
+    CREATE TABLE AjustesPrecioDetalle (
+        IdDetalle      BIGINT IDENTITY(1,1) PRIMARY KEY,
+        IdAjuste       BIGINT NOT NULL,
+        IdInmueble     INT    NOT NULL,
+        NumLista       INT    NOT NULL,
+        PrecioAnterior BIGINT NOT NULL,
+        PrecioNuevo    BIGINT NOT NULL,
+        CONSTRAINT FK_AjusteDet_Ajuste FOREIGN KEY (IdAjuste)
+            REFERENCES AjustesPrecio (IdAjuste) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IX_AjusteDet_Ajuste ON AjustesPrecioDetalle (IdAjuste);
+END
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

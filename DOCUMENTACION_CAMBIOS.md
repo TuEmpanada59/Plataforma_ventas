@@ -421,10 +421,68 @@ comercial completo de la unidad (número + torre, por ejemplo `1204 T3`).
 
 ---
 
+## 9. Ajuste masivo de precios con reversión
+
+### ¿Por qué se hizo?
+Subir un 3 % los precios de un proyecto significaba editar área por área desde
+Inmuebles. Con varias áreas y cinco listas son decenas de ediciones a mano, y un
+error no tenía vuelta atrás: el precio anterior no quedaba guardado en ninguna parte.
+
+### Cómo funciona
+Pestaña **Ajuste de precios** dentro de *Cargar Excel*.
+
+1. **Alcance**: proyecto, y opcionalmente una torre y/o un área.
+2. **Listas**: las que se marquen; sin marcar ninguna se ajustan las cinco.
+3. **Ajuste**: porcentaje o pesos, positivo para subir y negativo para bajar.
+4. **Previsualización**: muestra cuántos inmuebles y cuántos precios cambian, con
+   el antes y el después de los primeros 50. La previsualización llama al **mismo**
+   método que la aplicación, así que no pueden discrepar.
+5. **Aplicar**: en una transacción, guardando el precio anterior de cada inmueble
+   y cada lista en `AjustesPrecioDetalle`.
+6. **Devolver**: restaura los precios guardados.
+
+### Decisiones que vale la pena conocer
+
+| Decisión | Motivo |
+|---|---|
+| Los inmuebles **VENDIDO** no se tocan | Su precio ya no es una oferta: está registrado en la venta y moverlo falsearía los informes |
+| Una lista en 0 se deja igual | Un 0 no es un precio, es una lista sin usar; multiplicarlo inventaría un precio |
+| El resultado se redondea al **millar** | Un porcentaje deja precios como $412.837.451 que nadie publica; se redondea al aplicar, no al mostrar, para que el precio que ve el asesor y el guardado sean el mismo |
+| Al devolver, un precio que cambió después **no se restaura** | El `UPDATE` lleva `AND Lista_N = <precio que dejó el ajuste>`; si alguien lo cambió luego, esa fila se salta y se informa cuántas fueron |
+| El cálculo vive en `Listas.AjustarPrecio` | Es la regla de negocio, y así se prueba sin base de datos |
+
+**Archivos nuevos:** `Views/Carga/Precios.cshtml`, `Views/Carga/_Tabs.cshtml`
+**Archivos modificados:** `Listas.cs`, `Controllers/CargaController.cs`,
+`Views/Carga/Index.cshtml`, `Scripts/PanelAdmin.sql` (sección 10),
+`PruebasLanzamientos/UnitTest1.cs`
+
+---
+
+## 10. Usuarios sin documento ni correo
+
+Al crear una cuenta solo se piden **nombre, apellido y celular**. La cuenta la crea
+y la restablece el administrador, así que documento y correo eran datos personales
+guardados sin uso.
+
+Detalle que importaba: la validación de duplicados comparaba `Usuario=@u OR Correo=@e`.
+Sin correo, el primer usuario con correo vacío habría bloqueado la creación de todos
+los siguientes, porque todos compartirían la cadena vacía. Ahora solo se compara el
+nombre de usuario.
+
+Las columnas siguen en la tabla por los usuarios ya creados, y el correo solo se
+muestra en el listado si venía de uno de ellos. La pantalla de recuperación avisa
+que las cuentas sin correo las restablece el administrador.
+
+**Archivos modificados:** `Controllers/UsuariosController.cs`,
+`Views/Usuarios/Index.cshtml`, `Views/Account/RecuperarPassword.cshtml`
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-09-10 | Ajuste masivo de precios con reversión + usuarios sin documento ni correo | Claude (IA) |
 | 2026-09-10 | Torres reales por inmueble (columna SUITE) y eliminación de los "proyectos hermanos" | Claude (IA) |
 | 2026-06-10 | Refactorización integral: fix race condition, layouts compartidos, async completo, paginación, SignalR tipado, DataProtection, manejo de errores, optimización | Claude (IA) |
 | 2026-06-09 | Recuperación de contraseña (token seguro) + fix corte de tarjeta + JS optimizado | Claude (IA) |

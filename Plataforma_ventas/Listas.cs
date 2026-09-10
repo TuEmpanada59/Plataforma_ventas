@@ -20,4 +20,30 @@ public static class Listas
         4 => "Lista4",
         _ => "Lista5"
     };
+
+    /// <summary>
+    /// Aplica un ajuste a un precio de lista. <paramref name="porcentaje"/> distingue
+    /// entre sumar pesos y aplicar un porcentaje; <paramref name="valor"/> puede ser
+    /// negativo para bajar el precio.
+    ///
+    /// El resultado se redondea al millar más cercano: un porcentaje deja precios como
+    /// $412.837.451 que nadie publica así, y redondear al aplicar (y no al mostrar)
+    /// evita que el precio que ve el asesor y el que se guarda sean distintos.
+    /// Nunca devuelve un valor negativo. Un precio en 0 (lista sin usar) se deja igual:
+    /// no es un precio, es la ausencia de uno.
+    /// </summary>
+    public static long AjustarPrecio(long precio, decimal valor, bool porcentaje)
+    {
+        if (precio <= 0) return precio;
+
+        decimal ajustado = porcentaje
+            ? precio + precio * valor / 100m
+            : precio + valor;
+
+        if (ajustado <= 0) return 0;
+
+        // Redondeo al millar, al alza en el punto medio (500 → 1.000).
+        long redondeado = (long)decimal.Round(ajustado / 1000m, 0, MidpointRounding.AwayFromZero) * 1000;
+        return redondeado < 0 ? 0 : redondeado;
+    }
 }

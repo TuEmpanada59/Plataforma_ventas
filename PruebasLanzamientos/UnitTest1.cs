@@ -60,4 +60,27 @@ public class UnitTest1
     [InlineData(null, null, "")]
     public void TorreNormalizada_ResuelveLaTorre(string? torreExcel, string? unidad, string esperado)
         => Assert.Equal(esperado, Texto.TorreNormalizada(torreExcel, unidad));
+
+    //AjustarPrecio: subir/bajar precios en bloque, redondeando al millar
+    [Theory]
+    [InlineData(400000000L, 3, true, 412000000L)]      // +3 %
+    [InlineData(400000000L, -5, true, 380000000L)]     // -5 %
+    [InlineData(412837451L, 0.5, true, 414902000L)]    // el resultado queda redondeado al millar
+    [InlineData(400000000L, 5000000, false, 405000000L)]  // suma en pesos
+    [InlineData(400000000L, -2000000, false, 398000000L)] // resta en pesos
+    [InlineData(0L, 10, true, 0L)]                     // lista sin usar: no se inventa precio
+    [InlineData(1000000L, -200, true, 0L)]             // nunca queda negativo
+    // El valor entra como double porque un atributo no admite constantes decimal.
+    public void AjustarPrecio_AplicaYRedondea(long precio, double valor, bool porcentaje, long esperado)
+        => Assert.Equal(esperado, Listas.AjustarPrecio(precio, (decimal)valor, porcentaje));
+
+    //ColumnaLista: lista blanca fija, nunca sale texto del usuario
+    [Theory]
+    [InlineData(1, "Lista1")]
+    [InlineData(3, "Lista3")]
+    [InlineData(5, "Lista5")]
+    [InlineData(9, "Lista5")]
+    [InlineData(0, "Lista5")]
+    public void ColumnaLista_DevuelveLaColumnaEsperada(int n, string esperado)
+        => Assert.Equal(esperado, Listas.ColumnaLista(n));
 }

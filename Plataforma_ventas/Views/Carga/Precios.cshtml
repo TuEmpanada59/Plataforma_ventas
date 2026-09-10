@@ -1,0 +1,318 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Ajuste de precios";
+    ViewBag.ActiveNav = "carga";
+    ViewBag.TbBread   = "Ajuste de precios";
+    ViewBag.TabActiva = "precios";
+
+    var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
+    var torres    = ViewBag.Torres as List<string> ?? new List<string>();
+    var areas     = ViewBag.Areas as List<string> ?? new List<string>();
+    var historial = ViewBag.Historial as List<dynamic> ?? new List<dynamic>();
+
+    int idProyecto  = ViewBag.IdProyecto != null ? (int)ViewBag.IdProyecto : 0;
+    var nomProyecto = ViewBag.NombreProyecto as string ?? "";
+    var torreSel    = ViewBag.Torre as string ?? "";
+    var metrosSel   = ViewBag.Metros as string ?? "";
+    var listasSel   = ViewBag.Listas as string ?? "";
+    var tipoSel     = ViewBag.Tipo as string ?? "PORCENTAJE";
+    decimal valorSel = ViewBag.Valor != null ? (decimal)ViewBag.Valor : 0m;
+
+    bool hayPrevia = ViewBag.HayPrevia != null && (bool)ViewBag.HayPrevia;
+    var previa = ViewBag.Previa as List<(int IdInmueble, string Apto, string Torre, string Metros,
+                                         int NumLista, long Anterior, long Nuevo)>
+                 ?? new List<(int, string, string, string, int, long, long)>();
+    int previaUnidades = ViewBag.PreviaUnidades != null ? (int)ViewBag.PreviaUnidades : 0;
+
+    var listasMarcadas = (listasSel ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                          .Select(x => x.Trim()).ToList();
+}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .carga-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+    .carga-tab{font-size:13px;font-weight:600;padding:8px 16px;border-radius:12px;background:var(--glass);border:1px solid var(--gb);color:var(--label2);text-decoration:none;transition:all 0.2s;}
+    .carga-tab:hover{border-color:var(--blue);color:var(--blue);}
+    .carga-tab.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));border-color:transparent;color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
+    .pcard{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:20px;padding:22px;box-shadow:var(--sh);animation:fu 0.3s ease both;margin-bottom:16px;}
+    .pcard-title{font-size:16px;font-weight:700;color:var(--label);margin-bottom:4px;}
+    .pcard-sub{font-size:12.5px;color:var(--label2);margin-bottom:18px;line-height:1.5;}
+    .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+    .pf label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label2);margin-bottom:5px;}
+    .pf select,.pf input{width:100%;padding:10px 12px;background:rgba(255,255,255,0.75);border:1px solid var(--sep);border-radius:11px;font-size:14px;color:var(--label);outline:none;font-family:inherit;}
+    .pf select:focus,.pf input:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.11);}
+    .listas-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+    .lchk{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--label);background:var(--fill3);border:1px solid var(--sep);border-radius:10px;padding:7px 11px;cursor:pointer;}
+    .pbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+    .btn-previa{padding:11px 20px;background:var(--fill2);color:var(--label);border:1px solid var(--sep);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn-aplicar{padding:11px 22px;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(0,118,227,0.28);}
+    .resumen{display:flex;gap:18px;flex-wrap:wrap;align-items:center;background:rgba(0,118,227,0.06);border:1px solid rgba(0,118,227,0.16);border-radius:14px;padding:12px 16px;margin-bottom:14px;}
+    .resumen-num{font-size:22px;font-weight:700;color:var(--azul);}
+    .resumen-lbl{font-size:11px;color:var(--label2);text-transform:uppercase;letter-spacing:0.05em;}
+    .tblw{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;}
+    .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:9px 12px;text-align:left;border-bottom:1px solid var(--sep2);}
+    .tbl td{padding:9px 12px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);}
+    .tbl tr:last-child td{border-bottom:none;}
+    .antes{color:var(--label3);text-decoration:line-through;}
+    .sube{color:#1EA851;font-weight:600;}
+    .baja{color:var(--rojo);font-weight:600;}
+    .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(0,118,227,0.1);color:var(--blue);}
+    .tag.gris{background:var(--fill2);color:var(--label2);}
+    .btn-revertir{background:rgba(230,57,70,0.1);color:var(--rojo);border:none;padding:6px 12px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn-revertir:hover{background:rgba(230,57,70,0.2);}
+    .alerta{background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.18);border-radius:12px;padding:10px 14px;color:var(--rojo);font-size:13px;font-weight:500;margin-bottom:14px;}
+    .exito{background:rgba(52,199,89,0.08);border:1px solid rgba(52,199,89,0.2);border-radius:12px;padding:10px 14px;color:#1A7A35;font-size:13px;font-weight:500;margin-bottom:14px;}
+    .vacio{text-align:center;color:var(--label3);font-size:13px;padding:22px;}
+</style>
+}
+
+<partial name="_Tabs" />
+
+@if (TempData["Error"] != null) { <div class="alerta">@TempData["Error"]</div> }
+@if (TempData["Exito"] != null) { <div class="exito">@TempData["Exito"]</div> }
+
+<div class="pcard">
+    <div class="pcard-title">Ajustar precios en bloque</div>
+    <div class="pcard-sub">
+        Sube o baja los precios de lista de varios inmuebles a la vez. Los inmuebles
+        <strong>vendidos no se tocan</strong>: su precio ya quedó registrado en la venta.
+        Los resultados se redondean al millar y todo ajuste se puede devolver desde el historial.
+    </div>
+
+    <form method="get" action="/Carga/Precios" id="formAjuste">
+        <input type="hidden" name="previsualizar" value="true"/>
+        <div class="pgrid">
+            <div class="pf">
+                <label>Proyecto</label>
+                <select name="idProyecto" onchange="enviar()">
+                    @foreach (var p in proyectos)
+                    {
+                        <option value="@p.Id" selected="@(p.Id == idProyecto)">@p.Nombre</option>
+                    }
+                </select>
+            </div>
+            <div class="pf">
+                <label>Torre</label>
+                <select name="torre">
+                    <option value="">Todas</option>
+                    @foreach (var t in torres)
+                    {
+                        <option value="@t" selected="@(t == torreSel)">@t</option>
+                    }
+                </select>
+            </div>
+            <div class="pf">
+                <label>Área (m²)</label>
+                <select name="metros">
+                    <option value="">Todas</option>
+                    @foreach (var a in areas)
+                    {
+                        <option value="@a" selected="@(a == metrosSel)">@a m²</option>
+                    }
+                </select>
+            </div>
+            <div class="pf">
+                <label>Tipo de ajuste</label>
+                <select name="tipo" id="selTipo" onchange="pintarAyuda()">
+                    <option value="PORCENTAJE" selected="@(tipoSel == "PORCENTAJE")">Porcentaje (%)</option>
+                    <option value="PESOS" selected="@(tipoSel == "PESOS")">Pesos ($)</option>
+                </select>
+            </div>
+            <div class="pf">
+                <label id="lblValor">Valor</label>
+                <input type="number" name="valor" id="inpValor" step="any"
+                       value="@(valorSel != 0 ? valorSel.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")"
+                       placeholder="Ej: 3"/>
+                <div style="font-size:11px;color:var(--label3);margin-top:4px" id="ayudaValor"></div>
+            </div>
+        </div>
+
+        <div class="pf" style="margin-top:14px">
+            <label>Listas a modificar</label>
+            <div class="listas-row">
+                @for (int n = 1; n <= 5; n++)
+                {
+                    var marcada = listasMarcadas.Contains(n.ToString());
+                    <label class="lchk">
+                        <input type="checkbox" name="listasChk" value="@n" checked="@marcada" style="width:auto"/>
+                        Lista @n
+                    </label>
+                }
+            </div>
+            <div style="font-size:11px;color:var(--label3);margin-top:6px">
+                Sin marcar ninguna se ajustan las cinco. Una lista sin precio se deja como está.
+            </div>
+            <input type="hidden" name="listas" id="inpListas" value="@listasSel"/>
+        </div>
+
+        <div class="pbtns">
+            <button type="button" class="btn-previa" onclick="enviar()">Ver qué cambiaría</button>
+        </div>
+    </form>
+</div>
+
+@if (hayPrevia)
+{
+    <div class="pcard">
+        <div class="pcard-title">Previsualización</div>
+        @if (previa.Count == 0)
+        {
+            <div class="vacio">Con esos criterios no cambia ningún precio.</div>
+        }
+        else
+        {
+            <div class="resumen">
+                <div>
+                    <div class="resumen-num">@previaUnidades</div>
+                    <div class="resumen-lbl">Inmuebles</div>
+                </div>
+                <div>
+                    <div class="resumen-num">@previa.Count</div>
+                    <div class="resumen-lbl">Precios a cambiar</div>
+                </div>
+                <div>
+                    <div class="resumen-num">
+                        @(tipoSel == "PORCENTAJE"
+                            ? (valorSel > 0 ? "+" : "") + valorSel.ToString("0.##") + " %"
+                            : (valorSel > 0 ? "+$" : "-$") + Math.Abs(valorSel).ToString("N0"))
+                    </div>
+                    <div class="resumen-lbl">Ajuste</div>
+                </div>
+            </div>
+
+            <div class="tblw">
+                <table class="tbl">
+                    <thead>
+                        <tr><th>Unidad</th><th>Torre</th><th>Área</th><th>Lista</th><th>Antes</th><th>Después</th></tr>
+                    </thead>
+                    <tbody>
+                    @* Se muestran las primeras 50 filas: la tabla es para comprobar que el
+                       ajuste hace lo esperado, no para revisar el inventario entero. *@
+                    @foreach (var c in previa.Take(50))
+                    {
+                        <tr>
+                            <td style="font-weight:600">@c.Apto</td>
+                            <td>@(string.IsNullOrEmpty(c.Torre) ? "—" : c.Torre)</td>
+                            <td>@c.Metros m²</td>
+                            <td>L@(c.NumLista)</td>
+                            <td class="antes">$@string.Format("{0:N0}", c.Anterior)</td>
+                            <td class="@(c.Nuevo >= c.Anterior ? "sube" : "baja")">
+                                $@string.Format("{0:N0}", c.Nuevo)
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @if (previa.Count > 50)
+            {
+                <div style="font-size:12px;color:var(--label3);margin-top:10px">
+                    Y @(previa.Count - 50) precios más con el mismo criterio.
+                </div>
+            }
+
+            <form method="post" action="/Carga/AplicarAjuste" class="pbtns"
+                  onsubmit="return confirm('Se van a cambiar @previa.Count precios de @previaUnidades inmuebles. ¿Aplicar?')">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="idProyecto" value="@idProyecto"/>
+                <input type="hidden" name="torre" value="@torreSel"/>
+                <input type="hidden" name="metros" value="@metrosSel"/>
+                <input type="hidden" name="listas" value="@listasSel"/>
+                <input type="hidden" name="tipo" value="@tipoSel"/>
+                <input type="hidden" name="valor" value="@valorSel.ToString(System.Globalization.CultureInfo.InvariantCulture)"/>
+                <button type="submit" class="btn-aplicar">Aplicar el ajuste</button>
+            </form>
+        }
+    </div>
+}
+
+<div class="pcard">
+    <div class="pcard-title">Ajustes aplicados @(string.IsNullOrEmpty(nomProyecto) ? "" : "· " + nomProyecto)</div>
+    <div class="pcard-sub">
+        Devolver un ajuste restaura el precio que tenía cada inmueble antes. Un precio que
+        se haya cambiado después no se toca, para no borrar ese cambio sin avisar.
+    </div>
+    @if (historial.Count == 0)
+    {
+        <div class="vacio">Todavía no se ha aplicado ningún ajuste a este proyecto.</div>
+    }
+    else
+    {
+        <div class="tblw">
+            <table class="tbl">
+                <thead>
+                    <tr><th>Fecha</th><th>Alcance</th><th>Listas</th><th>Ajuste</th><th>Inmuebles</th><th>Quién</th><th></th></tr>
+                </thead>
+                <tbody>
+                @foreach (var h in historial)
+                {
+                    string alcance = (string.IsNullOrEmpty(h.Torre as string) ? "Todas las torres" : "Torre " + h.Torre)
+                                   + " · " + (string.IsNullOrEmpty(h.Metros as string) ? "todas las áreas" : h.Metros + " m²");
+                    decimal v = (decimal)h.Valor;
+                    string ajuste = (string)h.Tipo == "PORCENTAJE"
+                        ? (v > 0 ? "+" : "") + v.ToString("0.##") + " %"
+                        : (v > 0 ? "+$" : "-$") + Math.Abs(v).ToString("N0");
+                    <tr>
+                        <td>@(((DateTime)h.Fecha).ToString("dd/MM/yyyy HH:mm"))</td>
+                        <td>@alcance</td>
+                        <td>@h.Listas</td>
+                        <td class="@(v >= 0 ? "sube" : "baja")">@ajuste</td>
+                        <td>@h.Unidades</td>
+                        <td>@(string.IsNullOrEmpty(h.Usuario as string) ? "—" : h.Usuario)</td>
+                        <td style="text-align:right">
+                            @if ((bool)h.Revertido)
+                            {
+                                <span class="tag gris">Devuelto</span>
+                            }
+                            else
+                            {
+                                <form method="post" action="/Carga/RevertirAjuste" style="margin:0;display:inline"
+                                      onsubmit="return confirm('¿Devolver este ajuste y restaurar los precios anteriores?')">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="idAjuste" value="@h.Id"/>
+                                    <input type="hidden" name="idProyecto" value="@idProyecto"/>
+                                    <button type="submit" class="btn-revertir">Devolver</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@section Scripts {
+<script>
+    // Las listas viajan como un solo campo "1,3,5": es lo que se guarda en el historial,
+    // así que el formulario manda exactamente lo que se va a registrar.
+    function enviar(){
+        var vals = [];
+        document.querySelectorAll('#formAjuste input[type=checkbox]:checked').forEach(function(c){ vals.push(c.value); });
+        document.getElementById('inpListas').value = vals.join(',');
+        // Los checkboxes no deben viajar sueltos en la URL: lo que se envía es el campo
+        // "listas" ya armado, que es exactamente lo que se guardará en el historial.
+        document.querySelectorAll('#formAjuste input[type=checkbox]').forEach(function(c){ c.removeAttribute('name'); });
+        document.getElementById('formAjuste').submit();
+    }
+
+    function pintarAyuda(){
+        var tipo = document.getElementById('selTipo').value;
+        var lbl  = document.getElementById('lblValor');
+        var ayu  = document.getElementById('ayudaValor');
+        var inp  = document.getElementById('inpValor');
+        if (tipo === 'PORCENTAJE') {
+            lbl.textContent = 'Porcentaje';
+            ayu.textContent = 'Ej: 3 sube un 3 %. Con -5 baja un 5 %.';
+            inp.placeholder = 'Ej: 3';
+        } else {
+            lbl.textContent = 'Pesos';
+            ayu.textContent = 'Ej: 5000000 suma $5.000.000. Con -2000000 resta $2.000.000.';
+            inp.placeholder = 'Ej: 5000000';
+        }
+    }
+    pintarAyuda();
+</script>
+}

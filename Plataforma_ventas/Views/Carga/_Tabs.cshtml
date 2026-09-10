@@ -1,0 +1,8 @@
+@* Pestañas de la sección de carga. El ítem activo llega en ViewBag.TabActiva. *@
+@{
+    var tab = ViewBag.TabActiva as string ?? "excel";
+}
+<div class="carga-tabs">
+    <a href="/Carga" class="carga-tab @(tab == "excel" ? "activa" : "")">&#128194; Cargar Excel</a>
+    <a href="/Carga/Precios" class="carga-tab @(tab == "precios" ? "activa" : "")">&#128176; Ajuste de precios</a>
+</div>

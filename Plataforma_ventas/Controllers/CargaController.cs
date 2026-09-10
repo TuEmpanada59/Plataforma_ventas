@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.SqlClient;
 using OfficeOpenXml;
 using Plataforma_ventas.Filters;
+using Plataforma_ventas.Hubs;
 
 namespace Plataforma_ventas.Controllers
 {
@@ -14,11 +16,13 @@ namespace Plataforma_ventas.Controllers
     public class CargaController : Controller
     {
         private readonly string _conn;
+        private readonly IHubContext<VentasHub, IVentasClient> _hub;
 
-        /// <summary>Initializes the controller with DB connection string from configuration.</summary>
-        public CargaController(IConfiguration config)
+        /// <summary>Initializes the controller with DB connection string and the SignalR hub.</summary>
+        public CargaController(IConfiguration config, IHubContext<VentasHub, IVentasClient> hub)
         {
             _conn = config.GetConnectionString("DefaultConnection")!;
+            _hub = hub;
             ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
         }
 
@@ -318,6 +322,373 @@ namespace Plataforma_ventas.Controllers
             }
 
             return RedirectToAction("Index");
+        }
+
+        /// <summary>
+        /// Bulk price adjustment screen: the form, the preview of what an adjustment would
+        /// do, and the history of adjustments already applied (so they can be reverted).
+        /// Nothing is written here — the preview runs the same query the apply step runs,
+        /// so what the administrator sees is what gets written.
+        /// </summary>
+        /// <param name="idProyecto">Project to adjust; falls back to the active one.</param>
+        /// <param name="torre">Restrict to one tower ("" = all).</param>
+        /// <param name="metros">Restrict to one area ("" = all).</param>
+        /// <param name="listas">Comma-separated list numbers to touch ("" = all with a price).</param>
+        /// <param name="tipo">PESOS or PORCENTAJE.</param>
+        /// <param name="valor">Amount or percentage; negative lowers the price.</param>
+        /// <param name="previsualizar">True to compute the preview.</param>
+        public async Task<IActionResult> Precios(int idProyecto = 0, string torre = "", string metros = "",
+            string listas = "", string tipo = "PORCENTAJE", decimal valor = 0, bool previsualizar = false)
+        {
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre");
+            ViewBag.Apellido = HttpContext.Session.GetString("Apellido");
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+
+            if (idProyecto <= 0)
+                idProyecto = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var proyectos = new List<(int Id, string Nombre)>();
+            var cmdProy = new SqlCommand(
+                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
+            using (var r = (SqlDataReader)await cmdProy.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
+            ViewBag.Proyectos = proyectos;
+
+            if (idProyecto <= 0 && proyectos.Count > 0) idProyecto = proyectos[0].Id;
+            ViewBag.IdProyecto = idProyecto;
+            ViewBag.NombreProyecto = proyectos.FirstOrDefault(p => p.Id == idProyecto).Nombre ?? "";
+
+            // Torres y áreas del proyecto, para acotar el alcance sin escribirlas a mano.
+            var torres = new List<string>();
+            var areas = new List<string>();
+            var cmdAlc = new SqlCommand(
+                "SELECT DISTINCT Torre, Metros FROM Inmuebles WHERE IdProyecto=@p", con);
+            cmdAlc.Parameters.AddWithValue("@p", idProyecto);
+            using (var r = (SqlDataReader)await cmdAlc.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                {
+                    var t = r["Torre"]?.ToString() ?? "";
+                    var m = r["Metros"]?.ToString() ?? "";
+                    if (!string.IsNullOrWhiteSpace(t) && !torres.Contains(t)) torres.Add(t);
+                    if (!string.IsNullOrWhiteSpace(m) && !areas.Contains(m)) areas.Add(m);
+                }
+            torres.Sort(StringComparer.OrdinalIgnoreCase);
+            areas.Sort(StringComparer.OrdinalIgnoreCase);
+            ViewBag.Torres = torres;
+            ViewBag.Areas = areas;
+
+            ViewBag.Torre = torre ?? "";
+            ViewBag.Metros = metros ?? "";
+            ViewBag.Listas = listas ?? "";
+            bool porcentaje = tipo != "PESOS";
+            ViewBag.Tipo = porcentaje ? "PORCENTAJE" : "PESOS";
+            ViewBag.Valor = valor;
+
+            if (previsualizar && idProyecto > 0 && valor != 0)
+            {
+                var afectados = await CalcularAjusteAsync(con, null, idProyecto, torre ?? "", metros ?? "",
+                                                          listas ?? "", porcentaje, valor);
+                ViewBag.Previa = afectados;
+                ViewBag.PreviaUnidades = afectados.Select(a => a.IdInmueble).Distinct().Count();
+                ViewBag.HayPrevia = true;
+            }
+
+            // Historial: los ajustes ya aplicados, para poder devolverlos.
+            var historial = new List<dynamic>();
+            var cmdHist = new SqlCommand(@"
+                SELECT TOP 20 IdAjuste, Torre, Metros, Listas, Tipo, Valor, Unidades,
+                       Usuario, Fecha, Revertido, FechaReversion
+                FROM AjustesPrecio WHERE IdProyecto=@p ORDER BY Fecha DESC", con);
+            cmdHist.Parameters.AddWithValue("@p", idProyecto);
+            using (var r = (SqlDataReader)await cmdHist.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    historial.Add(new
+                    {
+                        Id = Convert.ToInt64(r["IdAjuste"]),
+                        Torre = r["Torre"]?.ToString() ?? "",
+                        Metros = r["Metros"]?.ToString() ?? "",
+                        Listas = r["Listas"]?.ToString() ?? "",
+                        Tipo = r["Tipo"]?.ToString() ?? "",
+                        Valor = Convert.ToDecimal(r["Valor"]),
+                        Unidades = Convert.ToInt32(r["Unidades"]),
+                        Usuario = r["Usuario"]?.ToString() ?? "",
+                        // Las fechas se guardan en UTC; Colombia es UTC-5 todo el año.
+                        Fecha = Convert.ToDateTime(r["Fecha"]).AddHours(-5),
+                        Revertido = Convert.ToBoolean(r["Revertido"]),
+                    });
+            ViewBag.Historial = historial;
+
+            return View();
+        }
+
+        /// <summary>
+        /// Computes, without writing anything, the new price of every list of every property
+        /// inside the requested scope. Both the preview and the apply step call this, so they
+        /// can never disagree.
+        /// </summary>
+        private static async Task<List<(int IdInmueble, string Apto, string Torre, string Metros,
+                                        int NumLista, long Anterior, long Nuevo)>>
+            CalcularAjusteAsync(SqlConnection con, SqlTransaction? tx, int idProyecto, string torre,
+                                string metros, string listas, bool porcentaje, decimal valor)
+        {
+            var numeros = ListasSeleccionadas(listas);
+
+            // Los vendidos quedan fuera: su precio ya no es una oferta, es un hecho
+            // registrado en la venta, y moverlo falsearía los informes.
+            var sql = @"SELECT IdInmuebles, Apto, Torre, Metros, Lista1,Lista2,Lista3,Lista4,Lista5
+                        FROM Inmuebles
+                        WHERE IdProyecto=@p AND Estado <> 'VENDIDO'";
+            if (!string.IsNullOrEmpty(torre))  sql += " AND Torre=@t";
+            if (!string.IsNullOrEmpty(metros)) sql += " AND Metros=@m";
+            sql += " ORDER BY Metros, Torre, Apto";
+
+            var cmd = tx == null ? new SqlCommand(sql, con) : new SqlCommand(sql, con, tx);
+            cmd.Parameters.AddWithValue("@p", idProyecto);
+            if (!string.IsNullOrEmpty(torre))  cmd.Parameters.AddWithValue("@t", torre);
+            if (!string.IsNullOrEmpty(metros)) cmd.Parameters.AddWithValue("@m", metros);
+
+            var resultado = new List<(int, string, string, string, int, long, long)>();
+            using (var r = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                {
+                    int id = (int)r["IdInmuebles"];
+                    var apto = r["Apto"]?.ToString() ?? "";
+                    var tor = r["Torre"]?.ToString() ?? "";
+                    var met = r["Metros"]?.ToString() ?? "";
+                    foreach (var n in numeros)
+                    {
+                        long anterior = Texto.ParsearPrecio(r[Listas.ColumnaLista(n)]?.ToString());
+                        if (anterior <= 0) continue;   // lista sin usar: no se inventa un precio
+                        long nuevo = Plataforma_ventas.Listas.AjustarPrecio(anterior, valor, porcentaje);
+                        if (nuevo == anterior) continue;
+                        resultado.Add((id, apto, tor, met, n, anterior, nuevo));
+                    }
+                }
+            return resultado;
+        }
+
+        /// <summary>
+        /// Parses the list selection. An empty selection means "every list", which is the
+        /// useful default: a price increase normally applies to the whole ladder.
+        /// </summary>
+        private static List<int> ListasSeleccionadas(string listas)
+        {
+            var numeros = new List<int>();
+            foreach (var parte in (listas ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+                if (int.TryParse(parte.Trim(), out int n) && n >= 1 && n <= 5 && !numeros.Contains(n))
+                    numeros.Add(n);
+            if (numeros.Count == 0) numeros.AddRange(new[] { 1, 2, 3, 4, 5 });
+            numeros.Sort();
+            return numeros;
+        }
+
+        /// <summary>
+        /// Applies a bulk price adjustment inside a transaction, saving the previous price of
+        /// every list of every property so the adjustment can be undone later.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AplicarAjuste(int idProyecto, string torre = "", string metros = "",
+            string listas = "", string tipo = "PORCENTAJE", decimal valor = 0)
+        {
+            if (idProyecto <= 0 || valor == 0)
+            {
+                TempData["Error"] = "Indica un proyecto y un valor distinto de cero.";
+                return RedirectToAction("Precios", new { idProyecto });
+            }
+
+            bool porcentaje = tipo != "PESOS";
+            if (porcentaje && (valor <= -100 || valor > 1000))
+            {
+                TempData["Error"] = "El porcentaje debe estar entre -99 % y 1000 %.";
+                return RedirectToAction("Precios", new { idProyecto });
+            }
+
+            int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
+            var usuario = ((HttpContext.Session.GetString("Nombre") ?? "") + " " +
+                           (HttpContext.Session.GetString("Apellido") ?? "")).Trim();
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+            using var tx = con.BeginTransaction();
+            try
+            {
+                var cambios = await CalcularAjusteAsync(con, tx, idProyecto, torre ?? "", metros ?? "",
+                                                        listas ?? "", porcentaje, valor);
+                if (cambios.Count == 0)
+                {
+                    TempData["Error"] = "El ajuste no cambia ningún precio.";
+                    return RedirectToAction("Precios", new { idProyecto });
+                }
+
+                var cmdAj = new SqlCommand(@"INSERT INTO AjustesPrecio
+                    (IdProyecto,Torre,Metros,Listas,Tipo,Valor,Unidades,IdUsuario,Usuario)
+                    OUTPUT INSERTED.IdAjuste
+                    VALUES (@p,@t,@m,@l,@tp,@v,@u,@iu,@us)", con, tx);
+                cmdAj.Parameters.AddWithValue("@p", idProyecto);
+                cmdAj.Parameters.AddWithValue("@t", torre ?? "");
+                cmdAj.Parameters.AddWithValue("@m", metros ?? "");
+                cmdAj.Parameters.AddWithValue("@l", string.Join(",", ListasSeleccionadas(listas ?? "")));
+                cmdAj.Parameters.AddWithValue("@tp", porcentaje ? "PORCENTAJE" : "PESOS");
+                cmdAj.Parameters.AddWithValue("@v", valor);
+                cmdAj.Parameters.AddWithValue("@u", cambios.Select(c => c.IdInmueble).Distinct().Count());
+                cmdAj.Parameters.AddWithValue("@iu", idUsuario > 0 ? (object)idUsuario : DBNull.Value);
+                cmdAj.Parameters.AddWithValue("@us", usuario);
+                long idAjuste = Convert.ToInt64((await cmdAj.ExecuteScalarAsync())!);
+
+                foreach (var c in cambios)
+                {
+                    var col = Listas.ColumnaLista(c.NumLista);
+                    var cmdUpd = new SqlCommand(
+                        $"UPDATE Inmuebles SET {col}=@precio WHERE IdInmuebles=@id", con, tx);
+                    cmdUpd.Parameters.AddWithValue("@precio", c.Nuevo);
+                    cmdUpd.Parameters.AddWithValue("@id", c.IdInmueble);
+                    await cmdUpd.ExecuteNonQueryAsync();
+
+                    var cmdDet = new SqlCommand(@"INSERT INTO AjustesPrecioDetalle
+                        (IdAjuste,IdInmueble,NumLista,PrecioAnterior,PrecioNuevo)
+                        VALUES (@a,@i,@n,@ant,@nue)", con, tx);
+                    cmdDet.Parameters.AddWithValue("@a", idAjuste);
+                    cmdDet.Parameters.AddWithValue("@i", c.IdInmueble);
+                    cmdDet.Parameters.AddWithValue("@n", c.NumLista);
+                    cmdDet.Parameters.AddWithValue("@ant", c.Anterior);
+                    cmdDet.Parameters.AddWithValue("@nue", c.Nuevo);
+                    await cmdDet.ExecuteNonQueryAsync();
+                }
+
+                tx.Commit();
+
+                await AvisarPreciosAsync(idProyecto, cambios);
+
+                int unidades = cambios.Select(c => c.IdInmueble).Distinct().Count();
+                TempData["Exito"] = $"Ajuste aplicado a {unidades} inmuebles ({cambios.Count} precios). " +
+                                    "Puedes devolverlo desde el historial.";
+            }
+            catch (Exception ex)
+            {
+                // El using hace rollback al salir sin Commit: o se aplica todo o nada.
+                TempData["Error"] = "No se pudo aplicar el ajuste: " + ex.Message;
+            }
+
+            return RedirectToAction("Precios", new { idProyecto });
+        }
+
+        /// <summary>
+        /// Broadcasts the new price of every (area, list) pair that ended up with a single
+        /// price, so open vendor screens don't keep quoting the old one. A pair whose
+        /// properties ended with different prices is skipped: there is no single number to
+        /// send, and a wrong one is worse than none — those screens refresh on their own.
+        /// </summary>
+        private async Task AvisarPreciosAsync(int idProyecto,
+            IEnumerable<(int IdInmueble, string Apto, string Torre, string Metros,
+                         int NumLista, long Anterior, long Nuevo)> cambios)
+        {
+            foreach (var grupo in cambios.GroupBy(c => (c.Metros, c.NumLista)))
+            {
+                var precios = grupo.Select(c => c.Nuevo).Distinct().ToList();
+                if (precios.Count != 1) continue;
+                await _hub.Clients.All.PrecioAreaActualizado(
+                    idProyecto, grupo.Key.Metros, grupo.Key.NumLista, precios[0]);
+            }
+        }
+
+        /// <summary>
+        /// Undoes a previously applied adjustment, restoring each saved previous price.
+        /// A price that changed again after the adjustment is left alone and reported:
+        /// restoring it would silently discard the newer, deliberate change.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RevertirAjuste(long idAjuste, int idProyecto)
+        {
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var cmdEstado = new SqlCommand(
+                "SELECT Revertido, IdProyecto FROM AjustesPrecio WHERE IdAjuste=@a", con);
+            cmdEstado.Parameters.AddWithValue("@a", idAjuste);
+            bool yaRevertido = false; int proyDelAjuste = 0;
+            using (var r = (SqlDataReader)await cmdEstado.ExecuteReaderAsync())
+                if (await r.ReadAsync())
+                {
+                    yaRevertido = Convert.ToBoolean(r["Revertido"]);
+                    proyDelAjuste = Convert.ToInt32(r["IdProyecto"]);
+                }
+
+            if (proyDelAjuste == 0)
+            {
+                TempData["Error"] = "El ajuste ya no existe.";
+                return RedirectToAction("Precios", new { idProyecto });
+            }
+            if (yaRevertido)
+            {
+                TempData["Error"] = "Ese ajuste ya se había devuelto.";
+                return RedirectToAction("Precios", new { idProyecto = proyDelAjuste });
+            }
+
+            // Se trae el área junto al detalle para poder avisar por SignalR qué precio
+            // queda vigente en cada área tras devolver el ajuste.
+            var detalle = new List<(int IdInmueble, string Metros, int NumLista, long Anterior, long Nuevo)>();
+            var cmdDet = new SqlCommand(@"
+                SELECT d.IdInmueble, ISNULL(i.Metros,'') AS Metros, d.NumLista,
+                       d.PrecioAnterior, d.PrecioNuevo
+                FROM AjustesPrecioDetalle d
+                LEFT JOIN Inmuebles i ON i.IdInmuebles = d.IdInmueble
+                WHERE d.IdAjuste=@a", con);
+            cmdDet.Parameters.AddWithValue("@a", idAjuste);
+            using (var r = (SqlDataReader)await cmdDet.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    detalle.Add(((int)r["IdInmueble"], r["Metros"]?.ToString() ?? "",
+                                 Convert.ToInt32(r["NumLista"]),
+                                 Convert.ToInt64(r["PrecioAnterior"]), Convert.ToInt64(r["PrecioNuevo"])));
+
+            using var tx = con.BeginTransaction();
+            int restaurados = 0, omitidos = 0;
+            var restauradosDet = new List<(int, string, string, string, int, long, long)>();
+            try
+            {
+                foreach (var d in detalle)
+                {
+                    var col = Listas.ColumnaLista(d.NumLista);
+                    // El WHERE sobre el precio que dejó el ajuste es la protección: si alguien
+                    // lo cambió después, esa fila no se toca.
+                    var cmdUpd = new SqlCommand(
+                        $"UPDATE Inmuebles SET {col}=@ant WHERE IdInmuebles=@id AND {col}=@nue", con, tx);
+                    cmdUpd.Parameters.AddWithValue("@ant", d.Anterior);
+                    cmdUpd.Parameters.AddWithValue("@nue", d.Nuevo);
+                    cmdUpd.Parameters.AddWithValue("@id", d.IdInmueble);
+                    if (await cmdUpd.ExecuteNonQueryAsync() > 0)
+                    {
+                        restaurados++;
+                        // El precio que queda vigente es el anterior al ajuste.
+                        restauradosDet.Add((d.IdInmueble, "", "", d.Metros, d.NumLista, d.Nuevo, d.Anterior));
+                    }
+                    else omitidos++;
+                }
+
+                var cmdMarca = new SqlCommand(
+                    "UPDATE AjustesPrecio SET Revertido=1, FechaReversion=GETUTCDATE() WHERE IdAjuste=@a", con, tx);
+                cmdMarca.Parameters.AddWithValue("@a", idAjuste);
+                await cmdMarca.ExecuteNonQueryAsync();
+
+                tx.Commit();
+
+                await AvisarPreciosAsync(proyDelAjuste, restauradosDet);
+
+                TempData["Exito"] = omitidos > 0
+                    ? $"Ajuste devuelto: {restaurados} precios restaurados. {omitidos} no se tocaron porque cambiaron después."
+                    : $"Ajuste devuelto: {restaurados} precios restaurados.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "No se pudo devolver el ajuste: " + ex.Message;
+            }
+
+            return RedirectToAction("Precios", new { idProyecto = proyDelAjuste });
         }
 
         /// <summary>
