@@ -23,7 +23,6 @@
     var vendedores = ViewBag.Vendedores as Dictionary<int, string> ?? new Dictionary<int, string>();
     var listasXArea = ViewBag.ListasXArea as Dictionary<string, int> ?? new Dictionary<string, int>();
     var aptsXArea   = ViewBag.AptsXArea  as Dictionary<string, int> ?? new Dictionary<string, int>();
-    var proyHermanos = ViewBag.ProyectosHermanos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
     ViewBag.Iniciales = iniciales;
     int laEstaArea = la;
@@ -44,13 +43,13 @@
     .rb-lista-num{font-size:22px;font-weight:700;color:white;}
     .rb-lista-lbl{font-size:10px;color:rgba(255,255,255,0.7);}
     .rb-proxima{font-size:11px;color:rgba(255,255,255,0.6);margin-top:2px;}
-    .torre-banner{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:14px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 16px rgba(0,118,227,0.2);}
-    .torre-banner-left{display:flex;align-items:center;gap:12px;}
-    .torre-banner-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;}
-    .torre-select-screen{display:flex;flex-direction:column;align-items:center;gap:24px;padding:48px 0;animation:fu 0.4s ease both;}
-    .torres-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;width:100%;max-width:700px;}
-    .torre-card{background:var(--glass);border:2px solid var(--gb);border-radius:20px;padding:24px 20px;text-align:center;cursor:pointer;transition:all 0.2s;box-shadow:var(--sh);text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:10px;}
-    .torre-card:hover{border-color:var(--blue);transform:translateY(-3px);box-shadow:var(--sh2);}
+    .torre-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;animation:fu 0.3s ease both;}
+    .torre-bar-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);margin-right:2px;}
+    .torre-chip{font-size:12px;font-weight:600;padding:6px 14px;border-radius:20px;background:var(--glass);border:1px solid var(--gb);color:var(--label2);text-decoration:none;transition:all 0.2s;}
+    .torre-chip:hover{border-color:var(--blue);color:var(--blue);}
+    .torre-chip.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));border-color:transparent;color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
+    .torre-tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(0,118,227,0.1);color:var(--blue);}
+    .area-torres{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
     .areas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;animation:fu 0.35s ease both;}
     .area-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:2px solid var(--gb);border-radius:20px;padding:20px;transition:all 0.2s;box-shadow:var(--sh);display:block;}
     .area-card:hover{border-color:var(--blue);box-shadow:var(--sh2);}
@@ -162,30 +161,30 @@
 @if (TempData["Exito"] != null) { <div class="alerta-exito">&#10003; @TempData["Exito"]</div> }
 @if (TempData["Error"] != null) { <div class="alerta-error">&#10007; @TempData["Error"]</div> }
 
-@if (string.IsNullOrEmpty(torreActual) && torres.Count > 1)
-{
-    <div class="torre-select-screen">
-        <div style="text-align:center">
-            <div style="font-size:22px;font-weight:700;color:var(--azul)">Selecciona una torre</div>
-            <div style="font-size:14px;color:var(--label2);margin-top:6px">Proyecto @proyActivo tiene varias torres</div>
-        </div>
-        <div class="torres-grid">
-            @foreach (var p in proyHermanos)
-            {
-                <a href="/Inmuebles?torre=@Uri.EscapeDataString(p.Nombre)" class="torre-card">
-                    <div style="font-size:36px">&#127970;</div>
-                    <div style="font-size:16px;font-weight:700;color:var(--azul)">@p.Nombre</div>
-                </a>
-            }
-        </div>
-    </div>
+@{
+    // Las torres son un filtro dentro del proyecto, así que hay que conservarlas
+    // al navegar entre áreas (y viceversa).
+    string LinkTorre(string a, string t)
+    {
+        var qs = new List<string>();
+        if (!string.IsNullOrEmpty(a)) qs.Add("area=" + Uri.EscapeDataString(a));
+        if (!string.IsNullOrEmpty(t)) qs.Add("torre=" + Uri.EscapeDataString(t));
+        return "/Inmuebles" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+    }
 }
-else
-{
     <div class="resumen-banner">
         <div>
             <div class="rb-title">@proyActivo</div>
-            <div class="rb-sub">@total inmuebles en total</div>
+            <div class="rb-sub">
+                @if (!string.IsNullOrEmpty(torreActual))
+                {
+                    <text>Torre @torreActual · @total inmuebles</text>
+                }
+                else
+                {
+                    <text>@total inmuebles en total</text>
+                }
+            </div>
         </div>
         <div class="rb-stats">
             <div class="rb-stat"><div class="rb-stat-num" id="kpi-disp">@disponibles</div><div class="rb-stat-lbl">Disponibles</div></div>
@@ -194,17 +193,16 @@ else
             <div class="rb-stat"><div class="rb-stat-num" id="kpi-res">@reservados</div><div class="rb-stat-lbl">Reservados</div></div>
         </div>
     </div>
-    @if (!string.IsNullOrEmpty(torreActual) && torres.Count > 1)
+    @if (torres.Count > 1)
     {
-        <div class="torre-banner">
-            <div class="torre-banner-left">
-                <div style="font-size:22px">&#127970;</div>
-                <div>
-                    <div style="font-size:15px;font-weight:700;color:white">@torreActual</div>
-                    <div style="font-size:11px;color:rgba(255,255,255,0.7)">Torre activa</div>
-                </div>
-            </div>
-            <a href="/Inmuebles" class="torre-banner-btn">&#8617; Cambiar torre</a>
+        var linkTodasTorres = LinkTorre(areaActual, "");
+        <div class="torre-bar">
+            <span class="torre-bar-lbl">&#127970; Torre</span>
+            <a href="@linkTodasTorres" class="torre-chip @(string.IsNullOrEmpty(torreActual) ? "activa" : "")">Todas</a>
+            @foreach (var t in torres)
+            {
+                <a href="@LinkTorre(areaActual, t)" class="torre-chip @(t == torreActual ? "activa" : "")">@t</a>
+            }
         </div>
     }
     @if (string.IsNullOrEmpty(areaActual))
@@ -226,12 +224,22 @@ else
                 long p4 = (long)g.PrecioL4; long p5 = (long)g.PrecioL5;
                 long precActArea = laArea == 1 ? p1 : laArea == 2 ? p2 : laArea == 3 ? p3 : laArea == 4 ? p4 : p5;
                 if (precActArea == 0) precActArea = (long)g.PrecioActivo;
+                List<string> torresArea = g.Torres;
                 <div class="area-card">
-                    <div class="area-card-link" onclick="window.location='/Inmuebles?area=@Uri.EscapeDataString(metrosStr)'">
+                    <div class="area-card-link" onclick="window.location='@LinkTorre(metrosStr, torreActual)'">
                         <div class="area-top">
                             <div class="area-metros">@g.Metros <span style="font-size:13px;font-weight:400;color:var(--label2)">m²</span></div>
                             <span class="@tipoClass">@tipoLabel</span>
                         </div>
+                        @if (torresArea.Count > 0)
+                        {
+                            <div class="area-torres">
+                                @foreach (var ta in torresArea)
+                                {
+                                    <span class="torre-tag">@ta</span>
+                                }
+                            </div>
+                        }
                         <div class="area-precio-lbl">Precio lista @laArea</div>
                         <div class="area-precio">$@string.Format("{0:N0}", precActArea)</div>
                         <div class="area-listas">
@@ -303,15 +311,19 @@ else
     }
     else
     {
+        var linkTodasAreas = LinkTorre("", torreActual);
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <a href="/Inmuebles" class="area-volver">&#8592; Todas las áreas</a>
-            <span style="font-size:15px;font-weight:600;color:var(--label)">@areaActual m² · @inmuebles.Count inmuebles</span>
+            <a href="@linkTodasAreas" class="area-volver">&#8592; Todas las áreas</a>
+            <span style="font-size:15px;font-weight:600;color:var(--label)">
+                @areaActual m² · @inmuebles.Count inmuebles
+                @if (!string.IsNullOrEmpty(torreActual)) { <span class="torre-tag">@torreActual</span> }
+            </span>
         </div>
         <div class="card">
             <div class="card-head">
                 <span class="card-title">Lista de inmuebles · @areaActual m² · Lista @laEstaArea</span>
                 <div class="filter-bar">
-                    <div class="search-wrap"><span class="search-ico">&#128269;</span><input type="text" id="buscar" placeholder="Buscar apto, piso..." oninput="filtrar()"/></div>
+                    <div class="search-wrap"><span class="search-ico">&#128269;</span><input type="text" id="buscar" placeholder="Buscar unidad, torre, piso..." oninput="filtrar()"/></div>
                     <div class="seg">
                         <button class="seg-btn active" onclick="setFiltro('todos',this)">Todos</button>
                         <button class="seg-btn" onclick="setFiltro('DISPONIBLE',this)">Disponibles</button>
@@ -327,8 +339,8 @@ else
                     <table class="tbl" id="tablaInmuebles">
                         <thead>
                             <tr>
-                                <th>Apto</th><th>Tipo</th><th>Piso</th><th>Metros</th>
-                                <th>Precio Lista @laEstaArea</th><th>Torre</th><th>Estado</th><th>Acción</th>
+                                <th>Unidad</th><th>Torre</th><th>Tipo</th><th>Piso</th><th>Metros</th>
+                                <th>Precio Lista @laEstaArea</th><th>Estado</th><th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -340,6 +352,13 @@ else
                                 <tr data-estado="@i.Estado" data-id="@i.Id">
                                     <td style="font-weight:600">@i.Apto</td>
                                     <td>
+                                        @if (!string.IsNullOrEmpty((string)i.Torre))
+                                        {
+                                            <span class="torre-tag">@i.Torre</span>
+                                        }
+                                        else { <span style="color:var(--label3)">—</span> }
+                                    </td>
+                                    <td>
                                         @if (i.Tipo == "EXT") {
                                             <span style="background:rgba(255,149,0,0.12);color:#CC7700;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">EXT</span>
                                         } else if (i.Tipo == "INT") {
@@ -349,7 +368,6 @@ else
                                     <td>@i.Piso</td>
                                     <td>@i.Metros m²</td>
                                     <td style="font-weight:500;color:var(--azul)">$@(string.Format("{0:N0}", long.TryParse(plLimpio, out long lp) ? lp : 0))</td>
-                                    <td>@i.Torre</td>
                                     <td class="estado-td">
                                         <span class="bdg @cls">@i.Estado</span>
                                         @if (i.Estado == "EN PROCESO" && i.IdVendedorEnProceso > 0) {
@@ -397,7 +415,6 @@ else
             }
         </div>
     }
-}
 
 <!-- Edit price modal -->
 <div class="modal-overlay" id="modalEditar">

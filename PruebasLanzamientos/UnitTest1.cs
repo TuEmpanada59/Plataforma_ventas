@@ -32,7 +32,7 @@ public class UnitTest1
 
     //DestinoVenta: solo se aceptan destinos de la lista blanca
     [Theory]
-    [InlineData("Vivienda", "Vivienda")]
+    [InlineData("Uso propio", "Uso propio")]
     [InlineData("Inversión para reventa", "Inversión para reventa")]
     [InlineData("Inversión para arriendo", "Inversión para arriendo")]
     [InlineData("Cesión de derechos", "Cesión de derechos")]
@@ -41,9 +41,23 @@ public class UnitTest1
 
     [Theory]
     [InlineData("Lavado de activos")]   // valor arbitrario / malicioso
-    [InlineData("vivienda")]            // no coincide (es sensible a mayúsculas)
+    [InlineData("uso propio")]          // no coincide (es sensible a mayúsculas)
     [InlineData("")]
     [InlineData(null)]
-    public void DestinoVenta_RechazaLoNoPermitido_YUsaVivienda(string? entrada)
-        => Assert.Equal("Vivienda", Texto.DestinoVenta(entrada));
+    public void DestinoVenta_RechazaLoNoPermitido_YUsaUsoPropio(string? entrada)
+        => Assert.Equal("Uso propio", Texto.DestinoVenta(entrada));
+
+    //TorreNormalizada: la torre sale de la columna TORRE o del nombre de la unidad
+    [Theory]
+    [InlineData("", "1204 T3", "T3")]      // la torre viene dentro del nombre comercial
+    [InlineData("", "801T1", "T1")]        // sin espacio
+    [InlineData("", "1502 t5", "T5")]      // minúscula
+    [InlineData("T2", "1204 T3", "T2")]    // la columna TORRE manda sobre el nombre
+    [InlineData("3", "1204", "T3")]        // columna TORRE con solo el número
+    [InlineData("Torre 4", "1204", "T4")]
+    [InlineData("", "1204", "")]           // proyecto de una sola torre: sin torre
+    [InlineData("", "", "")]
+    [InlineData(null, null, "")]
+    public void TorreNormalizada_ResuelveLaTorre(string? torreExcel, string? unidad, string esperado)
+        => Assert.Equal(esperado, Texto.TorreNormalizada(torreExcel, unidad));
 }

@@ -147,5 +147,20 @@ BEGIN
 END
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 9) Torre a partir del nombre de la unidad
+--    Los archivos traen la torre dentro del nombre comercial ("1204 T3"), no
+--    siempre en una columna TORRE. Las cargas nuevas ya la extraen al subir el
+--    Excel; esto completa los proyectos que se cargaron antes, para que el
+--    filtro por torre los incluya. Solo toca filas sin torre: no pisa un valor
+--    cargado a mano.
+-- ────────────────────────────────────────────────────────────────────────────
+UPDATE Inmuebles
+SET Torre = 'T' + SUBSTRING(Apto, PATINDEX('%T[0-9]%', Apto) + 1, 1)
+WHERE (Torre IS NULL OR LTRIM(RTRIM(Torre)) = '')
+  AND Apto IS NOT NULL
+  AND PATINDEX('%T[0-9]%', Apto) > 0;
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

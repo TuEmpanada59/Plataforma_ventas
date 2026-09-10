@@ -58,4 +58,40 @@ public static class Texto
     /// </summary>
     public static string MedioPublicitario(string? medio)
         => System.Array.IndexOf(MediosPermitidos, medio) >= 0 ? medio! : "";
+
+    /// <summary>
+    /// Resuelve la torre de un inmueble: la columna TORRE cuando el archivo la trae,
+    /// y si no, la marca "T1".."T5" que viene dentro del nombre comercial de la unidad
+    /// (por ejemplo "1204 T3"). Siempre devuelve "T&lt;n&gt;" para que agrupar y filtrar
+    /// por torre no dependa de cómo se haya escrito en el Excel. Cadena vacía si el
+    /// proyecto es de una sola torre y no informa ninguna.
+    /// </summary>
+    /// <param name="torreExcel">Valor crudo de la columna TORRE; puede venir vacío.</param>
+    /// <param name="nombreUnidad">Nombre de la unidad, que puede llevar la torre dentro.</param>
+    public static string TorreNormalizada(string? torreExcel, string? nombreUnidad)
+    {
+        var fuente = !string.IsNullOrWhiteSpace(torreExcel) ? torreExcel : nombreUnidad ?? "";
+
+        // Primero la palabra completa ("Torre 4", "TORRE-4").
+        var m = System.Text.RegularExpressions.Regex.Match(
+            fuente, @"TORRE\s*-?\s*(\d{1,2})(?!\d)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Y si no, la marca corta pegada al número de la unidad ("1204 T3", "801T1").
+        // La T no puede venir precedida de otra letra: así "SUITE", "APTO" o "PENT"
+        // no se confunden con una torre.
+        if (!m.Success)
+            m = System.Text.RegularExpressions.Regex.Match(
+                fuente, @"(?<![A-Za-z])T\s*-?\s*(\d{1,2})(?!\d)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (m.Success) return "T" + m.Groups[1].Value;
+
+        // Una columna TORRE que solo trae el número ("3") también es una torre válida.
+        var soloNumero = (torreExcel ?? "").Trim();
+        if (soloNumero.Length > 0 && soloNumero.Length <= 2 && int.TryParse(soloNumero, out _))
+            return "T" + soloNumero;
+
+        return soloNumero;
+    }
 }

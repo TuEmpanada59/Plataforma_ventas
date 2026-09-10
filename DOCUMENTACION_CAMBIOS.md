@@ -381,10 +381,51 @@ Banner con **countdown 2 minutos antes** de que expiren los 20 minutos de sesió
 
 ---
 
+## 8. Torres reales por inmueble (fin de los "proyectos hermanos")
+
+### ¿Por qué se hizo?
+Las torres no existían como dato: se deducían comparando nombres de proyectos
+(todos los que empezaban igual se consideraban torres del mismo lanzamiento).
+Eso obligaba a cargar un Excel por torre, partía el inventario en proyectos
+distintos y hacía que "cambiar de torre" cambiara de proyecto, con su propia
+lista de precios y sus propios KPIs.
+
+En los archivos reales la torre ya viene: la columna **SUITE** trae el nombre
+comercial completo de la unidad (número + torre, por ejemplo `1204 T3`).
+
+### Cambios aplicados
+
+| Antes | Después |
+|---|---|
+| Torres = otros proyectos con el mismo prefijo de nombre | Torres = columna `Torre` de los inmuebles del propio proyecto |
+| Pantalla intermedia "Selecciona una torre" que cambiaba de proyecto | Barra de filtro `Todas · T1 · T2 …` que no sale del proyecto |
+| La torre solo se leía de una columna `TORRE` | Se lee de `TORRE` o del nombre de la unidad (`1204 T3`, `801T1`, `Torre 4`) |
+| Columna `Apto` sin identificar el producto | Columna **Unidad** con el nombre del Excel + etiqueta de torre |
+
+- `Texto.TorreNormalizada(torreExcel, nombreUnidad)`: única fuente de verdad de
+  la torre. Siempre devuelve `T<n>` para que agrupar y filtrar no dependa de
+  cómo se haya escrito en la hoja. Cubierta con pruebas en `PruebasLanzamientos`.
+- `CargaController.Subir`: si el archivo trae columna **SUITE**, ese es el nombre
+  que se muestra en toda la plataforma, aunque el proyecto no sea de tipo SUITES.
+- `InmueblesController.Index`: el parámetro `torre` filtra dentro del proyecto
+  (áreas, tabla y KPIs). Un valor que el proyecto no tiene se ignora en vez de
+  dejar la pantalla vacía. La subida automática de lista sigue contando las
+  ventas de **todo** el proyecto, no las de la torre que se esté mirando.
+- Cada tarjeta de área muestra en qué torres existe esa área.
+- `Scripts/PanelAdmin.sql` (sección 9) completa la torre de los proyectos que ya
+  estaban cargados, sin pisar valores existentes.
+
+**Archivos modificados:** `Texto.cs`, `Controllers/CargaController.cs`,
+`Controllers/InmueblesController.cs`, `Views/Inmuebles/Index.cshtml`,
+`Scripts/PanelAdmin.sql`, `PruebasLanzamientos/UnitTest1.cs`
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-09-10 | Torres reales por inmueble (columna SUITE) y eliminación de los "proyectos hermanos" | Claude (IA) |
 | 2026-06-10 | Refactorización integral: fix race condition, layouts compartidos, async completo, paginación, SignalR tipado, DataProtection, manejo de errores, optimización | Claude (IA) |
 | 2026-06-09 | Recuperación de contraseña (token seguro) + fix corte de tarjeta + JS optimizado | Claude (IA) |
 | 2026-06-09 | Nuevo login mosaico reactivo + CSP + Permissions-Policy + auditoría + anti session-fixation | Claude (IA) |

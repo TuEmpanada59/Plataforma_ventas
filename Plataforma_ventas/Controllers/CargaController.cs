@@ -123,7 +123,7 @@ namespace Plataforma_ventas.Controllers
                 }
 
                 int colApto = -1, colTipo = -1, colPiso = -1, colMetros = -1;
-                int colEstado = -1, colTorre = -1, colProyecto = -1;
+                int colEstado = -1, colTorre = -1, colProyecto = -1, colSuite = -1;
 
                 int[] colListas = new int[10];
                 for (int i = 0; i < 10; i++) colListas[i] = -1;
@@ -138,6 +138,7 @@ namespace Plataforma_ventas.Controllers
                     if (header == "METROS") colMetros = c;
                     if (header == "ESTADO") colEstado = c;
                     if (header == "TORRE") colTorre = c;
+                    if (header == "SUITE") colSuite = c;
                     if (header == "PROYECTO") colProyecto = c;
                     for (int li = 1; li <= 10; li++)
                         if (header == $"LISTA{li}") colListas[li - 1] = c;
@@ -161,6 +162,12 @@ namespace Plataforma_ventas.Controllers
                     if (listaActiva[li]) mapeoListas[slot++] = li;
 
                 int listasDetectadas = slot;
+
+                // La columna SUITE trae el nombre comercial completo de la unidad
+                // (número + torre, p. ej. "1204 T3"). Si el archivo la incluye, ese es
+                // el nombre que se muestra en toda la plataforma, aunque el proyecto no
+                // sea de tipo SUITES: es como el cliente y el asesor identifican la unidad.
+                if (colSuite > 0) colApto = colSuite;
 
                 // ── Validaciones de columnas obligatorias ──────────────────────────────
                 if (colApto < 0)
@@ -268,7 +275,11 @@ namespace Plataforma_ventas.Controllers
                     cmdInm.Parameters.AddWithValue("@estado", colEstado > 0
                         ? ws.Cells[row, colEstado].Text?.Trim().ToUpper() ?? "DISPONIBLE"
                         : "DISPONIBLE");
-                    cmdInm.Parameters.AddWithValue("@torre", colTorre > 0 ? ws.Cells[row, colTorre].Text?.Trim() ?? "" : "");
+                    // La torre puede venir en su propia columna o embebida en el nombre de
+                    // la unidad ("1204 T3"). Se guarda normalizada para poder agrupar y
+                    // filtrar por torre sin depender de cómo venga escrita en el Excel.
+                    var torreExcel = colTorre > 0 ? ws.Cells[row, colTorre].Text?.Trim() ?? "" : "";
+                    cmdInm.Parameters.AddWithValue("@torre", Texto.TorreNormalizada(torreExcel, apto));
 
                     await cmdInm.ExecuteNonQueryAsync();
                     insertados++;

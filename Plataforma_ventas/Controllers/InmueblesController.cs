@@ -130,14 +130,6 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
-            // Proyectos hermanos
-            string nombreBase = proyNombre.Trim().Split(' ')[0].ToUpper();
-            var proyectosHermanos = proyectos
-                .Where(p => p.Nombre.Trim().Split(' ')[0].ToUpper() == nombreBase)
-                .OrderBy(p => p.Nombre)
-                .ToList();
-            ViewBag.ProyectosHermanos = proyectosHermanos;
-
             // Config del proyecto
             var cmdLista = new SqlCommand(
                 "SELECT ListaActual, ApartamentosPorLista FROM Proyectos WHERE IdProyectos=@id", con);
@@ -205,29 +197,32 @@ namespace Plataforma_ventas.Controllers
                     vendedores[(int)rv["IdUsuario"]] = rv["NombreCompleto"]?.ToString() ?? "";
             ViewBag.Vendedores = vendedores;
 
-            // Torres
-            string torreActual = "";
-            if (proyectosHermanos.Count > 1)
-            {
-                if (!string.IsNullOrEmpty(torre))
-                {
-                    var proyTorre = proyectosHermanos.FirstOrDefault(p => p.Nombre == torre);
-                    if (proyTorre.Id > 0 && proyTorre.Id != idProy)
-                    {
-                        HttpContext.Session.SetString("ProyectoId", proyTorre.Id.ToString());
-                        HttpContext.Session.SetString("ProyectoNombre", proyTorre.Nombre);
-                        return RedirectToAction("Index", new { torre = proyTorre.Nombre });
-                    }
-                    torreActual = string.IsNullOrEmpty(torre) ? proyNombre : torre;
-                }
-                else
-                    torreActual = "";
-            }
-            else
-                torreActual = proyNombre;
+            // Torres: son las del propio proyecto (columna Torre de los inmuebles, que sale
+            // de la columna TORRE del Excel o del nombre de la unidad, "1204 T3"). Antes se
+            // deducían de otros proyectos con el mismo prefijo de nombre, lo que obligaba a
+            // cambiar de proyecto para ver "otra torre" y confundía el inventario.
+            var torres = lista
+                .Select(i => (string)i.Torre)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct()
+                .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            ViewBag.Torres = proyectosHermanos.Select(p => p.Nombre).ToList();
+            // Un filtro por una torre que este proyecto no tiene se ignora en vez de
+            // devolver una pantalla vacía sin explicación.
+            string torreActual = torres.Contains(torre, StringComparer.OrdinalIgnoreCase)
+                ? torres.First(t => string.Equals(t, torre, StringComparison.OrdinalIgnoreCase))
+                : "";
+
+            ViewBag.Torres = torres;
             ViewBag.TorreActual = torreActual;
+
+            // El resto de la pantalla (áreas, tabla y KPIs) se calcula sobre la torre
+            // seleccionada; sin filtro, sobre todo el proyecto.
+            var listaProyecto = lista;
+            if (!string.IsNullOrEmpty(torreActual))
+                lista = lista.Where(i => string.Equals((string)i.Torre, torreActual,
+                                                       StringComparison.OrdinalIgnoreCase)).ToList();
 
             // Grupos de áreas
             long PrecioLista(dynamic inm, int n)
@@ -246,6 +241,12 @@ namespace Plataforma_ventas.Controllers
                     Vendidos = g.Count(x => x.Estado == "VENDIDO"),
                     EnProceso = g.Count(x => x.Estado == "EN PROCESO"),
                     Reservados = g.Count(x => x.Estado == "RESERVADO"),
+                    // Torres en las que existe esta área, para verlo sin abrir la tabla.
+                    Torres = g.Select(x => (string)x.Torre)
+                              .Where(t => !string.IsNullOrWhiteSpace(t))
+                              .Distinct()
+                              .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                              .ToList(),
                     PrecioL1 = g.Select(x => PrecioLista(x, 1)).Where(p => p > 0).DefaultIfEmpty(0).Min(),
                     PrecioL2 = g.Select(x => PrecioLista(x, 2)).Where(p => p > 0).DefaultIfEmpty(0).Min(),
                     PrecioL3 = g.Select(x => PrecioLista(x, 3)).Where(p => p > 0).DefaultIfEmpty(0).Min(),
@@ -273,7 +274,9 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Vendidos = lista.Count(x => x.Estado == "VENDIDO");
             ViewBag.EnProceso = lista.Count(x => x.Estado == "EN PROCESO");
 
-            int vendidosTotal = lista.Count(x => x.Estado == "VENDIDO");
+            // La subida automática cuenta las ventas de todo el proyecto, no las de la
+            // torre que se esté mirando.
+            int vendidosTotal = listaProyecto.Count(x => x.Estado == "VENDIDO");
             ViewBag.ProximaLista = aptsPorLista > 0
                 ? aptsPorLista - (vendidosTotal % aptsPorLista)
                 : 0;
