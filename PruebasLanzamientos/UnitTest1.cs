@@ -83,4 +83,19 @@ public class UnitTest1
     [InlineData(0, "Lista5")]
     public void ColumnaLista_DevuelveLaColumnaEsperada(int n, string esperado)
         => Assert.Equal(esperado, Listas.ColumnaLista(n));
+
+    //EstadoInmueble: el ESTADO del Excel se traduce a los cuatro estados de la plataforma
+    [Theory]
+    [InlineData("VENDIDO", "VENDIDO")]
+    [InlineData("vendida", "VENDIDO")]
+    [InlineData(" Vendido ", "VENDIDO")]
+    [InlineData("RESERVADO", "RESERVADO")]
+    [InlineData("reservada", "RESERVADO")]
+    [InlineData("EN PROCESO", "EN PROCESO")]
+    [InlineData("DISPONIBLE", "DISPONIBLE")]
+    [InlineData("cualquier cosa", "DISPONIBLE")]   // un error de digitación no deja el inmueble bloqueado
+    [InlineData("", "DISPONIBLE")]
+    [InlineData(null, "DISPONIBLE")]
+    public void EstadoInmueble_TraduceElEstadoDelExcel(string? entrada, string esperado)
+        => Assert.Equal(esperado, Texto.EstadoInmueble(entrada));
 }

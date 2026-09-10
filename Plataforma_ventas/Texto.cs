@@ -30,7 +30,12 @@ public static class Texto
         return long.TryParse(limpio, out long v) ? v : 0;
     }
 
-    private static readonly string[] DestinosPermitidos =
+    /// <summary>
+    /// Destinos válidos de una venta. Es pública porque los formularios que editan una
+    /// venta ofrecen exactamente estas opciones: si la vista tuviera su propia lista,
+    /// una opción nueva aquí no llegaría a la pantalla.
+    /// </summary>
+    public static readonly string[] DestinosPermitidos =
         { "Uso propio", "Inversión para reventa", "Inversión para arriendo", "Cesión de derechos" };
 
     /// <summary>
@@ -58,6 +63,20 @@ public static class Texto
     /// </summary>
     public static string MedioPublicitario(string? medio)
         => System.Array.IndexOf(MediosPermitidos, medio) >= 0 ? medio! : "";
+
+    /// <summary>
+    /// Traduce el ESTADO que viene en el Excel a uno de los cuatro estados que maneja la
+    /// plataforma. Lo que no se reconozca queda DISPONIBLE: un error de digitación no debe
+    /// dejar un inmueble en un estado sobre el que nadie puede actuar.
+    /// </summary>
+    public static string EstadoInmueble(string? estadoExcel)
+    {
+        var e = (estadoExcel ?? "").Trim().ToUpper();
+        if (e.StartsWith("VEND")) return "VENDIDO";
+        if (e.StartsWith("RESER")) return "RESERVADO";
+        if (e.StartsWith("EN PROCESO") || e.StartsWith("PROCESO")) return "EN PROCESO";
+        return "DISPONIBLE";
+    }
 
     /// <summary>
     /// Resuelve la torre de un inmueble: la columna TORRE cuando el archivo la trae,

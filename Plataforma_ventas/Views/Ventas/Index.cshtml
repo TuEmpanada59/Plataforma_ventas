@@ -14,6 +14,7 @@
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
     ViewBag.Iniciales = iniciales;
     var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;
+    var asesores  = ViewBag.Asesores as List<(int Id, string Nombre)> ?? new List<(int, string)>();
 }
 @section Styles {
 <style>
@@ -53,6 +54,14 @@
     .bdg.N{background:rgba(120,120,128,0.14);color:var(--label2);text-decoration:line-through;}
     .btn-anular{background:rgba(230,57,70,0.1);color:var(--rojo);border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s;}
     .btn-anular:hover{background:rgba(230,57,70,0.2);}
+    .btn-editar-v{background:rgba(0,118,227,0.1);color:var(--blue);border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s;margin-right:6px;}
+    .btn-editar-v:hover{background:rgba(0,118,227,0.2);}
+    .bdg-excel{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(255,149,0,0.14);color:#CC7700;margin-top:3px;}
+    .modal-caja.ancha{max-width:640px;}
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .modal-grid .ancho{grid-column:1/-1;}
+    @@media(max-width:640px){.modal-grid{grid-template-columns:1fr;}}
+    .btn-guardar{background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
     .alerta-exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:#1EA851;display:flex;align-items:center;gap:8px;}
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:12px 16px;font-size:13px;font-weight:600;color:var(--rojo);display:flex;align-items:center;gap:8px;}
     /* Diálogo de anulación */
@@ -137,6 +146,10 @@
                             <td>@v.Tipo</td>
                             <td style="font-weight:500">
                                 @v.Cliente
+                                @if ((v.Origen as string) == "EXCEL")
+                                {
+                                    <div class="bdg-excel" title="Venta cargada desde el Excel del proyecto">Del Excel</div>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(v.Observaciones as string))
                                 {
                                     <div class="obs-venta-txt" title="@v.Observaciones">@v.Observaciones</div>
@@ -158,6 +171,22 @@
                             <td>
                                 @if (activa)
                                 {
+                                    <button type="button" class="btn-editar-v"
+                                            onclick="abrirEditar(this)"
+                                            data-id="@v.Id"
+                                            data-apto="@v.Apto"
+                                            data-torre="@v.Torre"
+                                            data-nombre="@v.ClienteNombre"
+                                            data-apellido="@v.ClienteApellido"
+                                            data-documento="@v.Documento"
+                                            data-celular="@v.Celular"
+                                            data-correo="@v.ClienteCorreo"
+                                            data-direccion="@v.ClienteDireccion"
+                                            data-asesor="@v.IdUsuario"
+                                            data-destino="@v.Destino"
+                                            data-precio="@v.PrecioVenta"
+                                            data-lista="@v.Lista"
+                                            data-obs="@v.Observaciones">@((v.Origen as string) == "EXCEL" ? "Completar" : "Editar")</button>
                                     <button type="button" class="btn-anular"
                                             onclick="abrirAnular(@v.Id, '@v.Apto', '@v.Torre')">Anular</button>
                                 }
@@ -185,6 +214,97 @@
             <div class="empty-txt">No hay ventas registradas en @proyActivo</div>
         </div>
     }
+</div>
+
+<!-- Diálogo de edición / completar venta -->
+<div class="modal-fondo" id="modalEditar">
+    <div class="modal-caja ancha">
+        <div class="modal-titulo">Editar venta</div>
+        <p class="modal-texto">
+            Apartamento <strong id="editApto"></strong>. Las ventas que llegan en el Excel
+            del proyecto entran sin cliente ni asesor: aquí se completan.
+        </p>
+        <form action="/Ventas/EditarVenta" method="post" onsubmit="return validarEditar()">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="idVenta" id="editId"/>
+            <div class="modal-grid">
+                <div>
+                    <label class="modal-lbl" for="editNombre">Nombre</label>
+                    <input type="text" name="nombre" id="editNombre" class="modal-input" maxlength="100"/>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editApellido">Apellido</label>
+                    <input type="text" name="apellido" id="editApellido" class="modal-input" maxlength="100"/>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editDocumento">Documento</label>
+                    <input type="text" name="documento" id="editDocumento" class="modal-input" maxlength="30"/>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editCelular">Celular</label>
+                    <input type="text" name="celular" id="editCelular" class="modal-input" maxlength="30"/>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editCorreo">Correo</label>
+                    <input type="text" name="correo" id="editCorreo" class="modal-input" maxlength="100"/>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editDireccion">Dirección</label>
+                    <input type="text" name="direccion" id="editDireccion" class="modal-input" maxlength="150"/>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editMedio">Medio publicitario</label>
+                    <select name="medio" id="editMedio" class="modal-input">
+                        <option value="">— Sin informar —</option>
+                        @foreach (var m in Texto.MediosPermitidos)
+                        {
+                            <option value="@m">@m</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editAsesor">Asesor</label>
+                    <select name="idUsuario" id="editAsesor" class="modal-input">
+                        @foreach (var a in asesores)
+                        {
+                            <option value="@a.Id">@a.Nombre</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editDestino">Destino</label>
+                    <select name="destino" id="editDestino" class="modal-input">
+                        @foreach (var d in Texto.DestinosPermitidos)
+                        {
+                            <option value="@d">@d</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="modal-lbl" for="editLista">Lista aplicada</label>
+                    <select name="listaAplicada" id="editLista" class="modal-input">
+                        @for (int n = 1; n <= 5; n++)
+                        {
+                            <option value="@n">Lista @n</option>
+                        }
+                    </select>
+                </div>
+                <div class="ancho">
+                    <label class="modal-lbl" for="editPrecio">Precio de venta</label>
+                    <input type="number" name="precioVenta" id="editPrecio" class="modal-input" min="1"/>
+                </div>
+                <div class="ancho">
+                    <label class="modal-lbl" for="editObs">Observaciones</label>
+                    <textarea name="observaciones" id="editObs" rows="2" class="modal-input"></textarea>
+                </div>
+            </div>
+            <div class="modal-error" id="editError">Escribe al menos el nombre del cliente y un precio mayor que cero.</div>
+            <div class="modal-acciones">
+                <button type="button" class="btn-cancelar" onclick="cerrarEditar()">Cancelar</button>
+                <button type="submit" class="btn-guardar">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- Diálogo de anulación -->
@@ -219,6 +339,49 @@
             tr.style.display=tr.innerText.toLowerCase().includes(q)?'':'none';
         });
     }
+
+    // Los datos de la fila viajan en atributos data-* del botón: así el HTML no depende
+    // de escapar comillas dentro de una llamada a función con diez argumentos.
+    function abrirEditar(btn){
+        var d = btn.dataset;
+        document.getElementById('editId').value        = d.id;
+        document.getElementById('editApto').textContent = d.apto + (d.torre ? ' · ' + d.torre : '');
+        document.getElementById('editNombre').value    = d.nombre === 'Por registrar' ? '' : d.nombre;
+        document.getElementById('editApellido').value  = d.nombre === 'Por registrar' ? '' : d.apellido;
+        document.getElementById('editDocumento').value = (d.documento || '').indexOf('IMPORTADO-') === 0 ? '' : d.documento;
+        document.getElementById('editCelular').value   = d.celular;
+        document.getElementById('editCorreo').value    = d.correo;
+        document.getElementById('editDireccion').value = d.direccion;
+        document.getElementById('editObs').value       = d.obs;
+        document.getElementById('editPrecio').value    = (d.precio || '').replace(/[^0-9]/g, '');
+        seleccionar('editAsesor',  d.asesor);
+        seleccionar('editDestino', d.destino);
+        seleccionar('editLista',   d.lista);
+        document.getElementById('editError').style.display = 'none';
+        document.getElementById('modalEditar').style.display = 'flex';
+        setTimeout(function(){ document.getElementById('editNombre').focus(); }, 50);
+    }
+    function seleccionar(id, valor){
+        var sel = document.getElementById(id);
+        for (var i = 0; i < sel.options.length; i++)
+            if (sel.options[i].value === String(valor)) { sel.selectedIndex = i; return; }
+        sel.selectedIndex = 0;
+    }
+    function cerrarEditar(){
+        document.getElementById('modalEditar').style.display = 'none';
+    }
+    function validarEditar(){
+        var n = document.getElementById('editNombre').value.trim();
+        var p = parseInt(document.getElementById('editPrecio').value, 10);
+        if (n.length === 0 || !(p > 0)) {
+            document.getElementById('editError').style.display = 'block';
+            return false;
+        }
+        return true;
+    }
+    document.getElementById('modalEditar').addEventListener('click', function(e){
+        if (e.target === this) cerrarEditar();
+    });
 
     function abrirAnular(id, apto, torre){
         document.getElementById('anulaId').value = id;

@@ -94,15 +94,18 @@ namespace Plataforma_ventas.Controllers
             // Paginated query — sales ordered newest first
             var ventas = new List<dynamic>();
             var cmd = new SqlCommand(@"
-                SELECT v.IdVenta,
+                SELECT v.IdVenta, v.IdUsuario,
                        i.Apto, i.Torre, i.Tipo, i.Piso,
                        c.Nombre+' '+c.Apellido AS Cliente,
+                       c.Nombre AS ClienteNombre, c.Apellido AS ClienteApellido,
+                       ISNULL(c.Correo,'') AS ClienteCorreo, ISNULL(c.Direccion,'') AS ClienteDireccion,
                        c.Documento, c.Celular,
                        u.Nombre+' '+u.Apellido AS Asesor,
                        ISNULL(v.Destino,'—') AS Destino,
                        v.PrecioVenta,
                        FORMAT(v.FechaVenta,'dd/MM/yyyy HH:mm') AS FechaVenta,
-                       v.Estado, v.ListaAplicada, ISNULL(v.Observaciones,'') AS Observaciones
+                       v.Estado, v.ListaAplicada, ISNULL(v.Observaciones,'') AS Observaciones,
+                       ISNULL(v.Origen,'PLATAFORMA') AS Origen
                 FROM Ventas v
                 JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
                 JOIN Clientes  c ON v.IdCliente  = c.IdCliente
@@ -132,14 +135,108 @@ namespace Plataforma_ventas.Controllers
                     FechaVenta = reader["FechaVenta"]?.ToString() ?? "",
                     Estado = reader["Estado"]?.ToString() ?? "",
                     Lista = reader["ListaAplicada"]?.ToString() ?? "",
-                    Observaciones = reader["Observaciones"]?.ToString() ?? ""
+                    Observaciones = reader["Observaciones"]?.ToString() ?? "",
+                    Origen = reader["Origen"]?.ToString() ?? "PLATAFORMA",
+                    IdUsuario = reader["IdUsuario"] == DBNull.Value ? 0 : Convert.ToInt32(reader["IdUsuario"]),
+                    ClienteNombre = reader["ClienteNombre"]?.ToString() ?? "",
+                    ClienteApellido = reader["ClienteApellido"]?.ToString() ?? "",
+                    ClienteCorreo = reader["ClienteCorreo"]?.ToString() ?? "",
+                    ClienteDireccion = reader["ClienteDireccion"]?.ToString() ?? ""
                 });
             }
+            reader.Close();
 
             ViewBag.Ventas = ventas;
             ViewBag.TotalVentas = ventas.Count;
 
+            // Asesores disponibles para reasignar una venta al completarla.
+            var asesores = new List<(int Id, string Nombre)>();
+            var cmdAses = new SqlCommand(
+                @"SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto FROM Usuarios
+                  ORDER BY Nombre, Apellido", con);
+            using (var ra = (SqlDataReader)await cmdAses.ExecuteReaderAsync())
+                while (await ra.ReadAsync())
+                    asesores.Add((Convert.ToInt32(ra["IdUsuario"]), ra["NombreCompleto"]?.ToString() ?? ""));
+            ViewBag.Asesores = asesores;
+
             return View();
+        }
+
+        /// <summary>
+        /// Edits a registered sale: its client, adviser, destination, applied list, price and
+        /// notes. It exists mainly for the sales that arrive already closed in the project
+        /// spreadsheet, which are created without a real client or adviser, but it works for
+        /// any active sale — a sale registered with the wrong data had no way to be fixed
+        /// other than voiding it, which distorted the figures.
+        /// </summary>
+        /// <param name="idVenta">Sale to edit. Must be ACTIVA and belong to the active project.</param>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditarVenta(int idVenta, string nombre, string apellido,
+            string documento, string celular, string correo, string direccion, string medio,
+            int idUsuario, string destino, long precioVenta, int listaAplicada, string observaciones)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                TempData["Error"] = "El nombre del cliente es obligatorio.";
+                return RedirectToAction("Index");
+            }
+            if (precioVenta <= 0)
+            {
+                TempData["Error"] = "El precio de venta debe ser mayor que cero.";
+                return RedirectToAction("Index");
+            }
+            if (listaAplicada < 1 || listaAplicada > 5) listaAplicada = 1;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            // La venta debe existir, estar activa y ser de este proyecto: sin esta guardia
+            // un id de otro proyecto se podría editar desde el formulario.
+            var cmdChk = new SqlCommand(
+                "SELECT COUNT(*) FROM Ventas WHERE IdVenta=@id AND IdProyecto=@proy AND Estado='ACTIVA'", con);
+            cmdChk.Parameters.AddWithValue("@id", idVenta);
+            cmdChk.Parameters.AddWithValue("@proy", idProy);
+            if (Convert.ToInt32(await cmdChk.ExecuteScalarAsync()) == 0)
+            {
+                TempData["Error"] = "La venta no existe, no es de este proyecto o está anulada.";
+                return RedirectToAction("Index");
+            }
+
+            using var tx = (SqlTransaction)await con.BeginTransactionAsync();
+            try
+            {
+                // Reutiliza el cliente que ya tenga ese documento en vez de duplicarlo; al
+                // completar una venta importada, esto la despega del cliente "Por registrar".
+                var (idCliente, _) = await ClienteRepo.ObtenerOCrearAsync(
+                    con, tx, nombre, apellido, documento, celular, correo, direccion, medio);
+
+                var cmdUpd = new SqlCommand(@"
+                    UPDATE Ventas
+                    SET IdCliente=@cli, IdUsuario=@usr, Destino=@destino,
+                        PrecioVenta=@precio, ListaAplicada=@lista, Observaciones=@obs
+                    WHERE IdVenta=@id AND Estado='ACTIVA'", con, tx);
+                cmdUpd.Parameters.AddWithValue("@cli", idCliente);
+                cmdUpd.Parameters.AddWithValue("@usr", idUsuario);
+                cmdUpd.Parameters.AddWithValue("@destino", Texto.DestinoVenta(destino));
+                cmdUpd.Parameters.AddWithValue("@precio", precioVenta);
+                cmdUpd.Parameters.AddWithValue("@lista", listaAplicada);
+                cmdUpd.Parameters.AddWithValue("@obs", (observaciones ?? "").Trim());
+                cmdUpd.Parameters.AddWithValue("@id", idVenta);
+                await cmdUpd.ExecuteNonQueryAsync();
+
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
+            TempData["Exito"] = "Venta actualizada correctamente.";
+            return RedirectToAction("Index");
         }
 
         /// <summary>

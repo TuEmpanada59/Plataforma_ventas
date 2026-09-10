@@ -478,10 +478,52 @@ que las cuentas sin correo las restablece el administrador.
 
 ---
 
+## 11. Inmuebles que llegan reservados o vendidos en el Excel
+
+### El problema
+Un inmueble que venía marcado como **RESERVADO** en el archivo entraba sin
+`PrecioReserva`: al escriturarlo se le aplicaba la lista vigente en ese momento,
+no el precio con el que se había negociado antes del lanzamiento. Y uno marcado
+como **VENDIDO** entraba solo como inventario: el mapa decía "vendido" pero el
+listado de ventas y los informes no lo veían, así que las dos cifras nunca cuadraban.
+
+### Qué hace ahora
+
+| Estado en el Excel | Qué pasa al cargar |
+|---|---|
+| `RESERVADO` | Se guarda con `PrecioReserva` = **Lista 1** y su fecha de reserva. Sin asesor asignado |
+| `VENDIDO` | Además del inmueble se crea la **venta**, con precio = Lista 1 y `ListaAplicada` = 1 |
+| `EN PROCESO` | Se respeta el estado; el administrador puede cancelarlo desde Inmuebles |
+| Cualquier otra cosa | `DISPONIBLE` — un error de digitación no puede dejar un inmueble bloqueado |
+
+La venta importada nace sin cliente ni asesor reales: apunta a un cliente
+**"Por registrar"** (uno solo por proyecto) y al administrador que cargó el archivo,
+y queda marcada con `Origen = 'EXCEL'`. En el listado sale con la etiqueta
+**Del Excel** y un botón **Completar**.
+
+### Editar una venta
+Nueva acción `Ventas/EditarVenta`: cliente (con sus datos completos), asesor,
+destino, lista aplicada, precio y observaciones. Existe sobre todo para completar
+las ventas importadas, pero funciona con cualquier venta activa — antes, una venta
+registrada con un dato equivocado solo se podía arreglar anulándola, y eso
+distorsionaba las cifras.
+
+El cliente se resuelve con `ClienteRepo.ObtenerOCrearAsync`, así que completar una
+venta importada la despega del cliente "Por registrar" y reutiliza la ficha del
+comprador si ya existía con ese documento.
+
+**Archivos modificados:** `Texto.cs` (`EstadoInmueble`, `DestinosPermitidos` pública),
+`Controllers/CargaController.cs`, `Controllers/VentasController.cs`,
+`Views/Ventas/Index.cshtml`, `Scripts/PanelAdmin.sql` (sección 11),
+`PruebasLanzamientos/UnitTest1.cs`
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-09-10 | Inmuebles reservados/vendidos desde el Excel + edición de ventas | Claude (IA) |
 | 2026-09-10 | Ajuste masivo de precios con reversión + usuarios sin documento ni correo | Claude (IA) |
 | 2026-09-10 | Torres reales por inmueble (columna SUITE) y eliminación de los "proyectos hermanos" | Claude (IA) |
 | 2026-06-10 | Refactorización integral: fix race condition, layouts compartidos, async completo, paginación, SignalR tipado, DataProtection, manejo de errores, optimización | Claude (IA) |

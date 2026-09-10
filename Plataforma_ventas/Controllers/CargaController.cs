@@ -251,7 +251,9 @@ namespace Plataforma_ventas.Controllers
                 cmdProy.Parameters.AddWithValue("@tipo", tipoProyecto);
                 int idProyecto = (int)(await cmdProy.ExecuteScalarAsync())!;
 
-                int insertados = 0;
+                int insertados = 0, reservadosExcel = 0, vendidosExcel = 0;
+                int idClienteImportado = 0;   // se crea solo si el archivo trae vendidos
+
                 for (int row = 2; row <= totalRows; row++)
                 {
                     var apto = ws.Cells[row, colApto].Text?.Trim();
@@ -262,31 +264,69 @@ namespace Plataforma_ventas.Controllers
                             ? ParsearPrecio(ws.Cells[row, colListas[mapeoListas[s]]].Text)
                             : 0;
 
+                    var estadoFila = Texto.EstadoInmueble(colEstado > 0 ? ws.Cells[row, colEstado].Text : "");
+
+                    // Un inmueble que llega reservado o vendido se queda con el precio de la
+                    // Lista 1: es el precio con el que se negoció antes del lanzamiento, y
+                    // dejarlo suelto haría que al escriturar se cobrara la lista vigente.
+                    long precioLista1 = GetLista(0);
+
                     var cmdInm = new SqlCommand(@"INSERT INTO Inmuebles
-                        (IdProyecto,Apto,Tipo,Piso,Metros,Lista1,Lista2,Lista3,Lista4,Lista5,Estado,Torre)
-                        VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre)", con, tx);
+                        (IdProyecto,Apto,Tipo,Piso,Metros,Lista1,Lista2,Lista3,Lista4,Lista5,Estado,Torre,
+                         PrecioReserva,FechaReserva)
+                        OUTPUT INSERTED.IdInmuebles
+                        VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre,
+                                @precioRes,
+                                CASE WHEN @estado='RESERVADO' THEN GETDATE() END)", con, tx);
 
                     cmdInm.Parameters.AddWithValue("@proy", idProyecto);
                     cmdInm.Parameters.AddWithValue("@apto", apto);
                     cmdInm.Parameters.AddWithValue("@tipo", colTipo > 0 ? ws.Cells[row, colTipo].Text?.Trim() ?? "" : "");
                     cmdInm.Parameters.AddWithValue("@piso", colPiso > 0 ? ws.Cells[row, colPiso].Text?.Trim() ?? "" : "");
                     cmdInm.Parameters.AddWithValue("@metros", ws.Cells[row, colMetros].Text?.Trim() ?? "");
-                    cmdInm.Parameters.AddWithValue("@l1", GetLista(0));
+                    cmdInm.Parameters.AddWithValue("@l1", precioLista1);
                     cmdInm.Parameters.AddWithValue("@l2", GetLista(1));
                     cmdInm.Parameters.AddWithValue("@l3", GetLista(2));
                     cmdInm.Parameters.AddWithValue("@l4", GetLista(3));
                     cmdInm.Parameters.AddWithValue("@l5", GetLista(4));
-                    cmdInm.Parameters.AddWithValue("@estado", colEstado > 0
-                        ? ws.Cells[row, colEstado].Text?.Trim().ToUpper() ?? "DISPONIBLE"
-                        : "DISPONIBLE");
+                    cmdInm.Parameters.AddWithValue("@estado", estadoFila);
+                    // La reserva que viene del Excel no tiene asesor, pero sí precio: el de
+                    // la Lista 1, que es el que el resto de la plataforma respeta al vender.
+                    cmdInm.Parameters.AddWithValue("@precioRes",
+                        estadoFila == "RESERVADO" && precioLista1 > 0 ? (object)precioLista1 : DBNull.Value);
                     // La torre puede venir en su propia columna o embebida en el nombre de
                     // la unidad ("1204 T3"). Se guarda normalizada para poder agrupar y
                     // filtrar por torre sin depender de cómo venga escrita en el Excel.
                     var torreExcel = colTorre > 0 ? ws.Cells[row, colTorre].Text?.Trim() ?? "" : "";
                     cmdInm.Parameters.AddWithValue("@torre", Texto.TorreNormalizada(torreExcel, apto));
 
-                    await cmdInm.ExecuteNonQueryAsync();
+                    int idInmueble = Convert.ToInt32((await cmdInm.ExecuteScalarAsync())!);
                     insertados++;
+                    if (estadoFila == "RESERVADO") reservadosExcel++;
+
+                    // Un inmueble que ya llega vendido tiene que aparecer en Ventas: si no,
+                    // el inventario dice "vendido" y el informe de ventas no lo ve, y las
+                    // dos cifras nunca cuadran. La venta nace incompleta (sin cliente ni
+                    // asesor reales) y se completa después desde el listado de ventas.
+                    if (estadoFila == "VENDIDO")
+                    {
+                        if (idClienteImportado == 0)
+                            idClienteImportado = await ClientePorRegistrarAsync(con, tx, nombreProyecto.Trim());
+
+                        var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
+                            (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,
+                             Destino,Estado,Observaciones,Origen)
+                            VALUES (@inm,@cli,@usr,@proy,1,@precio,NULL,'ACTIVA',@obs,'EXCEL')", con, tx);
+                        cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
+                        cmdVenta.Parameters.AddWithValue("@cli", idClienteImportado);
+                        cmdVenta.Parameters.AddWithValue("@usr", idAdmin);
+                        cmdVenta.Parameters.AddWithValue("@proy", idProyecto);
+                        cmdVenta.Parameters.AddWithValue("@precio", precioLista1);
+                        cmdVenta.Parameters.AddWithValue("@obs",
+                            "Venta cargada desde el Excel del proyecto. Falta completar cliente y asesor.");
+                        await cmdVenta.ExecuteNonQueryAsync();
+                        vendidosExcel++;
+                    }
                 }
 
                 // Insertar áreas en ProyectoAreaListas (una fila por Metros+Tipo)
@@ -312,7 +352,15 @@ namespace Plataforma_ventas.Controllers
                     "OFICINAS" => "oficinas",
                     _          => "apartamentos"
                 };
-                TempData["Exito"] = $"Proyecto '{nombreProyecto}' cargado con {insertados} {tipoLabel}. Listas detectadas: {listasDetectadas}.";
+                var detalleEstados = "";
+                if (reservadosExcel > 0)
+                    detalleEstados += $" {reservadosExcel} llegaron reservados con el precio de la Lista 1.";
+                if (vendidosExcel > 0)
+                    detalleEstados += $" {vendidosExcel} llegaron vendidos: ya están en Ventas, " +
+                                      "complétales el cliente y el asesor desde ahí.";
+
+                TempData["Exito"] = $"Proyecto '{nombreProyecto}' cargado con {insertados} {tipoLabel}. " +
+                                    $"Listas detectadas: {listasDetectadas}.{detalleEstados}";
                 TempData["Codigo"] = codigo;
             }
             catch (Exception ex)
@@ -774,6 +822,32 @@ namespace Plataforma_ventas.Controllers
 
             TempData["Exito"] = "Proyecto eliminado correctamente.";
             return RedirectToAction("Index");
+        }
+
+        /// <summary>
+        /// Returns the placeholder client used by sales imported from the spreadsheet,
+        /// creating it once per project. It is a single row on purpose: completing a sale
+        /// repoints it to the real client, so the placeholder is left behind empty instead
+        /// of filling the client list with one fake record per imported sale.
+        /// </summary>
+        private static async Task<int> ClientePorRegistrarAsync(SqlConnection con, SqlTransaction tx,
+                                                                string nombreProyecto)
+        {
+            var documento = "IMPORTADO-" + nombreProyecto.ToUpper();
+
+            var cmdBusca = new SqlCommand(
+                "SELECT TOP 1 IdCliente FROM Clientes WHERE Documento=@d ORDER BY IdCliente", con, tx);
+            cmdBusca.Parameters.AddWithValue("@d", documento);
+            var existente = await cmdBusca.ExecuteScalarAsync();
+            if (existente != null && existente != DBNull.Value) return Convert.ToInt32(existente);
+
+            var cmdCrea = new SqlCommand(@"INSERT INTO Clientes
+                (Nombre,Apellido,Documento,Celular,Correo,Direccion)
+                OUTPUT INSERTED.IdCliente
+                VALUES ('Por registrar', @proy, @d, '', '', '')", con, tx);
+            cmdCrea.Parameters.AddWithValue("@proy", nombreProyecto);
+            cmdCrea.Parameters.AddWithValue("@d", documento);
+            return Convert.ToInt32((await cmdCrea.ExecuteScalarAsync())!);
         }
 
         private static string GenerarCodigo(string nombreProyecto)

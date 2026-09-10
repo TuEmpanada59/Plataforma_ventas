@@ -194,5 +194,16 @@ BEGIN
 END
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 11) Origen de la venta
+--     Los inmuebles que llegan VENDIDO en el Excel ahora generan su venta al
+--     cargar el proyecto, para que aparezcan en el listado y en los informes.
+--     Esas ventas nacen incompletas (sin cliente ni asesor reales), así que hay
+--     que poder distinguirlas de las que se registraron en la plataforma.
+-- ────────────────────────────────────────────────────────────────────────────
+IF COL_LENGTH('Ventas', 'Origen') IS NULL
+    ALTER TABLE Ventas ADD Origen NVARCHAR(20) NOT NULL DEFAULT 'PLATAFORMA';
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO
