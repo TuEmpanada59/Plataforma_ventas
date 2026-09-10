@@ -202,9 +202,15 @@
                         </div>
                     </td>
                     <td>
-                        <div style="font-size:12px;color:var(--label2)">@u.Correo</div>
                         @if (!string.IsNullOrEmpty(u.Celular as string)) {
-                            <div style="font-size:11px;color:var(--label3)">@u.Celular</div>
+                            <div style="font-size:12px;color:var(--label2)">@u.Celular</div>
+                        } else {
+                            <span style="font-size:12px;color:var(--label3)">—</span>
+                        }
+                        @* El correo solo se muestra si quedó de un usuario creado antes:
+                           ya no se pide al crear ni al editar. *@
+                        @if (!string.IsNullOrEmpty(u.Correo as string)) {
+                            <div style="font-size:11px;color:var(--label3)">@u.Correo</div>
                         }
                     </td>
                     <td>
@@ -219,7 +225,7 @@
                     <td>
                         <div class="actions-cell">
                             <button class="btn-sm btn-edit"
-                                onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Documento','@u.Celular','@u.Correo','@u.Rol',@u.IdProyecto)">
+                                onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Celular','@u.Rol',@u.IdProyecto)">
                                 Editar
                             </button>
                             <button class="btn-sm btn-pwd" onclick="abrirPassword(@u.Id)">Clave</button>
@@ -253,9 +259,7 @@
             <div class="modal-grid">
                 <div class="field"><label>Nombre</label><input type="text" name="nombre" placeholder="Nombre" required/></div>
                 <div class="field"><label>Apellido</label><input type="text" name="apellido" placeholder="Apellido" required/></div>
-                <div class="field"><label>Documento</label><input type="text" name="documento" placeholder="CC / NIT"/></div>
-                <div class="field"><label>Celular</label><input type="text" name="celular" placeholder="Celular"/></div>
-                <div class="field" style="grid-column:1/-1"><label>Correo electrónico</label><input type="email" name="correo" placeholder="correo@email.com"/></div>
+                <div class="field" style="grid-column:1/-1"><label>Celular</label><input type="text" name="celular" placeholder="Celular"/></div>
             </div>
             <hr class="form-divider"/>
             <div class="modal-section">Acceso al sistema</div>
@@ -300,9 +304,7 @@
             <div class="modal-grid">
                 <div class="field"><label>Nombre</label><input type="text" name="nombre" id="editNombre"/></div>
                 <div class="field"><label>Apellido</label><input type="text" name="apellido" id="editApellido"/></div>
-                <div class="field"><label>Documento</label><input type="text" name="documento" id="editDocumento"/></div>
-                <div class="field"><label>Celular</label><input type="text" name="celular" id="editCelular"/></div>
-                <div class="field" style="grid-column:1/-1"><label>Correo</label><input type="email" name="correo" id="editCorreo"/></div>
+                <div class="field" style="grid-column:1/-1"><label>Celular</label><input type="text" name="celular" id="editCelular"/></div>
             </div>
             <div class="modal-section">Permisos y asignación</div>
             <div class="modal-grid">
@@ -366,13 +368,11 @@
         document.getElementById('crearCampoProyecto').style.opacity = rol === 'Administrador' ? '0.4' : '1';
     }
 
-    function abrirEditar(id,nombre,apellido,documento,celular,correo,rol,idProy){
+    function abrirEditar(id,nombre,apellido,celular,rol,idProy){
         document.getElementById('editId').value        = id;
         document.getElementById('editNombre').value    = nombre;
         document.getElementById('editApellido').value  = apellido;
-        document.getElementById('editDocumento').value = documento;
         document.getElementById('editCelular').value   = celular;
-        document.getElementById('editCorreo').value    = correo;
         document.getElementById('editProyecto').value  = idProy || 0;
 
         var selectRol  = document.getElementById('editRol');

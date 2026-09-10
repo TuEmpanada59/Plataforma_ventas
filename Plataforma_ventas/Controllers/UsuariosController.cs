@@ -96,25 +96,29 @@ namespace Plataforma_ventas.Controllers
         }
 
         /// <summary>
-        /// Creates a new user account. Validates username/email uniqueness before inserting.
+        /// Creates a new user account. Validates username uniqueness before inserting.
         /// Passwords are hashed with BCrypt (cost factor 12) before storage — never stored in plain text.
+        /// Only name, surname and mobile are collected: the account is created and reset by an
+        /// administrator, so document and e-mail were data nobody used.
         /// Performs SELECT (uniqueness check) and INSERT queries on Usuarios.
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Crear(string nombre, string apellido, string documento,
-            string celular, string correo, string usuario, string contrasena,
+        public async Task<IActionResult> Crear(string nombre, string apellido,
+            string celular, string usuario, string contrasena,
             string rol, int idProyecto)
         {
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
-            var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE Usuario=@u OR Correo=@e", con);
+            // Solo se valida el nombre de usuario. Comparar también el correo cuando ya
+            // no se pide haría que el primer usuario sin correo bloqueara a todos los
+            // demás, porque todos compartirían la cadena vacía.
+            var cmdCheck = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE Usuario=@u", con);
             cmdCheck.Parameters.AddWithValue("@u", usuario ?? "");
-            cmdCheck.Parameters.AddWithValue("@e", correo  ?? "");
             if ((int)(await cmdCheck.ExecuteScalarAsync())! > 0)
             {
-                TempData["Error"] = "El nombre de usuario o correo ya está en uso.";
+                TempData["Error"] = "El nombre de usuario ya está en uso.";
                 return RedirectToAction("Index");
             }
 
@@ -127,14 +131,14 @@ namespace Plataforma_ventas.Controllers
                 ? (object)idProyecto
                 : DBNull.Value;
 
+            // Documento y Correo siguen existiendo en la tabla por los usuarios ya
+            // creados; los nuevos quedan vacíos.
             var cmd = new SqlCommand(@"
                 INSERT INTO Usuarios (Nombre,Apellido,Documento,Celular,Correo,Usuario,Contraseña,Rol,IdProyecto)
-                VALUES (@n,@a,@d,@c,@e,@u,@p,@r,@proy)", con);
+                VALUES (@n,@a,'',@c,'',@u,@p,@r,@proy)", con);
             cmd.Parameters.AddWithValue("@n",    nombre   ?? "");
             cmd.Parameters.AddWithValue("@a",    apellido ?? "");
-            cmd.Parameters.AddWithValue("@d",    documento ?? "");
             cmd.Parameters.AddWithValue("@c",    celular  ?? "");
-            cmd.Parameters.AddWithValue("@e",    correo   ?? "");
             cmd.Parameters.AddWithValue("@u",    usuario  ?? "");
             // BCrypt genera una sal aleatoria embebida en el hash (factor de coste = 12)
             cmd.Parameters.AddWithValue("@p",    BCrypt.Net.BCrypt.HashPassword(contrasena ?? "", 12));
@@ -153,7 +157,7 @@ namespace Plataforma_ventas.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(int idUsuario, string nombre, string apellido,
-            string documento, string celular, string correo, string rol, int idProyecto)
+            string celular, string rol, int idProyecto)
         {
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
@@ -187,14 +191,12 @@ namespace Plataforma_ventas.Controllers
 
             var cmd = new SqlCommand(@"
                 UPDATE Usuarios
-                SET Nombre=@n, Apellido=@a, Documento=@d, Celular=@c,
-                    Correo=@e, Rol=@r, IdProyecto=@proy
+                SET Nombre=@n, Apellido=@a, Celular=@c,
+                    Rol=@r, IdProyecto=@proy
                 WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@n",    nombre   ?? "");
             cmd.Parameters.AddWithValue("@a",    apellido ?? "");
-            cmd.Parameters.AddWithValue("@d",    documento ?? "");
             cmd.Parameters.AddWithValue("@c",    celular  ?? "");
-            cmd.Parameters.AddWithValue("@e",    correo   ?? "");
             cmd.Parameters.AddWithValue("@r",    rolFinalEditar);
             cmd.Parameters.AddWithValue("@proy", proyParam);
             cmd.Parameters.AddWithValue("@id",   idUsuario);
