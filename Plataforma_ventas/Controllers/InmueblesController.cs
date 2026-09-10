@@ -769,19 +769,27 @@ namespace Plataforma_ventas.Controllers
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
-            // Lista vigente antes del cambio, para el historial.
+            // Estado vigente antes del cambio: la lista para el historial y el umbral
+            // para conservarlo. Cambiar de lista y activar el escalamiento automático
+            // son dos decisiones independientes; antes esta acción apagaba el
+            // automático (AptsPorLista = 0) y se perdía la configuración del área.
             var cmdPrev = new SqlCommand(
-                "SELECT ISNULL(ListaActual,1) FROM ProyectoAreaListas WHERE IdProyecto=@p AND Metros=@m", con);
+                "SELECT ISNULL(ListaActual,1) AS L, ISNULL(AptsPorLista,0) AS A FROM ProyectoAreaListas WHERE IdProyecto=@p AND Metros=@m", con);
             cmdPrev.Parameters.AddWithValue("@p", idProy);
             cmdPrev.Parameters.AddWithValue("@m", metros ?? "");
-            var prevRes = await cmdPrev.ExecuteScalarAsync();
-            int listaAnterior = prevRes != null && prevRes != DBNull.Value ? Convert.ToInt32(prevRes) : 1;
+            int listaAnterior = 1, aptsPrevios = 0;
+            using (var rp = (SqlDataReader)await cmdPrev.ExecuteReaderAsync())
+                if (await rp.ReadAsync())
+                {
+                    listaAnterior = Convert.ToInt32(rp["L"]);
+                    aptsPrevios = Convert.ToInt32(rp["A"]);
+                }
 
             var cmd = new SqlCommand(@"
                 MERGE ProyectoAreaListas AS target
                 USING (SELECT @proy AS IdProyecto, @metros AS Metros) AS source
                 ON target.IdProyecto = source.IdProyecto AND target.Metros = source.Metros
-                WHEN MATCHED THEN UPDATE SET ListaActual = @lista, AptsPorLista = 0
+                WHEN MATCHED THEN UPDATE SET ListaActual = @lista
                 WHEN NOT MATCHED THEN INSERT (IdProyecto, Metros, ListaActual, AptsPorLista)
                     VALUES (@proy, @metros, @lista, 0);", con);
             cmd.Parameters.AddWithValue("@proy", idProy);
@@ -794,7 +802,9 @@ namespace Plataforma_ventas.Controllers
             await _audit.RegistrarAsync(Services.AccionAudit.ListaCambiada, "Area", null, idProy,
                 $"Área {metros} m²: Lista {listaAnterior} → Lista {listaActual} (manual)");
             await _hub.Clients.All.ListaAreaActualizada(idProy, metros ?? "", listaActual);
-            TempData["Exito"] = $"Lista del área {metros} m² fijada en Lista {listaActual} (modo manual). El escalamiento automático quedó desactivado para esta área.";
+            TempData["Exito"] = aptsPrevios > 0
+                ? $"Área {metros} m² movida a Lista {listaActual}. Sigue subiendo sola cada {aptsPrevios} ventas."
+                : $"Área {metros} m² fijada en Lista {listaActual}.";
             return RedirectToAction("Index");
         }
 

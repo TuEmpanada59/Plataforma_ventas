@@ -129,6 +129,7 @@
     .auto-area-box{margin-top:8px;padding:10px;background:rgba(52,199,89,0.06);border:1px solid rgba(52,199,89,0.2);border-radius:10px;}
     .auto-area-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1EA851;margin-bottom:6px;display:block;}
     .auto-area-row{display:flex;gap:6px;align-items:center;}
+    .auto-area-form{display:flex;gap:6px;align-items:center;flex:1;margin:0;}
     .auto-area-input{flex:1;min-width:0;padding:6px 10px;border-radius:8px;border:1px solid rgba(52,199,89,0.3);background:white;font-size:13px;color:var(--label);outline:none;}
     .auto-area-input:focus{border-color:#34C759;}
     .auto-area-btn{padding:6px 12px;border-radius:8px;border:none;background:#34C759;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
@@ -266,24 +267,27 @@ else
                     </button>
                     <div class="auto-area-box" onclick="event.stopPropagation()">
                         <span class="auto-area-lbl">&#9889; Subida automática</span>
-                        <form action="/Inmuebles/ConfigurarAutoArea" method="post">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="metros" value="@metrosStr"/>
-                            <div class="auto-area-row">
+                        @* Los dos formularios van uno al lado del otro, nunca anidados:
+                           anidarlos es HTML inválido y el navegador descarta el interior,
+                           dejando el botón de apagar sin efecto. *@
+                        <div class="auto-area-row">
+                            <form action="/Inmuebles/ConfigurarAutoArea" method="post" class="auto-area-form">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="metros" value="@metrosStr"/>
                                 <input type="number" name="aptsPorLista" class="auto-area-input" min="0"
                                        value="@(aptsArea > 0 ? aptsArea.ToString() : "")" placeholder="Ej: 5"/>
                                 <button type="submit" class="auto-area-btn">&#10003;</button>
-                                @if (aptsArea > 0)
-                                {
-                                    <form action="/Inmuebles/ConfigurarAutoArea" method="post" style="margin:0">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="metros" value="@metrosStr"/>
-                                        <input type="hidden" name="aptsPorLista" value="0"/>
-                                        <button type="submit" class="auto-area-off" title="Desactivar">&#10005;</button>
-                                    </form>
-                                }
-                            </div>
-                        </form>
+                            </form>
+                            @if (aptsArea > 0)
+                            {
+                                <form action="/Inmuebles/ConfigurarAutoArea" method="post" style="margin:0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="metros" value="@metrosStr"/>
+                                    <input type="hidden" name="aptsPorLista" value="0"/>
+                                    <button type="submit" class="auto-area-off" title="Desactivar la subida automática">&#10005;</button>
+                                </form>
+                            }
+                        </div>
                         @if (aptsArea > 0)
                         {
                             <div class="auto-area-status">&#10003; Sube cada @aptsArea vendidos · Lista @laArea activa</div>
