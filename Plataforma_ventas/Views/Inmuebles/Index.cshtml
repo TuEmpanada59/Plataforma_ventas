@@ -238,7 +238,12 @@
                 var fillCls = porcVend >= 80 ? "" : porcVend >= 50 ? "naranja" : "rojo";
                 var tipoLabel = g.Tipo?.ToString() ?? "";
                 var tipoClass = tipoLabel == "EXT" ? "area-tipo-ext" : "area-tipo-int";
-                var metrosStr = g.Metros.ToString();
+                @* Tipado como string a propósito: g es dynamic, y con var esta variable
+                   también lo sería. Al indexar un diccionario con una clave dynamic, el
+                   valor vuelve como dynamic, y los nombres de los campos de una tupla
+                   (Id, Listas) solo existen en compilación: en ejecución son Item1/Item2
+                   y el acceso por nombre revienta. *@
+                string metrosStr = g.Metros.ToString();
                 var laArea  = listasXArea.ContainsKey(metrosStr) ? listasXArea[metrosStr] : la;
                 var aptsArea = aptsXArea.ContainsKey(metrosStr)  ? aptsXArea[metrosStr]  : 0;
                 long p1 = (long)g.PrecioL1; long p2 = (long)g.PrecioL2; long p3 = (long)g.PrecioL3;
