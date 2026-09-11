@@ -131,6 +131,11 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
+            // Las etapas son una columna nueva: si el script de migración todavía no se
+            // ejecutó, la pantalla sigue funcionando sin ellas en vez de caerse con un 500.
+            var cmdColEtapa = new SqlCommand("SELECT COL_LENGTH('Inmuebles','Etapa')", con);
+            bool hayColumnaEtapa = (await cmdColEtapa.ExecuteScalarAsync()) is not (null or DBNull);
+
             // Config del proyecto
             var cmdLista = new SqlCommand(
                 "SELECT ListaActual, ApartamentosPorLista FROM Proyectos WHERE IdProyectos=@id", con);
@@ -163,10 +168,10 @@ namespace Plataforma_ventas.Controllers
 
             // Inmuebles
             var lista = new List<dynamic>();
-            var cmd = new SqlCommand(@"
+            var cmd = new SqlCommand($@"
                 SELECT IdInmuebles,Apto,Tipo,Piso,Metros,
                        Lista1,Lista2,Lista3,Lista4,Lista5,
-                       Estado,Torre,ISNULL(Etapa,'') AS Etapa,
+                       Estado,Torre,{(hayColumnaEtapa ? "ISNULL(Etapa,'')" : "''")} AS Etapa,
                        IdVendedorEnProceso,IdVendedorReserva
                 FROM Inmuebles WHERE IdProyecto=@id ORDER BY Metros, Piso DESC, Apto", con);
             cmd.Parameters.AddWithValue("@id", idProy);
