@@ -127,9 +127,12 @@
     .btn-editar-precio:hover{background:rgba(0,118,227,0.16);}
     .auto-area-box{margin-top:8px;padding:10px;background:rgba(52,199,89,0.06);border:1px solid rgba(52,199,89,0.2);border-radius:10px;}
     .auto-area-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1EA851;margin-bottom:6px;display:block;}
-    .auto-area-row{display:flex;gap:6px;align-items:center;}
-    .auto-area-form{display:flex;gap:6px;align-items:center;flex:1;margin:0;}
-    .auto-area-input{flex:1;min-width:0;padding:6px 10px;border-radius:8px;border:1px solid rgba(52,199,89,0.3);background:white;font-size:13px;color:var(--label);outline:none;}
+    @* min-width:0 en la fila y en el formulario: un elemento flex no baja de su
+       min-content por defecto, y el ancho propio de un input[type=number] hacía que
+       el formulario no encogiera y el botón ✓ se saliera de la tarjeta. *@
+    .auto-area-row{display:flex;gap:6px;align-items:center;min-width:0;}
+    .auto-area-form{display:flex;gap:6px;align-items:center;flex:1;min-width:0;margin:0;}
+    .auto-area-input{flex:1;width:100%;min-width:0;padding:6px 10px;border-radius:8px;border:1px solid rgba(52,199,89,0.3);background:white;font-size:13px;color:var(--label);outline:none;}
     .auto-area-input:focus{border-color:#34C759;}
     .auto-area-btn{padding:6px 12px;border-radius:8px;border:none;background:#34C759;color:white;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
     .auto-area-btn:hover{background:#1EA851;}
