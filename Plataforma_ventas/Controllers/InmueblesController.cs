@@ -107,7 +107,8 @@ namespace Plataforma_ventas.Controllers
         /// </summary>
         /// <param name="torre">Optional project (torre) name to switch to.</param>
         /// <param name="area">Optional area (metros) filter.</param>
-        public async Task<IActionResult> Index([FromQuery] string torre = "", [FromQuery] string area = "")
+        public async Task<IActionResult> Index([FromQuery] string torre = "", [FromQuery] string area = "",
+                                               [FromQuery] string etapa = "")
         {
             ViewBag.Nombre = HttpContext.Session.GetString("Nombre");
             ViewBag.Apellido = HttpContext.Session.GetString("Apellido");
@@ -165,7 +166,8 @@ namespace Plataforma_ventas.Controllers
             var cmd = new SqlCommand(@"
                 SELECT IdInmuebles,Apto,Tipo,Piso,Metros,
                        Lista1,Lista2,Lista3,Lista4,Lista5,
-                       Estado,Torre,IdVendedorEnProceso,IdVendedorReserva
+                       Estado,Torre,ISNULL(Etapa,'') AS Etapa,
+                       IdVendedorEnProceso,IdVendedorReserva
                 FROM Inmuebles WHERE IdProyecto=@id ORDER BY Metros, Piso DESC, Apto", con);
             cmd.Parameters.AddWithValue("@id", idProy);
             using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
@@ -184,6 +186,7 @@ namespace Plataforma_ventas.Controllers
                         Lista5 = reader["Lista5"]?.ToString() ?? "",
                         Estado = reader["Estado"]?.ToString() ?? "",
                         Torre = reader["Torre"]?.ToString() ?? "",
+                        Etapa = reader["Etapa"]?.ToString() ?? "",
                         IdVendedorEnProceso = reader["IdVendedorEnProceso"] == DBNull.Value ? 0 : (int)reader["IdVendedorEnProceso"],
                         IdVendedorReserva = reader["IdVendedorReserva"] == DBNull.Value ? 0 : (int)reader["IdVendedorReserva"],
                     });
@@ -217,11 +220,30 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Torres = torres;
             ViewBag.TorreActual = torreActual;
 
-            // El resto de la pantalla (áreas, tabla y KPIs) se calcula sobre la torre
-            // seleccionada; sin filtro, sobre todo el proyecto.
+            // Etapas: cada hoja del Excel del proyecto. La mayoría de proyectos vienen en
+            // una sola hoja y no tienen etapa, así que el filtro solo aparece si hay varias.
+            var etapas = lista
+                .Select(i => (string)i.Etapa)
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Distinct()
+                .OrderBy(e => e, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            string etapaActual = etapas.Contains(etapa, StringComparer.OrdinalIgnoreCase)
+                ? etapas.First(e => string.Equals(e, etapa, StringComparison.OrdinalIgnoreCase))
+                : "";
+
+            ViewBag.Etapas = etapas;
+            ViewBag.EtapaActual = etapaActual;
+
+            // El resto de la pantalla (áreas, tabla y KPIs) se calcula sobre la torre y la
+            // etapa seleccionadas; sin filtro, sobre todo el proyecto.
             var listaProyecto = lista;
             if (!string.IsNullOrEmpty(torreActual))
                 lista = lista.Where(i => string.Equals((string)i.Torre, torreActual,
+                                                       StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!string.IsNullOrEmpty(etapaActual))
+                lista = lista.Where(i => string.Equals((string)i.Etapa, etapaActual,
                                                        StringComparison.OrdinalIgnoreCase)).ToList();
 
             // Grupos de áreas

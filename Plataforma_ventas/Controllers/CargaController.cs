@@ -117,110 +117,141 @@ namespace Plataforma_ventas.Controllers
                 stream.Position = 0;
 
                 using var package = new ExcelPackage(stream);
-                var ws = package.Workbook.Worksheets[0];
-                int totalRows = ws.Dimension?.Rows ?? 0;
 
-                if (totalRows < 2)
+                // Cada hoja del libro es una etapa del proyecto: los archivos de suites
+                // traen "Etapa 1" y "Etapa 2" en hojas separadas y son un solo lanzamiento.
+                // Con una sola hoja nada cambia y la etapa queda vacía.
+                var hojasConDatos = package.Workbook.Worksheets
+                    .Where(h => h.Dimension != null && h.Dimension.Rows >= 2)
+                    .ToList();
+
+                if (hojasConDatos.Count == 0)
                 {
                     TempData["Error"] = "El archivo no tiene datos.";
                     return RedirectToAction("Index");
                 }
 
-                int colApto = -1, colTipo = -1, colPiso = -1, colMetros = -1;
-                int colEstado = -1, colTorre = -1, colProyecto = -1, colSuite = -1;
+                bool variasEtapas = hojasConDatos.Count > 1;
 
-                int[] colListas = new int[10];
-                for (int i = 0; i < 10; i++) colListas[i] = -1;
+                // Se validan TODAS las hojas antes de tocar la base de datos: cargar media
+                // mitad del archivo y fallar en la otra dejaría el proyecto incompleto.
+                var hojas = new List<(ExcelWorksheet Ws, string Etapa, int TotalRows,
+                                      int ColApto, int ColTipo, int ColPiso, int ColMetros,
+                                      int ColEstado, int ColTorre, int[] ColListas, int[] Mapeo)>();
+                int listasDetectadas = 0;
 
-                int totalCols = ws.Dimension.Columns;
-                for (int c = 1; c <= totalCols; c++)
+                foreach (var hoja in hojasConDatos)
                 {
-                    var header = ws.Cells[1, c].Text?.Trim().ToUpper() ?? "";
-                    if (header == colNombreUnidad) colApto = c;
-                    if (header == "TIPO1" || header == "TIPO") colTipo = c;
-                    if (header == "PISO") colPiso = c;
-                    if (header == "METROS") colMetros = c;
-                    if (header == "ESTADO") colEstado = c;
-                    if (header == "TORRE") colTorre = c;
-                    if (header == "SUITE") colSuite = c;
-                    if (header == "PROYECTO") colProyecto = c;
-                    for (int li = 1; li <= 10; li++)
-                        if (header == $"LISTA{li}") colListas[li - 1] = c;
-                }
+                    int totalRows = hoja.Dimension.Rows;
+                    string enHoja = variasEtapas ? $" en la hoja '{hoja.Name}'" : "";
 
-                bool[] listaActiva = new bool[10];
-                for (int li = 0; li < 10; li++)
-                {
-                    if (colListas[li] < 0) continue;
-                    for (int row = 2; row <= totalRows; row++)
+                    int colApto = -1, colTipo = -1, colPiso = -1, colMetros = -1;
+                    int colEstado = -1, colTorre = -1, colProyecto = -1, colSuite = -1;
+
+                    int[] colListas = new int[10];
+                    for (int i = 0; i < 10; i++) colListas[i] = -1;
+
+                    int totalCols = hoja.Dimension.Columns;
+                    for (int c = 1; c <= totalCols; c++)
                     {
-                        var val = ParsearPrecio(ws.Cells[row, colListas[li]].Text);
-                        if (val > 0) { listaActiva[li] = true; break; }
+                        var header = hoja.Cells[1, c].Text?.Trim().ToUpper() ?? "";
+                        if (header == colNombreUnidad) colApto = c;
+                        if (header == "TIPO1" || header == "TIPO") colTipo = c;
+                        if (header == "PISO") colPiso = c;
+                        if (header == "METROS") colMetros = c;
+                        if (header == "ESTADO") colEstado = c;
+                        if (header == "TORRE") colTorre = c;
+                        if (header == "SUITE") colSuite = c;
+                        if (header == "PROYECTO") colProyecto = c;
+                        for (int li = 1; li <= 10; li++)
+                            if (header == $"LISTA{li}") colListas[li - 1] = c;
                     }
-                }
 
-                int[] mapeoListas = new int[5];
-                for (int i = 0; i < 5; i++) mapeoListas[i] = -1;
-                int slot = 0;
-                for (int li = 0; li < 10 && slot < 5; li++)
-                    if (listaActiva[li]) mapeoListas[slot++] = li;
+                    // La columna SUITE trae el nombre comercial completo de la unidad
+                    // (número + torre, p. ej. "1204 T3"). Si el archivo la incluye, ese es
+                    // el nombre que se muestra en toda la plataforma, aunque el proyecto no
+                    // sea de tipo SUITES: es como el cliente y el asesor identifican la unidad.
+                    if (colSuite > 0) colApto = colSuite;
 
-                int listasDetectadas = slot;
-
-                // La columna SUITE trae el nombre comercial completo de la unidad
-                // (número + torre, p. ej. "1204 T3"). Si el archivo la incluye, ese es
-                // el nombre que se muestra en toda la plataforma, aunque el proyecto no
-                // sea de tipo SUITES: es como el cliente y el asesor identifican la unidad.
-                if (colSuite > 0) colApto = colSuite;
-
-                // ── Validaciones de columnas obligatorias ──────────────────────────────
-                if (colApto < 0)
-                {
-                    TempData["Error"] = $"El archivo no contiene la columna '{colNombreUnidad}' requerida para proyectos de tipo {tipoProyecto}. Verifica que el tipo de proyecto sea el correcto.";
-                    return RedirectToAction("Index");
-                }
-                if (colMetros < 0)
-                {
-                    TempData["Error"] = "El archivo debe incluir la columna METROS.";
-                    return RedirectToAction("Index");
-                }
-                if (colProyecto < 0)
-                {
-                    TempData["Error"] = "El archivo debe incluir la columna PROYECTO con el nombre del proyecto.";
-                    return RedirectToAction("Index");
-                }
-
-                // Validar que el nombre en la columna PROYECTO coincida con el ingresado
-                var nombreEnExcel = ws.Cells[2, colProyecto].Text?.Trim() ?? "";
-                if (!string.IsNullOrEmpty(nombreEnExcel))
-                {
-                    var baseIngresado = nombreProyecto.Trim().Split(' ')[0].ToUpper();
-                    var baseExcel = nombreEnExcel.Split(' ')[0].ToUpper();
-                    if (!baseExcel.Equals(baseIngresado, StringComparison.OrdinalIgnoreCase))
+                    // ── Validaciones de columnas obligatorias ──────────────────────────
+                    if (colApto < 0)
                     {
-                        TempData["Error"] = $"El Excel pertenece al proyecto '{nombreEnExcel}', no coincide con '{nombreProyecto}'. Verifica el nombre ingresado.";
+                        TempData["Error"] = $"No se encontró la columna '{colNombreUnidad}'{enHoja}, " +
+                                            $"requerida para proyectos de tipo {tipoProyecto}. " +
+                                            "Verifica que el tipo de proyecto sea el correcto.";
                         return RedirectToAction("Index");
                     }
-                }
+                    if (colMetros < 0)
+                    {
+                        TempData["Error"] = $"Falta la columna METROS{enHoja}.";
+                        return RedirectToAction("Index");
+                    }
+                    if (colProyecto < 0)
+                    {
+                        TempData["Error"] = $"Falta la columna PROYECTO con el nombre del proyecto{enHoja}.";
+                        return RedirectToAction("Index");
+                    }
 
-                // ── Contar filas válidas ANTES de tocar la BD ──────────────────────────
-                // Una fila es válida si tiene: unidad + metros + al menos un precio > 0
-                int filasValidas = 0;
-                for (int row = 2; row <= totalRows; row++)
-                {
-                    var unidad = ws.Cells[row, colApto].Text?.Trim();
-                    var metros = ws.Cells[row, colMetros].Text?.Trim();
-                    if (string.IsNullOrEmpty(unidad) || string.IsNullOrEmpty(metros)) continue;
-                    bool tieneListaPrecio = false;
-                    for (int li = 0; li < 10 && !tieneListaPrecio; li++)
-                        if (colListas[li] > 0 && ParsearPrecio(ws.Cells[row, colListas[li]].Text) > 0)
-                            tieneListaPrecio = true;
-                    if (tieneListaPrecio) filasValidas++;
-                }
-                if (filasValidas == 0)
-                {
-                    TempData["Error"] = $"El archivo no contiene inmuebles válidos. Cada inmueble debe tener {colNombreUnidad}, METROS y al menos un precio en una columna LISTA.";
-                    return RedirectToAction("Index");
+                    // Validar que el nombre en la columna PROYECTO coincida con el ingresado
+                    var nombreEnExcel = hoja.Cells[2, colProyecto].Text?.Trim() ?? "";
+                    if (!string.IsNullOrEmpty(nombreEnExcel))
+                    {
+                        var baseIngresado = nombreProyecto.Trim().Split(' ')[0].ToUpper();
+                        var baseExcel = nombreEnExcel.Split(' ')[0].ToUpper();
+                        if (!baseExcel.Equals(baseIngresado, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TempData["Error"] = $"El Excel{enHoja} pertenece al proyecto '{nombreEnExcel}', " +
+                                                $"no coincide con '{nombreProyecto}'. Verifica el nombre ingresado.";
+                            return RedirectToAction("Index");
+                        }
+                    }
+
+                    // Listas con al menos un precio: las vacías no ocupan un espacio de los
+                    // cinco que maneja la plataforma.
+                    bool[] listaActiva = new bool[10];
+                    for (int li = 0; li < 10; li++)
+                    {
+                        if (colListas[li] < 0) continue;
+                        for (int row = 2; row <= totalRows; row++)
+                        {
+                            if (ParsearPrecio(hoja.Cells[row, colListas[li]].Text) > 0)
+                            {
+                                listaActiva[li] = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    int[] mapeo = new int[5];
+                    for (int i = 0; i < 5; i++) mapeo[i] = -1;
+                    int slot = 0;
+                    for (int li = 0; li < 10 && slot < 5; li++)
+                        if (listaActiva[li]) mapeo[slot++] = li;
+                    if (slot > listasDetectadas) listasDetectadas = slot;
+
+                    // ── Contar filas válidas ANTES de tocar la BD ──────────────────────
+                    // Una fila es válida si tiene: unidad + metros + al menos un precio > 0
+                    int filasValidas = 0;
+                    for (int row = 2; row <= totalRows; row++)
+                    {
+                        var unidad = hoja.Cells[row, colApto].Text?.Trim();
+                        var metrosFila = hoja.Cells[row, colMetros].Text?.Trim();
+                        if (string.IsNullOrEmpty(unidad) || string.IsNullOrEmpty(metrosFila)) continue;
+                        bool tieneListaPrecio = false;
+                        for (int li = 0; li < 10 && !tieneListaPrecio; li++)
+                            if (colListas[li] > 0 && ParsearPrecio(hoja.Cells[row, colListas[li]].Text) > 0)
+                                tieneListaPrecio = true;
+                        if (tieneListaPrecio) filasValidas++;
+                    }
+                    if (filasValidas == 0)
+                    {
+                        TempData["Error"] = $"No hay inmuebles válidos{enHoja}. Cada inmueble debe tener " +
+                                            $"{colNombreUnidad}, METROS y al menos un precio en una columna LISTA.";
+                        return RedirectToAction("Index");
+                    }
+
+                    hojas.Add((hoja, variasEtapas ? hoja.Name.Trim() : "", totalRows,
+                               colApto, colTipo, colPiso, colMetros, colEstado, colTorre, colListas, mapeo));
                 }
 
                 using var con = new SqlConnection(_conn);
@@ -254,17 +285,18 @@ namespace Plataforma_ventas.Controllers
                 int insertados = 0, reservadosExcel = 0, vendidosExcel = 0;
                 int idClienteImportado = 0;   // se crea solo si el archivo trae vendidos
 
-                for (int row = 2; row <= totalRows; row++)
+                foreach (var h in hojas)
+                for (int row = 2; row <= h.TotalRows; row++)
                 {
-                    var apto = ws.Cells[row, colApto].Text?.Trim();
+                    var apto = h.Ws.Cells[row, h.ColApto].Text?.Trim();
                     if (string.IsNullOrEmpty(apto)) continue;
 
                     long GetLista(int s) =>
-                        mapeoListas[s] >= 0 && colListas[mapeoListas[s]] > 0
-                            ? ParsearPrecio(ws.Cells[row, colListas[mapeoListas[s]]].Text)
+                        h.Mapeo[s] >= 0 && h.ColListas[h.Mapeo[s]] > 0
+                            ? ParsearPrecio(h.Ws.Cells[row, h.ColListas[h.Mapeo[s]]].Text)
                             : 0;
 
-                    var estadoFila = Texto.EstadoInmueble(colEstado > 0 ? ws.Cells[row, colEstado].Text : "");
+                    var estadoFila = Texto.EstadoInmueble(h.ColEstado > 0 ? h.Ws.Cells[row, h.ColEstado].Text : "");
 
                     // Un inmueble que llega reservado o vendido se queda con el precio de la
                     // Lista 1: es el precio con el que se negoció antes del lanzamiento, y
@@ -273,17 +305,17 @@ namespace Plataforma_ventas.Controllers
 
                     var cmdInm = new SqlCommand(@"INSERT INTO Inmuebles
                         (IdProyecto,Apto,Tipo,Piso,Metros,Lista1,Lista2,Lista3,Lista4,Lista5,Estado,Torre,
-                         PrecioReserva,FechaReserva)
+                         Etapa,PrecioReserva,FechaReserva)
                         OUTPUT INSERTED.IdInmuebles
                         VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre,
-                                @precioRes,
+                                @etapa,@precioRes,
                                 CASE WHEN @estado='RESERVADO' THEN GETDATE() END)", con, tx);
 
                     cmdInm.Parameters.AddWithValue("@proy", idProyecto);
                     cmdInm.Parameters.AddWithValue("@apto", apto);
-                    cmdInm.Parameters.AddWithValue("@tipo", colTipo > 0 ? ws.Cells[row, colTipo].Text?.Trim() ?? "" : "");
-                    cmdInm.Parameters.AddWithValue("@piso", colPiso > 0 ? ws.Cells[row, colPiso].Text?.Trim() ?? "" : "");
-                    cmdInm.Parameters.AddWithValue("@metros", ws.Cells[row, colMetros].Text?.Trim() ?? "");
+                    cmdInm.Parameters.AddWithValue("@tipo", h.ColTipo > 0 ? h.Ws.Cells[row, h.ColTipo].Text?.Trim() ?? "" : "");
+                    cmdInm.Parameters.AddWithValue("@piso", h.ColPiso > 0 ? h.Ws.Cells[row, h.ColPiso].Text?.Trim() ?? "" : "");
+                    cmdInm.Parameters.AddWithValue("@metros", h.Ws.Cells[row, h.ColMetros].Text?.Trim() ?? "");
                     cmdInm.Parameters.AddWithValue("@l1", precioLista1);
                     cmdInm.Parameters.AddWithValue("@l2", GetLista(1));
                     cmdInm.Parameters.AddWithValue("@l3", GetLista(2));
@@ -297,8 +329,10 @@ namespace Plataforma_ventas.Controllers
                     // La torre puede venir en su propia columna o embebida en el nombre de
                     // la unidad ("1204 T3"). Se guarda normalizada para poder agrupar y
                     // filtrar por torre sin depender de cómo venga escrita en el Excel.
-                    var torreExcel = colTorre > 0 ? ws.Cells[row, colTorre].Text?.Trim() ?? "" : "";
+                    var torreExcel = h.ColTorre > 0 ? h.Ws.Cells[row, h.ColTorre].Text?.Trim() ?? "" : "";
                     cmdInm.Parameters.AddWithValue("@torre", Texto.TorreNormalizada(torreExcel, apto));
+                    // La etapa es el nombre de la hoja del libro.
+                    cmdInm.Parameters.AddWithValue("@etapa", h.Etapa);
 
                     int idInmueble = Convert.ToInt32((await cmdInm.ExecuteScalarAsync())!);
                     insertados++;
@@ -353,6 +387,9 @@ namespace Plataforma_ventas.Controllers
                     _          => "apartamentos"
                 };
                 var detalleEstados = "";
+                if (variasEtapas)
+                    detalleEstados += $" Se cargaron {hojas.Count} etapas: " +
+                                      string.Join(", ", hojas.Select(h => h.Etapa)) + ".";
                 if (reservadosExcel > 0)
                     detalleEstados += $" {reservadosExcel} llegaron reservados con el precio de la Lista 1.";
                 if (vendidosExcel > 0)

@@ -205,5 +205,16 @@ IF COL_LENGTH('Ventas', 'Origen') IS NULL
     ALTER TABLE Ventas ADD Origen NVARCHAR(20) NOT NULL DEFAULT 'PLATAFORMA';
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 12) Etapa del inmueble
+--     Los archivos de suites traen "Etapa 1" y "Etapa 2" en hojas distintas del
+--     mismo libro, pero es un solo lanzamiento: un proyecto, un código de acceso
+--     y unas cifras que suman el total. La etapa es el nombre de la hoja.
+--     Vacía en los proyectos de una sola hoja, que son la mayoría.
+-- ────────────────────────────────────────────────────────────────────────────
+IF COL_LENGTH('Inmuebles', 'Etapa') IS NULL
+    ALTER TABLE Inmuebles ADD Etapa NVARCHAR(60) NOT NULL DEFAULT '';
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

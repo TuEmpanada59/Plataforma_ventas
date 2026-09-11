@@ -18,6 +18,8 @@
     int proximaLista = ViewBag.ProximaLista != null ? (int)ViewBag.ProximaLista : 0;
     var torres = ViewBag.Torres as List<string> ?? new List<string>();
     var torreActual = ViewBag.TorreActual as string ?? "";
+    var etapas = ViewBag.Etapas as List<string> ?? new List<string>();
+    var etapaActual = ViewBag.EtapaActual as string ?? "";
     var areaActual = ViewBag.AreaActual as string ?? "";
     var grupos = ViewBag.Grupos as List<dynamic> ?? new List<dynamic>();
     var vendedores = ViewBag.Vendedores as Dictionary<int, string> ?? new Dictionary<int, string>();
@@ -167,11 +169,12 @@
 @{
     // Las torres son un filtro dentro del proyecto, así que hay que conservarlas
     // al navegar entre áreas (y viceversa).
-    string LinkTorre(string a, string t)
+    string LinkTorre(string a, string t, string e)
     {
         var qs = new List<string>();
         if (!string.IsNullOrEmpty(a)) qs.Add("area=" + Uri.EscapeDataString(a));
         if (!string.IsNullOrEmpty(t)) qs.Add("torre=" + Uri.EscapeDataString(t));
+        if (!string.IsNullOrEmpty(e)) qs.Add("etapa=" + Uri.EscapeDataString(e));
         return "/Inmuebles" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
     }
 }
@@ -179,14 +182,12 @@
         <div>
             <div class="rb-title">@proyActivo</div>
             <div class="rb-sub">
-                @if (!string.IsNullOrEmpty(torreActual))
-                {
-                    <text>Torre @torreActual · @total inmuebles</text>
+                @{
+                    var filtro = "";
+                    if (!string.IsNullOrEmpty(etapaActual)) filtro += etapaActual + " · ";
+                    if (!string.IsNullOrEmpty(torreActual)) filtro += "Torre " + torreActual + " · ";
                 }
-                else
-                {
-                    <text>@total inmuebles en total</text>
-                }
+                <text>@filtro@total inmuebles</text>
             </div>
         </div>
         <div class="rb-stats">
@@ -198,13 +199,25 @@
     </div>
     @if (torres.Count > 1)
     {
-        var linkTodasTorres = LinkTorre(areaActual, "");
+        var linkTodasTorres = LinkTorre(areaActual, "", etapaActual);
         <div class="torre-bar">
             <span class="torre-bar-lbl">&#127970; Torre</span>
             <a href="@linkTodasTorres" class="torre-chip @(string.IsNullOrEmpty(torreActual) ? "activa" : "")">Todas</a>
             @foreach (var t in torres)
             {
-                <a href="@LinkTorre(areaActual, t)" class="torre-chip @(t == torreActual ? "activa" : "")">@t</a>
+                <a href="@LinkTorre(areaActual, t, etapaActual)" class="torre-chip @(t == torreActual ? "activa" : "")">@t</a>
+            }
+        </div>
+    }
+    @if (etapas.Count > 1)
+    {
+        var linkTodasEtapas = LinkTorre(areaActual, torreActual, "");
+        <div class="torre-bar">
+            <span class="torre-bar-lbl">&#128506; Etapa</span>
+            <a href="@linkTodasEtapas" class="torre-chip @(string.IsNullOrEmpty(etapaActual) ? "activa" : "")">Todas</a>
+            @foreach (var e in etapas)
+            {
+                <a href="@LinkTorre(areaActual, torreActual, e)" class="torre-chip @(e == etapaActual ? "activa" : "")">@e</a>
             }
         </div>
     }
@@ -229,7 +242,7 @@
                 if (precActArea == 0) precActArea = (long)g.PrecioActivo;
                 List<string> torresArea = g.Torres;
                 <div class="area-card">
-                    <div class="area-card-link" onclick="window.location='@LinkTorre(metrosStr, torreActual)'">
+                    <div class="area-card-link" onclick="window.location='@LinkTorre(metrosStr, torreActual, etapaActual)'">
                         <div class="area-top">
                             <div class="area-metros">@g.Metros <span style="font-size:13px;font-weight:400;color:var(--label2)">m²</span></div>
                             <span class="@tipoClass">@tipoLabel</span>
@@ -314,7 +327,7 @@
     }
     else
     {
-        var linkTodasAreas = LinkTorre("", torreActual);
+        var linkTodasAreas = LinkTorre("", torreActual, etapaActual);
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <a href="@linkTodasAreas" class="area-volver">&#8592; Todas las áreas</a>
             <span style="font-size:15px;font-weight:600;color:var(--label)">

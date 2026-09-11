@@ -519,10 +519,37 @@ comprador si ya existía con ese documento.
 
 ---
 
+## 12. Etapas: un Excel con varias hojas
+
+Los archivos de suites traen **Etapa 1** y **Etapa 2** en hojas distintas del mismo
+libro, pero son un solo lanzamiento. Antes solo se leía la primera hoja, así que la
+mitad del inventario se quedaba fuera sin avisar.
+
+Ahora la carga recorre **todas las hojas con datos** y guarda el nombre de la hoja en
+`Inmuebles.Etapa`. Un archivo de una sola hoja se comporta exactamente igual que antes
+y la etapa queda vacía.
+
+| Decisión | Motivo |
+|---|---|
+| Un solo proyecto para todas las etapas | Un código de acceso para los asesores y unas cifras que suman el lanzamiento completo |
+| Se validan **todas** las hojas antes de escribir nada | Cargar una hoja y fallar en la otra dejaría el proyecto a medias; los mensajes de error dicen en qué hoja está el problema |
+| Etapa vacía cuando hay una sola hoja | No inventar una etapa donde el negocio no la tiene; el filtro solo aparece si hay más de una |
+| Las listas de precio se detectan por hoja | Cada etapa puede traer su propio juego de listas |
+
+En Inmuebles aparece una barra de filtro **Etapa** igual a la de torres, y los dos
+filtros se combinan y se conservan al entrar y salir de un área.
+
+**Archivos modificados:** `Controllers/CargaController.cs`,
+`Controllers/InmueblesController.cs`, `Views/Inmuebles/Index.cshtml`,
+`Scripts/PanelAdmin.sql` (sección 12)
+
+---
+
 ## Historial de versiones
 
 | Fecha | Cambio | Responsable |
 |---|---|---|
+| 2026-09-11 | Etapas: carga de un Excel con varias hojas | Claude (IA) |
 | 2026-09-10 | Inmuebles reservados/vendidos desde el Excel + edición de ventas | Claude (IA) |
 | 2026-09-10 | Ajuste masivo de precios con reversión + usuarios sin documento ni correo | Claude (IA) |
 | 2026-09-10 | Torres reales por inmueble (columna SUITE) y eliminación de los "proyectos hermanos" | Claude (IA) |
