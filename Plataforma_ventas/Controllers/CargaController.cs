@@ -704,7 +704,7 @@ namespace Plataforma_ventas.Controllers
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RevertirAjuste(long idAjuste, int idProyecto)
+        public async Task<IActionResult> RevertirAjuste(long idAjuste, int idProyecto, string volverA = "")
         {
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
@@ -720,15 +720,21 @@ namespace Plataforma_ventas.Controllers
                     proyDelAjuste = Convert.ToInt32(r["IdProyecto"]);
                 }
 
+            // El botón Deshacer de Inmuebles usa esta misma acción, así que se vuelve a
+            // la pantalla de donde salió la petición.
+            IActionResult Volver(int proy) => volverA == "inmuebles"
+                ? RedirectToAction("Index", "Inmuebles")
+                : RedirectToAction("Precios", new { idProyecto = proy });
+
             if (proyDelAjuste == 0)
             {
                 TempData["Error"] = "El ajuste ya no existe.";
-                return RedirectToAction("Precios", new { idProyecto });
+                return Volver(idProyecto);
             }
             if (yaRevertido)
             {
                 TempData["Error"] = "Ese ajuste ya se había devuelto.";
-                return RedirectToAction("Precios", new { idProyecto = proyDelAjuste });
+                return Volver(proyDelAjuste);
             }
 
             // Se trae el área junto al detalle para poder avisar por SignalR qué precio
@@ -789,7 +795,7 @@ namespace Plataforma_ventas.Controllers
                 TempData["Error"] = "No se pudo devolver el ajuste: " + ex.Message;
             }
 
-            return RedirectToAction("Precios", new { idProyecto = proyDelAjuste });
+            return Volver(proyDelAjuste);
         }
 
         /// <summary>

@@ -451,6 +451,16 @@ Pestaña **Ajuste de precios** dentro de *Cargar Excel*.
 | Al devolver, un precio que cambió después **no se restaura** | El `UPDATE` lleva `AND Lista_N = <precio que dejó el ajuste>`; si alguien lo cambió luego, esa fila se salta y se informa cuántas fueron |
 | El cálculo vive en `Listas.AjustarPrecio` | Es la regla de negocio, y así se prueba sin base de datos |
 
+### Editar un precio desde Inmuebles también se puede devolver
+El botón *Editar precio de lista* de cada área guarda el precio anterior de cada
+inmueble en las mismas tablas, con `Tipo = 'MANUAL'`. En la tarjeta del área aparece
+**Deshacer último cambio de precio**, que restaura el valor anterior; el cambio queda
+además en el historial de *Cargar Excel → Ajuste de precios*.
+
+Se pone el botón en la tarjeta y no solo en el historial porque es donde el
+administrador acaba de equivocarse: mandarlo a otra pantalla a buscar el registro no
+sirve con el lanzamiento en curso.
+
 **Archivos nuevos:** `Views/Carga/Precios.cshtml`, `Views/Carga/_Tabs.cshtml`
 **Archivos modificados:** `Listas.cs`, `Controllers/CargaController.cs`,
 `Views/Carga/Index.cshtml`, `Scripts/PanelAdmin.sql` (sección 10),

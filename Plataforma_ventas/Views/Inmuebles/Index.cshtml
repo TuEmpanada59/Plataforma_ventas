@@ -26,6 +26,8 @@
     var vendedores = ViewBag.Vendedores as Dictionary<int, string> ?? new Dictionary<int, string>();
     var listasXArea = ViewBag.ListasXArea as Dictionary<string, int> ?? new Dictionary<string, int>();
     var aptsXArea   = ViewBag.AptsXArea  as Dictionary<string, int> ?? new Dictionary<string, int>();
+    var deshacerXArea = ViewBag.DeshacerXArea as Dictionary<string, (long Id, string Listas)>
+                        ?? new Dictionary<string, (long Id, string Listas)>();
     var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
     ViewBag.Iniciales = iniciales;
     int laEstaArea = la;
@@ -53,6 +55,8 @@
     .torre-chip.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));border-color:transparent;color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
     .torre-tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(0,118,227,0.1);color:var(--blue);}
     .area-torres{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+    .btn-deshacer-precio{width:100%;padding:7px;border-radius:10px;border:1px solid rgba(255,149,0,0.35);background:rgba(255,149,0,0.09);color:#CC7700;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s;}
+    .btn-deshacer-precio:hover{background:rgba(255,149,0,0.18);}
     .areas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;animation:fu 0.35s ease both;}
     .area-card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:2px solid var(--gb);border-radius:20px;padding:20px;transition:all 0.2s;box-shadow:var(--sh);display:block;}
     .area-card:hover{border-color:var(--blue);box-shadow:var(--sh2);}
@@ -290,6 +294,24 @@
                     <button type="button" class="btn-editar-precio" onclick="abrirModal('@metrosStr',@p1,@p2,@p3,@p4,@p5,@laArea)">
                         &#9998; Editar precio de lista
                     </button>
+                    @* Deshacer el último cambio manual de precio de esta área: restaura el
+                       precio que tenía cada inmueble antes de la edición. *@
+                    @if (deshacerXArea.ContainsKey(metrosStr))
+                    {
+                        var desh = deshacerXArea[metrosStr];
+                        <form action="/Carga/RevertirAjuste" method="post" style="margin:4px 0 0"
+                              onclick="event.stopPropagation()"
+                              onsubmit="return confirm('¿Devolver el precio de Lista @desh.Listas de @metrosStr m² al valor anterior?')">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="idAjuste" value="@desh.Id"/>
+                            <input type="hidden" name="idProyecto" value="@ViewBag.ProyectoId"/>
+                            <input type="hidden" name="volverA" value="inmuebles"/>
+                            <button type="submit" class="btn-deshacer-precio"
+                                    title="Restaura el precio anterior de la Lista @desh.Listas">
+                                &#8617; Deshacer último cambio de precio
+                            </button>
+                        </form>
+                    }
                     <div class="auto-area-box" onclick="event.stopPropagation()">
                         <span class="auto-area-lbl">&#9889; Subida automática</span>
                         @* Los dos formularios van uno al lado del otro, nunca anidados:

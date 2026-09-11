@@ -250,14 +250,23 @@
                     string alcance = (string.IsNullOrEmpty(h.Torre as string) ? "Todas las torres" : "Torre " + h.Torre)
                                    + " · " + (string.IsNullOrEmpty(h.Metros as string) ? "todas las áreas" : h.Metros + " m²");
                     decimal v = (decimal)h.Valor;
-                    string ajuste = (string)h.Tipo == "PORCENTAJE"
-                        ? (v > 0 ? "+" : "") + v.ToString("0.##") + " %"
-                        : (v > 0 ? "+$" : "-$") + Math.Abs(v).ToString("N0");
+                    string tipo = (string)h.Tipo;
+                    // MANUAL es una edición de precio hecha desde Inmuebles: el valor no es
+                    // un incremento sino el precio que quedó, así que no lleva signo.
+                    string ajuste = tipo == "PORCENTAJE" ? (v > 0 ? "+" : "") + v.ToString("0.##") + " %"
+                                  : tipo == "MANUAL"     ? "$" + v.ToString("N0")
+                                  : (v > 0 ? "+$" : "-$") + Math.Abs(v).ToString("N0");
                     <tr>
                         <td>@(((DateTime)h.Fecha).ToString("dd/MM/yyyy HH:mm"))</td>
                         <td>@alcance</td>
                         <td>@h.Listas</td>
-                        <td class="@(v >= 0 ? "sube" : "baja")">@ajuste</td>
+                        <td class="@(tipo == "MANUAL" ? "" : v >= 0 ? "sube" : "baja")">
+                            @ajuste
+                            @if (tipo == "MANUAL")
+                            {
+                                <div style="font-size:11px;color:var(--label3)">Editado desde Inmuebles</div>
+                            }
+                        </td>
                         <td>@h.Unidades</td>
                         <td>@(string.IsNullOrEmpty(h.Usuario as string) ? "—" : h.Usuario)</td>
                         <td style="text-align:right">

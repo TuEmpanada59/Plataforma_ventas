@@ -165,6 +165,31 @@ namespace Plataforma_ventas.Controllers
             ViewBag.ListasXArea = listasXArea;
             ViewBag.AptsXArea = aptsXArea;
 
+            // Último cambio manual de precio por área que todavía se puede devolver.
+            // Se muestra como un botón "Deshacer" en la tarjeta del área: es donde el
+            // administrador acaba de equivocarse, y mandarlo a otra pantalla a buscarlo
+            // en un historial no sirve cuando el lanzamiento está en curso.
+            var deshacerXArea = new Dictionary<string, (long Id, string Listas)>();
+            var cmdTablaAj = new SqlCommand("SELECT OBJECT_ID('AjustesPrecio','U')", con);
+            if ((await cmdTablaAj.ExecuteScalarAsync()) is not (null or DBNull))
+            {
+                var cmdDesh = new SqlCommand(@"
+                    SELECT IdAjuste, Metros, Listas FROM AjustesPrecio
+                    WHERE IdProyecto=@p AND Tipo='MANUAL' AND Revertido=0
+                    ORDER BY IdAjuste DESC", con);
+                cmdDesh.Parameters.AddWithValue("@p", idProy);
+                using (var rd = (SqlDataReader)await cmdDesh.ExecuteReaderAsync())
+                    while (await rd.ReadAsync())
+                    {
+                        var m = rd["Metros"]?.ToString() ?? "";
+                        // Solo el más reciente de cada área: los anteriores siguen en el
+                        // historial de Cargar Excel.
+                        if (!deshacerXArea.ContainsKey(m))
+                            deshacerXArea[m] = (Convert.ToInt64(rd["IdAjuste"]), rd["Listas"]?.ToString() ?? "");
+                    }
+            }
+            ViewBag.DeshacerXArea = deshacerXArea;
+
             // Inmuebles
             var lista = new List<dynamic>();
             var cmd = new SqlCommand($@"
@@ -853,17 +878,91 @@ namespace Plataforma_ventas.Controllers
         public async Task<IActionResult> EditarPrecioArea(string metros, int numLista, long nuevoPrecio)
         {
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            metros ??= "";
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
             var col = Listas.ColumnaLista(numLista);
-            var cmd = new SqlCommand(
-                $"UPDATE Inmuebles SET {col}=@precio WHERE IdProyecto=@proy AND Metros=@metros", con);
-            cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
-            cmd.Parameters.AddWithValue("@proy", idProy);
-            cmd.Parameters.AddWithValue("@metros", metros ?? "");
-            await cmd.ExecuteNonQueryAsync();
-            await _hub.Clients.All.PrecioAreaActualizado(idProy, metros ?? "", numLista, nuevoPrecio);
-            TempData["Exito"] = $"Precios de Lista {numLista} para {metros} m² actualizados.";
+
+            // Antes de escribir se guarda el precio que tenía cada inmueble, que es lo
+            // único que permite devolver el cambio. Un precio tecleado con un cero de más
+            // no tenía vuelta atrás: había que acordarse del valor anterior.
+            var cmdTabla = new SqlCommand("SELECT OBJECT_ID('AjustesPrecio','U')", con);
+            bool hayHistorial = (await cmdTabla.ExecuteScalarAsync()) is not (null or DBNull);
+
+            var anteriores = new List<(int Id, long Precio)>();
+            if (hayHistorial)
+            {
+                var cmdPrev = new SqlCommand(
+                    $"SELECT IdInmuebles, {col} AS P FROM Inmuebles WHERE IdProyecto=@proy AND Metros=@metros", con);
+                cmdPrev.Parameters.AddWithValue("@proy", idProy);
+                cmdPrev.Parameters.AddWithValue("@metros", metros);
+                using (var rp = (SqlDataReader)await cmdPrev.ExecuteReaderAsync())
+                    while (await rp.ReadAsync())
+                    {
+                        long previo = Texto.ParsearPrecio(rp["P"]?.ToString());
+                        // Solo se registran los que de verdad cambian: devolver un precio
+                        // que no se tocó no tendría sentido.
+                        if (previo != nuevoPrecio) anteriores.Add(((int)rp["IdInmuebles"], previo));
+                    }
+            }
+
+            using var tx = (SqlTransaction)await con.BeginTransactionAsync();
+            try
+            {
+                var cmd = new SqlCommand(
+                    $"UPDATE Inmuebles SET {col}=@precio WHERE IdProyecto=@proy AND Metros=@metros", con, tx);
+                cmd.Parameters.AddWithValue("@precio", nuevoPrecio);
+                cmd.Parameters.AddWithValue("@proy", idProy);
+                cmd.Parameters.AddWithValue("@metros", metros);
+                await cmd.ExecuteNonQueryAsync();
+
+                if (anteriores.Count > 0)
+                {
+                    int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
+                    var usuario = ((HttpContext.Session.GetString("Nombre") ?? "") + " " +
+                                   (HttpContext.Session.GetString("Apellido") ?? "")).Trim();
+
+                    // Se guarda en las mismas tablas del ajuste masivo, con Tipo MANUAL:
+                    // así un solo historial muestra todo lo que le pasó a los precios.
+                    var cmdAj = new SqlCommand(@"INSERT INTO AjustesPrecio
+                        (IdProyecto,Torre,Metros,Listas,Tipo,Valor,Unidades,IdUsuario,Usuario)
+                        OUTPUT INSERTED.IdAjuste
+                        VALUES (@p,'',@m,@l,'MANUAL',@v,@u,@iu,@us)", con, tx);
+                    cmdAj.Parameters.AddWithValue("@p", idProy);
+                    cmdAj.Parameters.AddWithValue("@m", metros);
+                    cmdAj.Parameters.AddWithValue("@l", numLista.ToString());
+                    cmdAj.Parameters.AddWithValue("@v", (decimal)nuevoPrecio);
+                    cmdAj.Parameters.AddWithValue("@u", anteriores.Count);
+                    cmdAj.Parameters.AddWithValue("@iu", idUsuario > 0 ? (object)idUsuario : DBNull.Value);
+                    cmdAj.Parameters.AddWithValue("@us", usuario);
+                    long idAjuste = Convert.ToInt64((await cmdAj.ExecuteScalarAsync())!);
+
+                    foreach (var a in anteriores)
+                    {
+                        var cmdDet = new SqlCommand(@"INSERT INTO AjustesPrecioDetalle
+                            (IdAjuste,IdInmueble,NumLista,PrecioAnterior,PrecioNuevo)
+                            VALUES (@a,@i,@n,@ant,@nue)", con, tx);
+                        cmdDet.Parameters.AddWithValue("@a", idAjuste);
+                        cmdDet.Parameters.AddWithValue("@i", a.Id);
+                        cmdDet.Parameters.AddWithValue("@n", numLista);
+                        cmdDet.Parameters.AddWithValue("@ant", a.Precio);
+                        cmdDet.Parameters.AddWithValue("@nue", nuevoPrecio);
+                        await cmdDet.ExecuteNonQueryAsync();
+                    }
+                }
+
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
+            await _hub.Clients.All.PrecioAreaActualizado(idProy, metros, numLista, nuevoPrecio);
+            TempData["Exito"] = anteriores.Count > 0
+                ? $"Precios de Lista {numLista} para {metros} m² actualizados. Puedes devolverlos con el botón Deshacer."
+                : $"Precios de Lista {numLista} para {metros} m² actualizados.";
             return RedirectToAction("Index");
         }
 
