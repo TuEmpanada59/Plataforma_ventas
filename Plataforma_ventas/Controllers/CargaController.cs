@@ -257,6 +257,17 @@ namespace Plataforma_ventas.Controllers
                 using var con = new SqlConnection(_conn);
                 await con.OpenAsync();
 
+                // La etapa se guarda solo si la columna existe. Así un archivo de varias
+                // hojas se carga completo aunque la base todavía no esté migrada: se
+                // pierde el filtro por etapa, no el inventario.
+                var cmdColEtapa = new SqlCommand("SELECT COL_LENGTH('Inmuebles','Etapa')", con);
+                bool hayColumnaEtapa = (await cmdColEtapa.ExecuteScalarAsync()) is not (null or DBNull);
+
+                // Igual con el origen de la venta: sin esa columna las ventas importadas se
+                // siguen creando, solo que no se distinguen de las registradas a mano.
+                var cmdColOrigen = new SqlCommand("SELECT COL_LENGTH('Ventas','Origen')", con);
+                bool hayColumnaOrigen = (await cmdColOrigen.ExecuteScalarAsync()) is not (null or DBNull);
+
                 var cmdCheck = new SqlCommand(@"SELECT COUNT(*) FROM Proyectos
                     WHERE UPPER(Nombre)=UPPER(@n) AND IdAdminCreador=@admin AND Activo=1", con);
                 cmdCheck.Parameters.AddWithValue("@n", nombreProyecto.Trim());
@@ -303,12 +314,12 @@ namespace Plataforma_ventas.Controllers
                     // dejarlo suelto haría que al escriturar se cobrara la lista vigente.
                     long precioLista1 = GetLista(0);
 
-                    var cmdInm = new SqlCommand(@"INSERT INTO Inmuebles
+                    var cmdInm = new SqlCommand($@"INSERT INTO Inmuebles
                         (IdProyecto,Apto,Tipo,Piso,Metros,Lista1,Lista2,Lista3,Lista4,Lista5,Estado,Torre,
-                         Etapa,PrecioReserva,FechaReserva)
+                         {(hayColumnaEtapa ? "Etapa," : "")}PrecioReserva,FechaReserva)
                         OUTPUT INSERTED.IdInmuebles
                         VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre,
-                                @etapa,@precioRes,
+                                {(hayColumnaEtapa ? "@etapa," : "")}@precioRes,
                                 CASE WHEN @estado='RESERVADO' THEN GETDATE() END)", con, tx);
 
                     cmdInm.Parameters.AddWithValue("@proy", idProyecto);
@@ -332,7 +343,7 @@ namespace Plataforma_ventas.Controllers
                     var torreExcel = h.ColTorre > 0 ? h.Ws.Cells[row, h.ColTorre].Text?.Trim() ?? "" : "";
                     cmdInm.Parameters.AddWithValue("@torre", Texto.TorreNormalizada(torreExcel, apto));
                     // La etapa es el nombre de la hoja del libro.
-                    cmdInm.Parameters.AddWithValue("@etapa", h.Etapa);
+                    if (hayColumnaEtapa) cmdInm.Parameters.AddWithValue("@etapa", h.Etapa);
 
                     int idInmueble = Convert.ToInt32((await cmdInm.ExecuteScalarAsync())!);
                     insertados++;
@@ -347,10 +358,10 @@ namespace Plataforma_ventas.Controllers
                         if (idClienteImportado == 0)
                             idClienteImportado = await ClientePorRegistrarAsync(con, tx, nombreProyecto.Trim());
 
-                        var cmdVenta = new SqlCommand(@"INSERT INTO Ventas
+                        var cmdVenta = new SqlCommand($@"INSERT INTO Ventas
                             (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,
-                             Destino,Estado,Observaciones,Origen)
-                            VALUES (@inm,@cli,@usr,@proy,1,@precio,NULL,'ACTIVA',@obs,'EXCEL')", con, tx);
+                             Destino,Estado,Observaciones{(hayColumnaOrigen ? ",Origen" : "")})
+                            VALUES (@inm,@cli,@usr,@proy,1,@precio,NULL,'ACTIVA',@obs{(hayColumnaOrigen ? ",'EXCEL'" : "")})", con, tx);
                         cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
                         cmdVenta.Parameters.AddWithValue("@cli", idClienteImportado);
                         cmdVenta.Parameters.AddWithValue("@usr", idAdmin);
@@ -388,8 +399,13 @@ namespace Plataforma_ventas.Controllers
                 };
                 var detalleEstados = "";
                 if (variasEtapas)
-                    detalleEstados += $" Se cargaron {hojas.Count} etapas: " +
+                {
+                    detalleEstados += $" Se leyeron las {hojas.Count} hojas del archivo: " +
                                       string.Join(", ", hojas.Select(h => h.Etapa)) + ".";
+                    if (!hayColumnaEtapa)
+                        detalleEstados += " (Para poder filtrar por etapa, ejecuta la sección 12 de " +
+                                          "Scripts/PanelAdmin.sql y vuelve a cargar el archivo.)";
+                }
                 if (reservadosExcel > 0)
                     detalleEstados += $" {reservadosExcel} llegaron reservados con el precio de la Lista 1.";
                 if (vendidosExcel > 0)

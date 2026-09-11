@@ -63,6 +63,12 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
+            // El origen de la venta es una columna nueva: si el script todavía no se
+            // ejecutó, el listado sigue funcionando y todas se muestran como registradas
+            // en la plataforma, en vez de devolver un 500.
+            var cmdColOrigen = new SqlCommand("SELECT COL_LENGTH('Ventas','Origen')", con);
+            bool hayColumnaOrigen = (await cmdColOrigen.ExecuteScalarAsync()) is not (null or DBNull);
+
             // COUNT for pagination
             var cmdCount = new SqlCommand(
                 "SELECT COUNT(*) FROM Ventas WHERE IdProyecto = @proy", con);
@@ -93,7 +99,7 @@ namespace Plataforma_ventas.Controllers
 
             // Paginated query — sales ordered newest first
             var ventas = new List<dynamic>();
-            var cmd = new SqlCommand(@"
+            var cmd = new SqlCommand($@"
                 SELECT v.IdVenta, v.IdUsuario,
                        i.Apto, i.Torre, i.Tipo, i.Piso,
                        c.Nombre+' '+c.Apellido AS Cliente,
@@ -105,7 +111,7 @@ namespace Plataforma_ventas.Controllers
                        v.PrecioVenta,
                        FORMAT(v.FechaVenta,'dd/MM/yyyy HH:mm') AS FechaVenta,
                        v.Estado, v.ListaAplicada, ISNULL(v.Observaciones,'') AS Observaciones,
-                       ISNULL(v.Origen,'PLATAFORMA') AS Origen
+                       {(hayColumnaOrigen ? "ISNULL(v.Origen,'PLATAFORMA')" : "'PLATAFORMA'")} AS Origen
                 FROM Ventas v
                 JOIN Inmuebles i ON v.IdInmueble = i.IdInmuebles
                 JOIN Clientes  c ON v.IdCliente  = c.IdCliente
