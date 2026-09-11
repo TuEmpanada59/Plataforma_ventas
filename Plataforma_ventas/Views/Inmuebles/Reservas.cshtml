@@ -8,6 +8,7 @@
     var apellido   = ViewBag.Apellido as string ?? "";
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     var reservas   = ViewBag.Reservas as List<dynamic> ?? new List<dynamic>();
+    var asesores   = ViewBag.Asesores as List<(int Id, string Nombre)> ?? new List<(int, string)>();
     var iniciales  = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
     ViewBag.Iniciales = iniciales;
 }
@@ -18,6 +19,9 @@
     .alerta-error{background:rgba(230,57,70,0.1);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--rojo);}
     .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;overflow:hidden;box-shadow:var(--sh);animation:fu 0.35s ease both;}
     .card-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--sep2);flex-wrap:wrap;gap:8px;}
+    .sel-asesor{padding:5px 10px;border:1px solid var(--sep);border-radius:9px;background:var(--fill3);font-size:12.5px;font-family:inherit;color:var(--label);outline:none;max-width:190px;}
+    .sel-asesor:focus{border-color:var(--blue);background:white;}
+    .sin-asesor{font-size:11px;color:#CC7700;font-weight:600;margin-top:3px;}
     .card-title{font-size:15px;font-weight:600;color:var(--label);}
     .tbl-wrap{overflow-x:auto;}
     .tbl{width:100%;border-collapse:collapse;}
@@ -79,12 +83,35 @@
                 </thead>
                 <tbody>
                     @foreach (var r in reservas) {
+                        @* Tipado: r es dynamic, y un atributo booleano de Razor con un
+                           valor dynamic se renderiza siempre (selected="False" también
+                           marca la opción en HTML). *@
+                        int idVendedorReserva = r.IdVendedorReserva;
                         <tr>
                             <td style="font-weight:700;font-size:14px">@r.Apto</td>
                             <td><div style="font-weight:600">@r.Metros m²</div><div style="font-size:11px;color:var(--label3)">@r.Tipo</div></td>
                             <td><div>@r.Torre</div><div style="font-size:11px;color:var(--label3)">Piso @r.Piso</div></td>
                             <td><span class="precio-blq">$@string.Format("{0:N0}", r.PrecioReserva)</span></td>
-                            <td><span class="vendedor-tag">@r.NombreVendedor</span></td>
+                            <td>
+                                @* Las reservas que vienen del Excel no traen asesor. El
+                                   selector guarda al vuelo para no obligar a abrir un
+                                   diálogo por cada una. *@
+                                <form action="/Inmuebles/AsignarReserva" method="post" style="margin:0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="idInmueble" value="@r.Id"/>
+                                    <select name="idVendedor" class="sel-asesor" onchange="this.form.submit()">
+                                        <option value="0">— Sin asignar —</option>
+                                        @foreach (var a in asesores)
+                                        {
+                                            <option value="@a.Id" selected="@(a.Id == idVendedorReserva)">@a.Nombre</option>
+                                        }
+                                    </select>
+                                </form>
+                                @if (idVendedorReserva == 0)
+                                {
+                                    <div class="sin-asesor">Asígnale un asesor</div>
+                                }
+                            </td>
                             <td><span class="fecha-tag">@r.FechaReserva</span></td>
                             <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                                 <a href="/Inmuebles/ContinuarVenta?idInmueble=@r.Id" class="ios-btn" style="font-size:12px;padding:6px 14px;">&#10003; Continuar venta</a>

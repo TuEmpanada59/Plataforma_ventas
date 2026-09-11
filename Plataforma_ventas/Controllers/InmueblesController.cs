@@ -423,7 +423,7 @@ namespace Plataforma_ventas.Controllers
 
             var cmd = new SqlCommand(@"
                 SELECT i.IdInmuebles, i.Apto, i.Metros, i.Tipo, i.Torre, i.Piso,
-                       i.PrecioReserva, i.FechaReserva,
+                       i.PrecioReserva, i.FechaReserva, i.IdVendedorReserva,
                        u.Nombre + ' ' + u.Apellido AS NombreVendedor
                 FROM Inmuebles i
                 LEFT JOIN Usuarios u ON u.IdUsuario = i.IdVendedorReserva
@@ -445,8 +445,21 @@ namespace Plataforma_ventas.Controllers
                     PrecioReserva = rr["PrecioReserva"] == DBNull.Value ? 0L : (long)rr["PrecioReserva"],
                     FechaReserva = rr["FechaReserva"] == DBNull.Value ? "" :
                                      ((DateTime)rr["FechaReserva"]).ToString("dd/MM/yyyy HH:mm"),
-                    NombreVendedor = rr["NombreVendedor"]?.ToString() ?? "Sin asignar",
+                    NombreVendedor = rr["NombreVendedor"]?.ToString() ?? "",
+                    IdVendedorReserva = rr["IdVendedorReserva"] == DBNull.Value ? 0 : (int)rr["IdVendedorReserva"],
                 });
+            rr.Close();
+
+            // Asesores a los que se puede asignar una reserva. Las que vienen del Excel
+            // entran sin dueño, y sin poder asignarlas la comisión no queda registrada.
+            var asesores = new List<(int Id, string Nombre)>();
+            var cmdAses = new SqlCommand(@"
+                SELECT IdUsuario, Nombre+' '+Apellido AS NombreCompleto
+                FROM Usuarios WHERE Rol='Vendedor' ORDER BY Nombre, Apellido", con);
+            using (var ra = (SqlDataReader)await cmdAses.ExecuteReaderAsync())
+                while (await ra.ReadAsync())
+                    asesores.Add((Convert.ToInt32(ra["IdUsuario"]), ra["NombreCompleto"]?.ToString() ?? ""));
+            ViewBag.Asesores = asesores;
 
             ViewBag.Reservas = lista;
             return View();
@@ -629,6 +642,53 @@ namespace Plataforma_ventas.Controllers
 
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "VENDIDO", QuienSoy());
             TempData["Exito"] = $"¡Venta confirmada! Precio aplicado: ${string.Format("{0:N0}", precioFijo)}";
+            return RedirectToAction("Reservas");
+        }
+
+        /// <summary>
+        /// Assigns (or reassigns) the adviser that owns a reservation. Reservations that come
+        /// from the project spreadsheet arrive with no adviser, and without this the sale
+        /// would end up credited to nobody.
+        /// </summary>
+        /// <param name="idInmueble">Reserved property.</param>
+        /// <param name="idVendedor">Adviser to credit the reservation to; 0 leaves it unassigned.</param>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AsignarReserva(int idInmueble, int idVendedor)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            // El WHERE sobre el estado es la guardia: si la reserva se liberó o se vendió
+            // mientras el administrador tenía la pantalla abierta, no se toca nada.
+            var cmd = new SqlCommand(@"
+                UPDATE Inmuebles SET IdVendedorReserva=@v
+                WHERE IdInmuebles=@id AND IdProyecto=@proy AND Estado='RESERVADO'", con);
+            cmd.Parameters.AddWithValue("@v", idVendedor > 0 ? (object)idVendedor : DBNull.Value);
+            cmd.Parameters.AddWithValue("@id", idInmueble);
+            cmd.Parameters.AddWithValue("@proy", idProy);
+
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+            {
+                TempData["Error"] = "Esa reserva ya no está activa.";
+                return RedirectToAction("Reservas");
+            }
+
+            var cmdNom = new SqlCommand(
+                "SELECT Nombre+' '+Apellido FROM Usuarios WHERE IdUsuario=@v", con);
+            cmdNom.Parameters.AddWithValue("@v", idVendedor);
+            var nombreAsesor = idVendedor > 0
+                ? (await cmdNom.ExecuteScalarAsync())?.ToString() ?? "el asesor"
+                : "";
+
+            await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "RESERVADO", nombreAsesor);
+
+            var uAsig = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            TempData["Exito"] = idVendedor > 0
+                ? $"Reserva asignada a {nombreAsesor}."
+                : $"La reserva de {uAsig.Articulo} {uAsig.Singular} quedó sin asesor asignado.";
             return RedirectToAction("Reservas");
         }
 
