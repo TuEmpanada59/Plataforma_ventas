@@ -132,7 +132,7 @@ namespace Plataforma_ventas.Controllers
                 : DBNull.Value;
 
             // Documento y Correo siguen existiendo en la tabla por los usuarios ya
-            // creados; los nuevos quedan vacíos.
+            // creados; los nuevos se insertan vacíos porque ya no se piden.
             var cmd = new SqlCommand(@"
                 INSERT INTO Usuarios (Nombre,Apellido,Documento,Celular,Correo,Usuario,Contraseña,Rol,IdProyecto)
                 VALUES (@n,@a,'',@c,'',@u,@p,@r,@proy)", con);
@@ -144,7 +144,25 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@p",    BCrypt.Net.BCrypt.HashPassword(contrasena ?? "", 12));
             cmd.Parameters.AddWithValue("@r",    rolFinal);
             cmd.Parameters.AddWithValue("@proy", proyParam);
-            await cmd.ExecuteNonQueryAsync();
+
+            try
+            {
+                await cmd.ExecuteNonQueryAsync();
+            }
+            // 2601/2627: clave duplicada. Al dejar de pedir documento y correo, todos los
+            // usuarios nuevos los comparten vacíos, así que una restricción UNIQUE sobre
+            // esas columnas deja crear el primero y rechaza los siguientes. La sección 13
+            // del script la retira; mientras tanto, esto lo explica en vez de dar un 500.
+            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+            {
+                bool porContactoVacio = ex.Message.Contains("Correo", StringComparison.OrdinalIgnoreCase)
+                                     || ex.Message.Contains("Documento", StringComparison.OrdinalIgnoreCase);
+                TempData["Error"] = porContactoVacio
+                    ? "La base de datos todavía exige documento o correo únicos, y esos datos ya no se piden. " +
+                      "Ejecuta la sección 13 de Scripts/PanelAdmin.sql y vuelve a intentarlo."
+                    : "Ya existe un usuario con esos datos.";
+                return RedirectToAction("Index");
+            }
 
             TempData["Exito"] = $"Usuario '{usuario}' ({rolFinal}) creado correctamente.";
             return RedirectToAction("Index");

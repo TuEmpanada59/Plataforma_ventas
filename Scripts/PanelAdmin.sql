@@ -216,5 +216,47 @@ IF COL_LENGTH('Inmuebles', 'Etapa') IS NULL
     ALTER TABLE Inmuebles ADD Etapa NVARCHAR(60) NOT NULL DEFAULT '';
 GO
 
+-- ────────────────────────────────────────────────────────────────────────────
+-- 13) Quitar la unicidad de Documento y Correo en Usuarios
+--     Al crear una cuenta ya no se piden: todos los usuarios nuevos los comparten
+--     vacíos. Con una restricción UNIQUE encima, el primero entra y el segundo es
+--     rechazado, así que la restricción ya no describe una regla del negocio.
+--     El nombre de usuario SÍ sigue siendo único; eso se valida en la aplicación.
+--
+--     Se arma dinámicamente porque el nombre de la restricción lo puso SQL Server
+--     al crear la tabla y no es el mismo en todas las bases.
+-- ────────────────────────────────────────────────────────────────────────────
+IF OBJECT_ID('Usuarios', 'U') IS NOT NULL
+BEGIN
+    DECLARE @sqlUq NVARCHAR(MAX) = N'';
+
+    -- Restricciones UNIQUE declaradas sobre esas columnas
+    SELECT @sqlUq = @sqlUq + N'ALTER TABLE Usuarios DROP CONSTRAINT ' + QUOTENAME(kc.name) + N';'
+    FROM sys.key_constraints kc
+    JOIN sys.index_columns ic ON ic.object_id = kc.parent_object_id AND ic.index_id = kc.unique_index_id
+    JOIN sys.columns c        ON c.object_id  = ic.object_id        AND c.column_id = ic.column_id
+    WHERE kc.parent_object_id = OBJECT_ID('Usuarios')
+      AND kc.type = 'UQ'
+      AND c.name IN ('Documento', 'Correo');
+
+    -- Índices únicos sueltos (sin restricción asociada) sobre esas columnas
+    SELECT @sqlUq = @sqlUq + N'DROP INDEX ' + QUOTENAME(i.name) + N' ON Usuarios;'
+    FROM sys.indexes i
+    JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+    JOIN sys.columns c        ON c.object_id  = ic.object_id AND c.column_id = ic.column_id
+    WHERE i.object_id = OBJECT_ID('Usuarios')
+      AND i.is_unique = 1
+      AND i.is_primary_key = 0
+      AND i.is_unique_constraint = 0
+      AND c.name IN ('Documento', 'Correo');
+
+    IF LEN(@sqlUq) > 0
+    BEGIN
+        EXEC sp_executesql @sqlUq;
+        PRINT 'Usuarios: se retiró la unicidad de Documento y Correo.';
+    END
+END
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO
