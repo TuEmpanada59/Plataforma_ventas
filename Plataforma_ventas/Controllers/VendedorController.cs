@@ -147,7 +147,8 @@ namespace Plataforma_ventas.Controllers
         /// Filters out other vendors' RESERVADO properties. Performs SELECT queries.
         /// </summary>
         /// <param name="area">Optional area (metros) filter to narrow displayed properties.</param>
-        public async Task<IActionResult> Inmuebles([FromQuery] string area = "")
+        public async Task<IActionResult> Inmuebles([FromQuery] string area = "",
+                                                   [FromQuery] string torre = "", [FromQuery] string etapa = "")
         {
             CargarSesion();
             int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
@@ -157,6 +158,11 @@ namespace Plataforma_ventas.Controllers
             await con.OpenAsync();
 
             ViewBag.Unidad = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+
+            // La etapa es una columna nueva: si el script de migración no se ejecutó, la
+            // pantalla funciona sin ella en vez de caerse.
+            var cmdColEtapa = new SqlCommand("SELECT COL_LENGTH('Inmuebles','Etapa')", con);
+            bool hayColumnaEtapa = (await cmdColEtapa.ExecuteScalarAsync()) is not (null or DBNull);
 
             var cmdLista = new SqlCommand(
                 "SELECT ListaActual FROM Proyectos WHERE IdProyectos=@id", con);
@@ -180,16 +186,19 @@ namespace Plataforma_ventas.Controllers
             ViewBag.ListasXArea = listasXArea;
 
             var lista = new List<dynamic>();
-            var cmd = new SqlCommand(@"
+            // El asesor ve el inventario completo, igual que el administrador: antes se le
+            // ocultaban las reservas de otros, y con eso sus totales no cuadraban con los
+            // del panel ni con lo que veía el cliente en la sala. Ver no es poder: las
+            // acciones siguen limitadas a lo suyo.
+            var cmd = new SqlCommand($@"
                 SELECT IdInmuebles,Apto,Tipo,Piso,Metros,
                        Lista1,Lista2,Lista3,Lista4,Lista5,
-                       Estado,Torre,IdVendedorEnProceso,IdVendedorReserva
+                       Estado,Torre,{(hayColumnaEtapa ? "ISNULL(Etapa,'')" : "''")} AS Etapa,
+                       IdVendedorEnProceso,IdVendedorReserva
                 FROM Inmuebles
                 WHERE IdProyecto=@id
-                  AND (Estado != 'RESERVADO' OR IdVendedorReserva=@uid)
                 ORDER BY Metros, Piso DESC, Apto", con);
             cmd.Parameters.AddWithValue("@id", idProy);
-            cmd.Parameters.AddWithValue("@uid", idUsuario);
             using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
                 while (await reader.ReadAsync())
                     lista.Add(new
@@ -206,6 +215,7 @@ namespace Plataforma_ventas.Controllers
                         Lista5 = reader["Lista5"]?.ToString() ?? "",
                         Estado = reader["Estado"]?.ToString() ?? "",
                         Torre = reader["Torre"]?.ToString() ?? "",
+                        Etapa = reader["Etapa"]?.ToString() ?? "",
                         IdVendedorEnProceso = reader["IdVendedorEnProceso"] == DBNull.Value ? 0 : (int)reader["IdVendedorEnProceso"],
                         IdVendedorReserva = reader["IdVendedorReserva"] == DBNull.Value ? 0 : (int)reader["IdVendedorReserva"],
                     });
@@ -217,6 +227,38 @@ namespace Plataforma_ventas.Controllers
                 while (await rv.ReadAsync())
                     vendedores[(int)rv["IdUsuario"]] = rv["NombreCompleto"]?.ToString() ?? "";
             ViewBag.Vendedores = vendedores;
+
+            var torres = lista
+                .Select(i => (string)i.Torre)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct()
+                .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            string torreActual = torres.Contains(torre, StringComparer.OrdinalIgnoreCase)
+                ? torres.First(t => string.Equals(t, torre, StringComparison.OrdinalIgnoreCase))
+                : "";
+
+            var etapas = lista
+                .Select(i => (string)i.Etapa)
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Distinct()
+                .OrderBy(e => e, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            string etapaActual = etapas.Contains(etapa, StringComparer.OrdinalIgnoreCase)
+                ? etapas.First(e => string.Equals(e, etapa, StringComparison.OrdinalIgnoreCase))
+                : "";
+
+            ViewBag.Torres = torres;
+            ViewBag.TorreActual = torreActual;
+            ViewBag.Etapas = etapas;
+            ViewBag.EtapaActual = etapaActual;
+
+            if (!string.IsNullOrEmpty(torreActual))
+                lista = lista.Where(i => string.Equals((string)i.Torre, torreActual,
+                                                       StringComparison.OrdinalIgnoreCase)).ToList();
+            if (!string.IsNullOrEmpty(etapaActual))
+                lista = lista.Where(i => string.Equals((string)i.Etapa, etapaActual,
+                                                       StringComparison.OrdinalIgnoreCase)).ToList();
 
             long PrecioLista(dynamic inm, int n)
             {
@@ -234,6 +276,11 @@ namespace Plataforma_ventas.Controllers
                     Vendidos = g.Count(x => x.Estado == "VENDIDO"),
                     EnProceso = g.Count(x => x.Estado == "EN PROCESO"),
                     Reservados = g.Count(x => x.Estado == "RESERVADO"),
+                    Torres = g.Select(x => (string)x.Torre)
+                              .Where(t => !string.IsNullOrWhiteSpace(t))
+                              .Distinct()
+                              .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                              .ToList(),
                     PrecioL1 = g.Select(x => PrecioLista(x, 1)).Where(p => p > 0).DefaultIfEmpty(0).Min(),
                     PrecioL2 = g.Select(x => PrecioLista(x, 2)).Where(p => p > 0).DefaultIfEmpty(0).Min(),
                     PrecioL3 = g.Select(x => PrecioLista(x, 3)).Where(p => p > 0).DefaultIfEmpty(0).Min(),
