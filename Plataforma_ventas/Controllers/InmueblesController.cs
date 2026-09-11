@@ -122,14 +122,11 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
-            // Todos los proyectos activos (sin filtro de admin)
-            var proyectos = new List<(int Id, string Nombre)>();
-            var cmdList = new SqlCommand(
-                "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
-            using (var r = (SqlDataReader)await cmdList.ExecuteReaderAsync())
-                while (await r.ReadAsync())
-                    proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
-            ViewBag.Proyectos = proyectos;
+            // Esta pantalla trabaja siempre sobre el proyecto activo, así que el topbar
+            // muestra su nombre sin desplegable: listar todos los proyectos aquí solo
+            // invitaba a cambiar de proyecto sin querer. Para cambiarlo está el selector
+            // de las demás pantallas.
+            ViewBag.OcultarSelectorProyecto = true;
 
             // Las etapas son una columna nueva: si el script de migración todavía no se
             // ejecutó, la pantalla sigue funcionando sin ellas en vez de caerse con un 500.
