@@ -98,4 +98,36 @@ public class UnitTest1
     [InlineData(null, "DISPONIBLE")]
     public void EstadoInmueble_TraduceElEstadoDelExcel(string? entrada, string esperado)
         => Assert.Equal(esperado, Texto.EstadoInmueble(entrada));
+
+    //UnidadDe: cómo se nombra la unidad en los mensajes, con su género
+    [Theory]
+    [InlineData("SUITES", "suite", true)]
+    [InlineData("suites", "suite", true)]        // el tipo llega en minúscula desde la sesión
+    [InlineData("OFICINAS", "oficina", true)]
+    [InlineData("LOTES", "lote", false)]
+    [InlineData("SALUD", "consultorio", false)]
+    [InlineData("APARTAMENTOS", "apartamento", false)]
+    [InlineData("", "apartamento", false)]
+    [InlineData(null, "apartamento", false)]
+    public void UnidadDe_NombraLaUnidadSegunElProyecto(string? tipo, string singular, bool femenina)
+    {
+        var u = Texto.UnidadDe(tipo);
+        Assert.Equal(singular, u.Singular);
+        Assert.Equal(femenina, u.Femenina);
+    }
+
+    //El género tiene que llegar a la frase: "suite liberada" y no "suite liberado"
+    [Fact]
+    public void Unidad_ConcuerdaEnGenero()
+    {
+        var suite = Texto.UnidadDe("SUITES");
+        Assert.Equal("Suite liberada", $"{suite.Titulo} liberad{suite.Fin}");
+        Assert.Equal("la suite", $"{suite.Articulo} {suite.Singular}");
+        Assert.Equal("Esta", suite.Demostrativo);
+
+        var apto = Texto.UnidadDe("APARTAMENTOS");
+        Assert.Equal("Apartamento liberado", $"{apto.Titulo} liberad{apto.Fin}");
+        Assert.Equal("el apartamento", $"{apto.Articulo} {apto.Singular}");
+        Assert.Equal("Este", apto.Demostrativo);
+    }
 }

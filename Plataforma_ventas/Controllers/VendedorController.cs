@@ -156,6 +156,8 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
+            ViewBag.Unidad = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+
             var cmdLista = new SqlCommand(
                 "SELECT ListaActual FROM Proyectos WHERE IdProyectos=@id", con);
             cmdLista.Parameters.AddWithValue("@id", idProy);
@@ -378,12 +380,14 @@ namespace Plataforma_ventas.Controllers
             var affected = await cmd.ExecuteNonQueryAsync();
             if (affected == 0)
             {
-                TempData["Error"] = "Este inmueble ya no está disponible.";
+                var uOcupado = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+                TempData["Error"] = $"{uOcupado.Demostrativo} {uOcupado.Singular} ya no está disponible.";
                 return RedirectToAction("Inmuebles");
             }
 
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "RESERVADO", QuienSoy());
-            TempData["Exito"] = $"Inmueble reservado. Precio bloqueado: ${string.Format("{0:N0}", precioReserva)}";
+            var uRes = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            TempData["Exito"] = $"{uRes.Titulo} reservad{uRes.Fin}. Precio bloqueado: ${string.Format("{0:N0}", precioReserva)}";
             return RedirectToAction("Inmuebles");
         }
 
@@ -408,7 +412,8 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@uid", idUsuario);
             await cmd.ExecuteNonQueryAsync();
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
-            TempData["Exito"] = "Reserva liberada correctamente.";
+            var uLib = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            TempData["Exito"] = $"{uLib.Titulo} liberad{uLib.Fin} correctamente. Vuelve a estar disponible.";
             return RedirectToAction("Perfil");
         }
 
@@ -902,8 +907,11 @@ namespace Plataforma_ventas.Controllers
         {
             CargarSesion();
             int idUsuario = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
+            int idProyPerfil = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pidPerfil) ? pidPerfil : 0;
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            ViewBag.Unidad = await Proyecto.UnidadAsync(HttpContext, con, idProyPerfil);
             var cmd = new SqlCommand(
                 "SELECT Nombre, Apellido, Usuario, Correo, Documento, Celular FROM Usuarios WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@id", idUsuario);

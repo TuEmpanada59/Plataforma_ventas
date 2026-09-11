@@ -20,6 +20,7 @@
     var tabInicial = Context.Request.Query["tab"].ToString();
     if (tabInicial != "reservas" && tabInicial != "listas" && tabInicial != "mapa") tabInicial = "datos";
     if (TempData["Exito"] != null || TempData["Error"] != null) tabInicial = "reservas";
+    var u = ViewBag.Unidad is Plataforma_ventas.Texto.Unidad uu ? uu : Plataforma_ventas.Texto.UnidadDe(null);
 }
 @section Styles {
 <style>
@@ -164,7 +165,7 @@
                                         @Html.AntiForgeryToken()
                                         <input type="hidden" name="idInmueble" value="@r.Id"/>
                                         <button type="submit" class="ios-btn rojo"
-                                                onclick="return confirm('¿Liberar la reserva del apartamento @r.Apto? Volverá a quedar disponible para todos.')">Liberar</button>
+                                                onclick="return confirm('¿Liberar la reserva de @u.Articulo @u.Singular @r.Apto? Volverá a quedar disponible para todos.')">Liberar</button>
                                     </form>
                                 </div>
                             </td>

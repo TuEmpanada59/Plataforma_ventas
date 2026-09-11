@@ -20,6 +20,7 @@
     var torreActual = ViewBag.TorreActual as string ?? "";
     var etapas = ViewBag.Etapas as List<string> ?? new List<string>();
     var etapaActual = ViewBag.EtapaActual as string ?? "";
+    var u = ViewBag.Unidad is Plataforma_ventas.Texto.Unidad uu ? uu : Plataforma_ventas.Texto.UnidadDe(null);
     var areaActual = ViewBag.AreaActual as string ?? "";
     var grupos = ViewBag.Grupos as List<dynamic> ?? new List<dynamic>();
     var vendedores = ViewBag.Vendedores as Dictionary<int, string> ?? new Dictionary<int, string>();
@@ -462,7 +463,7 @@
     <div class="modal-caja">
         <div class="modal-titulo">Reservar inmueble</div>
         <p class="modal-texto">
-            Vas a reservar el apartamento <strong id="resApto"></strong>.
+            Vas a reservar @u.Articulo @u.Singular <strong id="resApto"></strong>.
             El precio queda bloqueado con la lista vigente.
         </p>
         <form action="/Inmuebles/ReservarInmueble" method="post">

@@ -122,6 +122,8 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
+            ViewBag.Unidad = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+
             // Esta pantalla trabaja siempre sobre el proyecto activo, así que el topbar
             // muestra su nombre sin desplegable: listar todos los proyectos aquí solo
             // invitaba a cambiar de proyecto sin querer. Para cambiarlo está el selector
@@ -361,12 +363,14 @@ namespace Plataforma_ventas.Controllers
             var affected = await cmd.ExecuteNonQueryAsync();
             if (affected == 0)
             {
-                TempData["Error"] = "Este inmueble ya no está disponible.";
+                var uOcupado = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+                TempData["Error"] = $"{uOcupado.Demostrativo} {uOcupado.Singular} ya no está disponible.";
                 return RedirectToAction("Index");
             }
 
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "RESERVADO", QuienSoy());
-            TempData["Exito"] = $"Inmueble reservado. Precio bloqueado: ${string.Format("{0:N0}", precioReserva)}";
+            var uRes = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            TempData["Exito"] = $"{uRes.Titulo} reservad{uRes.Fin}. Precio bloqueado: ${string.Format("{0:N0}", precioReserva)}";
             return RedirectToAction("Index");
         }
 
@@ -628,7 +632,8 @@ namespace Plataforma_ventas.Controllers
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
             await _audit.RegistrarAsync(Services.AccionAudit.ReservaLiberada, "Inmueble", idInmueble, idProy,
                 $"Apto {apto} · reserva liberada por el administrador");
-            TempData["Exito"] = $"Reserva del apartamento {apto} liberada correctamente.";
+            var uLib = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            TempData["Exito"] = $"{uLib.Titulo} {apto} liberad{uLib.Fin} correctamente. Vuelve a estar disponible.";
             return volverA == "dashboard" ? RedirectToAction("Index", "Dashboard") : RedirectToAction("Index");
         }
 
@@ -687,7 +692,8 @@ namespace Plataforma_ventas.Controllers
             await _hub.Clients.All.InmuebleActualizado(idProy, idInmueble, "DISPONIBLE", "");
             await _audit.RegistrarAsync(Services.AccionAudit.ProcesoCancelado, "Inmueble", idInmueble, idProy,
                 $"Apto {apto} · proceso cancelado por el administrador");
-            TempData["Exito"] = $"Proceso del apartamento {apto} cancelado. Vuelve a estar disponible.";
+            var uCan = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            TempData["Exito"] = $"Proceso de {uCan.Articulo} {uCan.Singular} {apto} cancelado. Vuelve a estar disponible.";
             return volverA == "dashboard" ? RedirectToAction("Index", "Dashboard") : RedirectToAction("Index");
         }
 

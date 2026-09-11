@@ -23,6 +23,7 @@
         var s = (raw?.ToString() ?? "0").Replace("$","").Replace(".","").Replace(",","").Replace(" ","").Trim();
         return long.TryParse(s, out long v) ? v : 0;
     };
+    var u = ViewBag.Unidad is Plataforma_ventas.Texto.Unidad uu ? uu : Plataforma_ventas.Texto.UnidadDe(null);
 }
 @section Styles {
 <style>
@@ -265,7 +266,7 @@
     <div class="modal-caja">
         <div class="modal-titulo">Reservar inmueble</div>
         <p class="modal-texto">
-            Vas a reservar el apartamento <strong id="resApto"></strong>.
+            Vas a reservar @u.Articulo @u.Singular <strong id="resApto"></strong>.
             El precio queda bloqueado con la lista vigente.
         </p>
         <form action="/Vendedor/ReservarInmueble" method="post">

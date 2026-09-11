@@ -40,6 +40,8 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
+            ViewBag.Unidad = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand(@"SELECT IdProyectos, Nombre FROM Proyectos
                 WHERE Activo=1 ORDER BY FechaCarga DESC", con);

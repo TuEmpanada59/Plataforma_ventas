@@ -15,6 +15,7 @@
     ViewBag.Iniciales = iniciales;
     var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;
     var asesores  = ViewBag.Asesores as List<(int Id, string Nombre)> ?? new List<(int, string)>();
+    var u = ViewBag.Unidad is Plataforma_ventas.Texto.Unidad uu ? uu : Plataforma_ventas.Texto.UnidadDe(null);
 }
 @section Styles {
 <style>
@@ -221,7 +222,7 @@
     <div class="modal-caja ancha">
         <div class="modal-titulo">Editar venta</div>
         <p class="modal-texto">
-            Apartamento <strong id="editApto"></strong>. Las ventas que llegan en el Excel
+            @u.Titulo <strong id="editApto"></strong>. Las ventas que llegan en el Excel
             del proyecto entran sin cliente ni asesor: aquí se completan.
         </p>
         <form action="/Ventas/EditarVenta" method="post" onsubmit="return validarEditar()">
@@ -312,7 +313,7 @@
     <div class="modal-caja">
         <div class="modal-titulo">Anular venta</div>
         <p class="modal-texto">
-            Vas a anular la venta del apartamento <strong id="anulaApto"></strong>.
+            Vas a anular la venta de @u.Articulo @u.Singular <strong id="anulaApto"></strong>.
             La venta se conserva en el registro marcada como anulada, y el inmueble
             <strong>vuelve a quedar disponible</strong> para todos los asesores.
         </p>

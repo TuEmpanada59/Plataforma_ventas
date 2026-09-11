@@ -65,6 +65,43 @@ public static class Texto
         => System.Array.IndexOf(MediosPermitidos, medio) >= 0 ? medio! : "";
 
     /// <summary>
+    /// Cómo se llama una unidad del proyecto en los mensajes. Lleva el género porque en
+    /// español no basta con cambiar el sustantivo: "la suite liberada" contra "el
+    /// apartamento liberado". Sin esto los avisos quedan diciendo "apartamento" en un
+    /// proyecto de suites, que es justo lo que el asesor le repite al cliente.
+    /// </summary>
+    /// <param name="Singular">"suite", "apartamento"…</param>
+    /// <param name="Plural">"suites", "apartamentos"…</param>
+    /// <param name="Femenina">true en suite y oficina.</param>
+    public readonly record struct Unidad(string Singular, string Plural, bool Femenina)
+    {
+        /// <summary>"la" / "el".</summary>
+        public string Articulo => Femenina ? "la" : "el";
+
+        /// <summary>"Esta" / "Este".</summary>
+        public string Demostrativo => Femenina ? "Esta" : "Este";
+
+        /// <summary>Terminación de los participios: reservad**a** / reservad**o**.</summary>
+        public string Fin => Femenina ? "a" : "o";
+
+        /// <summary>El singular con la primera letra en mayúscula, para empezar frase.</summary>
+        public string Titulo => char.ToUpper(Singular[0]) + Singular.Substring(1);
+    }
+
+    /// <summary>
+    /// Devuelve cómo se nombra la unidad según el tipo de proyecto. Un tipo desconocido
+    /// cae en apartamento, que es el caso más común.
+    /// </summary>
+    public static Unidad UnidadDe(string? tipoProyecto) => (tipoProyecto ?? "").ToUpper() switch
+    {
+        "SUITES"   => new Unidad("suite", "suites", true),
+        "LOTES"    => new Unidad("lote", "lotes", false),
+        "SALUD"    => new Unidad("consultorio", "consultorios", false),
+        "OFICINAS" => new Unidad("oficina", "oficinas", true),
+        _          => new Unidad("apartamento", "apartamentos", false),
+    };
+
+    /// <summary>
     /// Traduce el ESTADO que viene en el Excel a uno de los cuatro estados que maneja la
     /// plataforma. Lo que no se reconozca queda DISPONIBLE: un error de digitación no debe
     /// dejar un inmueble en un estado sobre el que nadie puede actuar.

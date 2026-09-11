@@ -63,6 +63,8 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
+            ViewBag.Unidad = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+
             // El origen de la venta es una columna nueva: si el script todavía no se
             // ejecutó, el listado sigue funcionando y todas se muestran como registradas
             // en la plataforma, en vez de devolver un 500.
@@ -342,7 +344,8 @@ namespace Plataforma_ventas.Controllers
             await _audit.RegistrarAsync(AccionAudit.VentaAnulada, "Venta", idVenta, idProy,
                 $"Apto {apto} · Torre {torre} · ${precio:N0} · Motivo: {motivo}");
 
-            TempData["Exito"] = $"Venta anulada. El apartamento {apto} volvió a estar disponible.";
+            var u = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            TempData["Exito"] = $"Venta anulada. {u.Titulo} {apto} volvió a estar disponible.";
             return RedirectToAction("Index");
         }
 

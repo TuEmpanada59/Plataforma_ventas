@@ -39,6 +39,7 @@
         : $"hace {m / 1440} día{(m / 1440 != 1 ? "s" : "")}";
     // Pass iniciales to layout
     ViewBag.Iniciales = iniciales;
+    var u = ViewBag.Unidad is Plataforma_ventas.Texto.Unidad uu ? uu : Plataforma_ventas.Texto.UnidadDe(null);
 }
 @section Styles {
 <style>
@@ -312,7 +313,7 @@
                         <input type="hidden" name="idInmueble" value="@e.Id"/>
                         <input type="hidden" name="volverA" value="dashboard"/>
                         <button type="submit" class="btn-liberar"
-                                onclick="return confirm('¿Liberar el apartamento @e.Apto? Volverá a estar disponible para todos.')">Liberar</button>
+                                onclick="return confirm('¿Liberar @u.Articulo @u.Singular @e.Apto? Volverá a estar disponible para todos.')">Liberar</button>
                     </form>
                 </div>
             }
@@ -332,7 +333,7 @@
                         <input type="hidden" name="idInmueble" value="@v.Id"/>
                         <input type="hidden" name="volverA" value="dashboard"/>
                         <button type="submit" class="btn-liberar"
-                                onclick="return confirm('¿Liberar la reserva del apartamento @v.Apto?')">Liberar</button>
+                                onclick="return confirm('¿Liberar la reserva de @u.Articulo @u.Singular @v.Apto?')">Liberar</button>
                     </form>
                 </div>
             }
