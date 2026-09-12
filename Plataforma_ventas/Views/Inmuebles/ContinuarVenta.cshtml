@@ -18,6 +18,8 @@
     string vendedor = ViewBag.Vendedor as string ?? "Sin asignar";
     var clientes = ViewBag.Clientes as List<dynamic> ?? new List<dynamic>();
     var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)> ?? new List<(int, string)>();
+    // El catálogo de medios lo mantiene el administrador; ya no es una lista fija.
+    var mediosPub = ViewBag.Medios as List<string> ?? new List<string>();
 }
 @section Styles {
 <style>
@@ -218,7 +220,7 @@
                         <label>¿Cómo se enteró del proyecto? <span style="text-transform:none;font-weight:400;color:var(--label3)">(opcional)</span></label>
                         <select name="clienteMedio">
                             <option value="">— Sin especificar —</option>
-                            @foreach (var m in Texto.MediosPermitidos)
+                            @foreach (var m in mediosPub)
                             {
                                 <option value="@m">@m</option>
                             }

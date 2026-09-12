@@ -8,6 +8,8 @@
     var compras    = ViewBag.Compras as List<dynamic> ?? new List<dynamic>();
     int totalC     = ViewBag.TotalCompras != null ? (int)ViewBag.TotalCompras : 0;
     long valorT    = ViewBag.ValorTotal   != null ? (long)ViewBag.ValorTotal  : 0;
+    // El catálogo de medios lo mantiene el administrador; ya no es una lista fija.
+    var mediosPub = ViewBag.Medios as List<string> ?? new List<string>();
 }
 @section Styles {
 <style>
@@ -87,7 +89,7 @@
                 <div class="field-row"><div class="field-lbl">Se enteró por</div>
                     <select class="field-input" name="medio">
                         <option value="">— Sin especificar —</option>
-                        @foreach (var m in Texto.MediosPermitidos)
+                        @foreach (var m in mediosPub)
                         {
                             <option value="@m" selected="@((cli.Medio as string) == m)">@m</option>
                         }

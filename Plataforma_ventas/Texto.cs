@@ -46,25 +46,6 @@ public static class Texto
         => System.Array.IndexOf(DestinosPermitidos, destino) >= 0 ? destino! : "Uso propio";
 
     /// <summary>
-    /// Medios por los que un cliente se entera del proyecto. Es una lista cerrada
-    /// a propósito: si fuera texto libre no se podrían agrupar los resultados para
-    /// saber qué canal trae compradores. Editar aquí para cambiar las opciones.
-    /// </summary>
-    public static readonly string[] MediosPermitidos =
-    {
-        "Redes sociales", "Valla publicitaria", "Referido", "Feria o evento",
-        "Página web", "Portales inmobiliarios", "Sala de ventas", "Otro"
-    };
-
-    /// <summary>
-    /// Valida el medio publicitario contra la lista blanca. Cadena vacía si no se
-    /// informó: es un dato opcional y no debe inventarse un valor por defecto que
-    /// después distorsione las estadísticas del canal.
-    /// </summary>
-    public static string MedioPublicitario(string? medio)
-        => System.Array.IndexOf(MediosPermitidos, medio) >= 0 ? medio! : "";
-
-    /// <summary>
     /// Cómo se llama una unidad del proyecto en los mensajes. Lleva el género porque en
     /// español no basta con cambiar el sustantivo: "la suite liberada" contra "el
     /// apartamento liberado". Sin esto los avisos quedan diciendo "apartamento" en un

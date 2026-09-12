@@ -16,6 +16,8 @@
     var proyectos = ViewBag.Proyectos as List<(int Id, string Nombre)>;
     var asesores  = ViewBag.Asesores as List<(int Id, string Nombre)> ?? new List<(int, string)>();
     var u = ViewBag.Unidad is Plataforma_ventas.Texto.Unidad uu ? uu : Plataforma_ventas.Texto.UnidadDe(null);
+    // El catálogo de medios lo mantiene el administrador; ya no es una lista fija.
+    var mediosPub = ViewBag.Medios as List<string> ?? new List<string>();
 }
 @section Styles {
 <style>
@@ -257,7 +259,7 @@
                     <label class="modal-lbl" for="editMedio">Medio publicitario</label>
                     <select name="medio" id="editMedio" class="modal-input">
                         <option value="">— Sin informar —</option>
-                        @foreach (var m in Texto.MediosPermitidos)
+                        @foreach (var m in mediosPub)
                         {
                             <option value="@m">@m</option>
                         }

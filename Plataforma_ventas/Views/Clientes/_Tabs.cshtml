@@ -1,0 +1,8 @@
+@* Pestañas de la sección de clientes. El ítem activo llega en ViewBag.TabActiva. *@
+@{
+    var tab = ViewBag.TabActiva as string ?? "clientes";
+}
+<div class="cli-tabs">
+    <a href="/Clientes" class="cli-tab @(tab == "clientes" ? "activa" : "")">&#128100; Clientes</a>
+    <a href="/Clientes/Medios" class="cli-tab @(tab == "medios" ? "activa" : "")">&#128226; Medios publicitarios</a>
+</div>

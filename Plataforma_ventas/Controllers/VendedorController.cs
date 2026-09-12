@@ -485,6 +485,8 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
+            ViewBag.Medios = await MediosRepo.ListarAsync(con);
+
             var cmd = new SqlCommand(@"
                 SELECT IdInmuebles, Apto, Metros, Tipo, Torre, Piso, PrecioReserva
                 FROM Inmuebles
@@ -657,6 +659,8 @@ namespace Plataforma_ventas.Controllers
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            ViewBag.Medios = await MediosRepo.ListarAsync(con);
 
             var cmdInm = new SqlCommand(@"SELECT IdInmuebles,Apto,Tipo,Piso,Metros,
                 Lista1,Lista2,Lista3,Lista4,Lista5,Torre,Estado,IdVendedorEnProceso
@@ -1089,6 +1093,24 @@ namespace Plataforma_ventas.Controllers
                         ReservadoPor = (rm["ReservadoPor"]?.ToString() ?? "").Trim(),
                     });
             ViewBag.Mapa = mapa;
+
+            // El mapa como lista de unidades era ilegible pasadas unas decenas de filas.
+            // Agrupado por torre responde de un vistazo la pregunta que el asesor se hace:
+            // dónde queda inventario por colocar.
+            var porTorre = mapa
+                .GroupBy(m => string.IsNullOrWhiteSpace((string)m.Torre) ? "Sin torre" : (string)m.Torre)
+                .Select(g => new
+                {
+                    Torre = g.Key,
+                    Total = g.Count(),
+                    Vendidos = g.Count(x => (string)x.Estado == "VENDIDO"),
+                    Reservados = g.Count(x => (string)x.Estado == "RESERVADO"),
+                    EnProceso = g.Count(x => (string)x.Estado == "EN PROCESO"),
+                    Disponibles = g.Count(x => (string)x.Estado == "DISPONIBLE"),
+                })
+                .OrderBy(t => t.Torre, StringComparer.OrdinalIgnoreCase)
+                .ToList<dynamic>();
+            ViewBag.MapaTorres = porTorre;
 
             return View();
         }

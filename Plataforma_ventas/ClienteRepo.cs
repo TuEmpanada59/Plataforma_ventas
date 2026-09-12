@@ -47,7 +47,7 @@ namespace Plataforma_ventas
             cmdCli.Parameters.AddWithValue("@c", celular ?? "");
             cmdCli.Parameters.AddWithValue("@e", correo ?? "");
             cmdCli.Parameters.AddWithValue("@dir", direccion ?? "");
-            cmdCli.Parameters.AddWithValue("@medio", Texto.MedioPublicitario(medio));
+            cmdCli.Parameters.AddWithValue("@medio", await MediosRepo.ValidarAsync(con, tx, medio));
             return (Convert.ToInt32(await cmdCli.ExecuteScalarAsync()), false);
         }
     }

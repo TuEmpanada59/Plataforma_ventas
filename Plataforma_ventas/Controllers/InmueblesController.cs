@@ -480,6 +480,8 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
+            ViewBag.Medios = await MediosRepo.ListarAsync(con);
+
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand(
                 "SELECT IdProyectos, Nombre FROM Proyectos WHERE Activo=1 ORDER BY FechaCarga DESC", con);
@@ -798,6 +800,8 @@ namespace Plataforma_ventas.Controllers
 
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            ViewBag.Medios = await MediosRepo.ListarAsync(con);
 
             var proyectos = new List<(int Id, string Nombre)>();
             var cmdList = new SqlCommand(

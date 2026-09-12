@@ -14,6 +14,7 @@
     var reservas   = ViewBag.Reservas   as List<dynamic> ?? new List<dynamic>();
     var listasArea = ViewBag.ListasArea as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa       as List<dynamic> ?? new List<dynamic>();
+    var mapaTorres = ViewBag.MapaTorres as List<dynamic> ?? new List<dynamic>();
     var iniciales  = ((pNombre.Length>=1?pNombre.Substring(0,1):"") + (pApellido.Length>=1?pApellido.Substring(0,1):"")).ToUpper();
 
     // Pestaña inicial: si vienen de liberar/continuar una reserva, abrir en reservas.
@@ -61,6 +62,17 @@
     .acciones{display:flex;gap:8px;flex-wrap:wrap;}
     .obs-reserva{font-size:11px;color:var(--label2);background:var(--fill3);border-radius:8px;padding:5px 8px;margin-top:5px;max-width:230px;white-space:normal;line-height:1.4;}
     .mapa-leyenda{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
+    .torres-barras{display:flex;flex-direction:column;gap:16px;padding:16px;}
+    .torre-bloque{display:flex;flex-direction:column;gap:6px;}
+    .torre-cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .torre-nom{font-size:14px;font-weight:700;color:var(--label);}
+    .torre-tot{font-size:11.5px;color:var(--label2);}
+    .torre-barra{display:flex;height:22px;border-radius:8px;overflow:hidden;background:var(--fill2);}
+    .torre-barra span{display:block;height:100%;transition:width .4s ease;}
+    .seg-v{background:#1EA851;}.seg-r{background:#CC7700;}.seg-p{background:#5A5AC8;}.seg-d{background:var(--rojo);}
+    .torre-cifras{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
+    .torre-cifras i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+    .pt-v{background:#1EA851;}.pt-r{background:#CC7700;}.pt-p{background:#5A5AC8;}.pt-d{background:var(--rojo);}
     .mapa-leyenda i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
     .mapa-lista{display:flex;flex-direction:column;max-height:460px;overflow-y:auto;padding:8px;}
     .mapa-fila{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;font-size:13px;}
@@ -249,25 +261,43 @@
                 <span><i style="background:#5A5AC8"></i>En proceso</span>
             </div>
         </div>
-        @if (mapa.Count > 0)
+        @if (mapaTorres.Count > 0)
         {
-            <div class="mapa-lista">
-            @foreach (var m in mapa)
+            <div class="torres-barras">
+            @foreach (var t in mapaTorres)
             {
-                string est = m.Estado as string ?? "";
-                string cls = est == "DISPONIBLE" ? "D" : est == "VENDIDO" ? "V" : est == "RESERVADO" ? "R" : "P";
-                string quien = est == "EN PROCESO" ? (string)m.EnProcesoPor
-                             : est == "RESERVADO"  ? (string)m.ReservadoPor : "";
-                <div class="mapa-fila">
-                    <span class="mapa-pin p-@cls"></span>
-                    <span class="mapa-apto">@m.Apto</span>
-                    <span class="mapa-torre">@m.Torre</span>
-                    <span class="mapa-meta">@m.Metros m²</span>
-                    @if (!string.IsNullOrEmpty(quien))
-                    {
-                        <span class="mapa-quien q-@cls">@quien</span>
-                    }
-                    <span class="mapa-est e-@cls">@est</span>
+                int tot = (int)t.Total;
+                // Porcentajes sobre el total de la torre: la barra compara la ocupación
+                // de torres de distinto tamaño, que es lo que interesa.
+                double pV = tot > 0 ? (double)(int)t.Vendidos    * 100 / tot : 0;
+                double pR = tot > 0 ? (double)(int)t.Reservados  * 100 / tot : 0;
+                double pP = tot > 0 ? (double)(int)t.EnProceso   * 100 / tot : 0;
+                double pD = tot > 0 ? (double)(int)t.Disponibles * 100 / tot : 0;
+                int colocado = (int)t.Vendidos + (int)t.Reservados + (int)t.EnProceso;
+                int porcColocado = tot > 0 ? (int)Math.Round((double)colocado * 100 / tot) : 0;
+                // Los anchos se arman antes: una llamada con comillas dentro de un
+                // atributo cortaría el atributo al parsear la vista. Y en invariante,
+                // porque el CSS espera el punto decimal.
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                string wV = pV.ToString("0.##", inv), wR = pR.ToString("0.##", inv);
+                string wP = pP.ToString("0.##", inv), wD = pD.ToString("0.##", inv);
+                <div class="torre-bloque">
+                    <div class="torre-cab">
+                        <span class="torre-nom">@t.Torre</span>
+                        <span class="torre-tot">@colocado de @tot colocados · @porcColocado%</span>
+                    </div>
+                    <div class="torre-barra">
+                        @if (pV > 0) { <span class="seg-v" style="width:@wV%" title="@t.Vendidos vendidos"></span> }
+                        @if (pR > 0) { <span class="seg-r" style="width:@wR%" title="@t.Reservados reservados"></span> }
+                        @if (pP > 0) { <span class="seg-p" style="width:@wP%" title="@t.EnProceso en proceso"></span> }
+                        @if (pD > 0) { <span class="seg-d" style="width:@wD%" title="@t.Disponibles disponibles"></span> }
+                    </div>
+                    <div class="torre-cifras">
+                        <span><i class="pt-v"></i>@t.Vendidos vendidos</span>
+                        <span><i class="pt-r"></i>@t.Reservados reservados</span>
+                        <span><i class="pt-p"></i>@t.EnProceso en proceso</span>
+                        <span><i class="pt-d"></i>@t.Disponibles disponibles</span>
+                    </div>
                 </div>
             }
             </div>

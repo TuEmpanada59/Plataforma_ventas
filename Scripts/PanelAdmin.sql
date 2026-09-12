@@ -11,6 +11,10 @@
 --   8) Tabla AsistenciaFranja (familias por franja horaria)
 --   9) Relleno de Inmuebles.Torre desde el nombre de la unidad
 --  10) Tablas AjustesPrecio y AjustesPrecioDetalle (ajuste masivo con reversión)
+--  11) Ventas.Origen (ventas que llegan en el Excel)
+--  12) Inmuebles.Etapa (una hoja del Excel por etapa)
+--  13) Quitar la unicidad de Documento y Correo en Usuarios
+--  14) Tabla MediosPublicitarios con su carga inicial
 --
 -- Es IDEMPOTENTE: se puede ejecutar varias veces sin romper nada ni perder datos.
 -- Ejecutar en la base de datos Lanzamientos.
@@ -100,8 +104,9 @@ GO
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 7) Medio publicitario del cliente
---    Por dónde se enteró del proyecto. Lista cerrada en Texto.MediosPermitidos:
---    si fuera texto libre no se podrían agrupar los canales en el informe.
+--    Por dónde se enteró del proyecto. Se guarda como texto, validado contra el
+--    catálogo de la sección 14: si fuera texto libre no se podrían agrupar los
+--    canales en el informe.
 -- ────────────────────────────────────────────────────────────────────────────
 IF COL_LENGTH('Clientes', 'MedioPublicitario') IS NULL
     ALTER TABLE Clientes ADD MedioPublicitario NVARCHAR(80) NULL;
@@ -256,6 +261,220 @@ BEGIN
         PRINT 'Usuarios: se retiró la unicidad de Documento y Correo.';
     END
 END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 14) Catálogo de medios publicitarios
+--     Antes era una lista fija en el código: agregar un medio obligaba a tocar
+--     el código y volver a desplegar. Ahora es una tabla que el administrador
+--     mantiene desde Clientes → Medios publicitarios.
+--
+--     El medio se sigue guardando como TEXTO en Clientes.MedioPublicitario: así
+--     un cliente conserva el canal por el que entró aunque el medio se elimine
+--     después del catálogo. Borrar un medio quita la opción para los nuevos
+--     registros, no reescribe la historia.
+-- ────────────────────────────────────────────────────────────────────────────
+IF OBJECT_ID('MediosPublicitarios', 'U') IS NULL
+BEGIN
+    CREATE TABLE MediosPublicitarios (
+        IdMedio INT           IDENTITY(1,1) PRIMARY KEY,
+        Nombre  NVARCHAR(120) NOT NULL
+    );
+
+    CREATE UNIQUE INDEX UX_Medios_Nombre ON MediosPublicitarios (Nombre);
+END
+GO
+
+-- Carga inicial. Solo inserta los que falten, así que se puede repetir sin
+-- duplicar y sin pisar los que el administrador haya agregado o renombrado.
+INSERT INTO MediosPublicitarios (Nombre)
+SELECT v.Nombre
+FROM (VALUES
+        (N'Activaciones'),
+        (N'Aeropuerto'),
+        (N'Alejandro Falla'),
+        (N'Aliado'),
+        (N'Aliado David Beleño'),
+        (N'Aliado Informe Inmobiliario'),
+        (N'Analfe'),
+        (N'Analitik'),
+        (N'Argos'),
+        (N'Arquitectura y Concreto'),
+        (N'Asohost'),
+        (N'Banderas'),
+        (N'BD EL SITIO'),
+        (N'BD migrada arrendatarios'),
+        (N'Bici-Valla'),
+        (N'BRIKSS'),
+        (N'Buses'),
+        (N'Café Le gris'),
+        (N'Canchas'),
+        (N'Carro Valla'),
+        (N'Cauca Viejo'),
+        (N'Cavipetrol'),
+        (N'Centros Comerciales'),
+        (N'Cerramiento'),
+        (N'Ciencuadras'),
+        (N'Claro media'),
+        (N'Club El Nogal'),
+        (N'Club Intelecto'),
+        (N'Colraices'),
+        (N'Comercial de Televisión'),
+        (N'Compensar'),
+        (N'Corbeta'),
+        (N'Cotizador'),
+        (N'El Bellanita'),
+        (N'El Heraldo'),
+        (N'El sitio inmobiliario'),
+        (N'Email base de datos UMBRAL'),
+        (N'Empleado Arquitectura y Concreto'),
+        (N'Empleado Bemsa'),
+        (N'Empleado CASA'),
+        (N'Empleado Conexo'),
+        (N'Empleado Crystal'),
+        (N'Empleado Muros y Techos'),
+        (N'Empleado Umbral'),
+        (N'Empleados FIC'),
+        (N'Escuelas de Equitación'),
+        (N'Eucoles'),
+        (N'Expoinmobiliaria-Camacol'),
+        (N'FEC Bancolombia'),
+        (N'FEPEP'),
+        (N'Feria Barcelona'),
+        (N'Feria Colombianos en el exterior'),
+        (N'Feria Compensar'),
+        (N'Feria de Oriente'),
+        (N'Feria Expocolombia'),
+        (N'Feria Finca Raíz Open Day'),
+        (N'Feria Fiscalía'),
+        (N'Feria itinerante'),
+        (N'Feria Jardines de Llanogrande'),
+        (N'Feria Londoño Gómez'),
+        (N'Feria Marco Fidel Suárez'),
+        (N'Feria Smurfit Kappa'),
+        (N'Feria tu norte'),
+        (N'Feria Virtual FR'),
+        (N'Finca Clic'),
+        (N'FNA'),
+        (N'Fondo Presente'),
+        (N'Fundación Ellen Riegner de Casas'),
+        (N'Gojom'),
+        (N'Grupo Inversionistas Juan Londoño'),
+        (N'GSI'),
+        (N'Hablador'),
+        (N'HOUM'),
+        (N'Hugo Zapata'),
+        (N'Juan Londoño'),
+        (N'Local Parque Fabricato'),
+        (N'Mega Feria AyC'),
+        (N'Mi Oriente'),
+        (N'Minuto 30'),
+        (N'Multi Homes'),
+        (N'Nota económica'),
+        (N'Pantallas'),
+        (N'Pauta Digital CE'),
+        (N'Pedro Fernández'),
+        (N'Periódico Mi Casa en Colombia'),
+        (N'Plan Inmobiliario'),
+        (N'Programa TV Tu Espacio'),
+        (N'Proppit'),
+        (N'QHubo'),
+        (N'Radio'),
+        (N'Redes Sociales Organico'),
+        (N'Restaurante'),
+        (N'Revista Columbus'),
+        (N'Revista Destino Inmobiliario'),
+        (N'Revista El Pulso'),
+        (N'Revista Fondo Presente'),
+        (N'Revista Lazoos'),
+        (N'Revista Tu Espacio'),
+        (N'Rompetráfico'),
+        (N'Saldos Industriales'),
+        (N'Serenity Seniors Club'),
+        (N'Smartfit'),
+        (N'SMS Base de datos LG'),
+        (N'SMS Base de datos UMBRAL'),
+        (N'Stand Copacabana'),
+        (N'Stand San Nicolás'),
+        (N'Sucasaya'),
+        (N'Te acerca Vivienda'),
+        (N'Teleantioquia'),
+        (N'Telemedellín'),
+        (N'Torre Almagrán'),
+        (N'Treasure'),
+        (N'Tu propiedad Colombia'),
+        (N'Umbral'),
+        (N'Unión Andina'),
+        (N'Visita empresa'),
+        (N'Viventa'),
+        (N'Vivir en el Poblado'),
+        (N'Webinar Colombianos en el exterior'),
+        (N'Whatsapp base de datos externa'),
+        (N'Whatsapp.'),
+        (N'360 Inmobiliario'),
+        (N'Alianza Bancolombia'),
+        (N'Ascensores'),
+        (N'Call Center'),
+        (N'Cliente LG'),
+        (N'Club Unión'),
+        (N'Colombia Raíz'),
+        (N'Construcaribe'),
+        (N'Convenio Cosmovisión'),
+        (N'Convenio Empresas'),
+        (N'Correo Directo'),
+        (N'El Colombiano'),
+        (N'Email base de datos externa'),
+        (N'Email base de datos LG'),
+        (N'Email Fincaraiz'),
+        (N'Empleado Bancolombia'),
+        (N'Empleado Londoño Gómez'),
+        (N'Estrenar Vivienda'),
+        (N'Feria Camacol'),
+        (N'Feria Davivienda y Fiscalia'),
+        (N'Feria La Lonja'),
+        (N'Feria Mega Sale de Scotiabank Colpatria'),
+        (N'Feria Salón Del Inmueble'),
+        (N'Feria VIMO'),
+        (N'Finca Raíz'),
+        (N'Gestión Base de datos LG'),
+        (N'Hatoviejo'),
+        (N'La Haus'),
+        (N'Landing Page'),
+        (N'Mailing'),
+        (N'Malla de servicios'),
+        (N'Medio Impreso'),
+        (N'Pasacalle'),
+        (N'Pauta Digital Lg'),
+        (N'Pendón'),
+        (N'Properati'),
+        (N'Propietario Proyecto'),
+        (N'Página Web'),
+        (N'Recorrido Sector'),
+        (N'Referido'),
+        (N'Referido A&C'),
+        (N'Referido Colega'),
+        (N'Referido Empleado'),
+        (N'Referido Gerencia'),
+        (N'Referido Propietario'),
+        (N'Referido Sala De Ventas'),
+        (N'Referido Socio'),
+        (N'Revista Informe Inmobiliario'),
+        (N'Revista Oriente'),
+        (N'Revista Propiedades'),
+        (N'Sala de Ventas Virtual'),
+        (N'Socios del Proyecto'),
+        (N'Stand'),
+        (N'Valla'),
+        (N'Vecindario'),
+        (N'Vivendo'),
+        (N'Viviendas Universales'),
+        (N'Volante'),
+        (N'Voz a Voz'),
+        (N'Waze'),
+        (N'Whatsapp El Colombiano'),
+        (N'Zoho forms')
+     ) AS v(Nombre)
+WHERE NOT EXISTS (SELECT 1 FROM MediosPublicitarios m WHERE m.Nombre = v.Nombre);
 GO
 
 PRINT 'Panel de administrador: migración aplicada correctamente.';

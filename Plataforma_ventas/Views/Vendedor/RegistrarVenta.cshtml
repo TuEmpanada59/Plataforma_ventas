@@ -12,6 +12,8 @@
     var precioRaw    = precios[listaActual - 1]?.ToString() ?? "0";
     var precioLimpio = precioRaw.Replace("$","").Replace(".","").Replace(",","").Replace(" ","").Trim();
     long precioFinal = long.TryParse(precioLimpio, out long pf) ? pf : 0;
+    // El catálogo de medios lo mantiene el administrador; ya no es una lista fija.
+    var mediosPub = ViewBag.Medios as List<string> ?? new List<string>();
 }
 @section Styles {
 <style>
@@ -216,7 +218,7 @@
                         <label>¿Cómo se enteró del proyecto? <span style="text-transform:none;font-weight:400;color:var(--label3)">(opcional)</span></label>
                         <select name="clienteMedio">
                             <option value="">— Sin especificar —</option>
-                            @foreach (var m in Texto.MediosPermitidos)
+                            @foreach (var m in mediosPub)
                             {
                                 <option value="@m">@m</option>
                             }

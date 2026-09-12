@@ -1,0 +1,150 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Londoño Gómez — Medios publicitarios";
+    ViewBag.ActiveNav = "clientes";
+    ViewBag.TbBread   = "Medios publicitarios";
+    ViewBag.TabActiva = "medios";
+
+    var nombre    = ViewBag.Nombre   as string ?? "Admin";
+    var apellido  = ViewBag.Apellido as string ?? "";
+    var iniciales = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
+    ViewBag.Iniciales = iniciales;
+
+    var medios = ViewBag.Medios as List<(int Id, string Nombre, int Clientes)> ?? new List<(int, string, int)>();
+    bool hayTabla = ViewBag.HayTabla != null && (bool)ViewBag.HayTabla;
+}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .cli-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+    .cli-tab{font-size:13px;font-weight:600;padding:8px 16px;border-radius:12px;background:var(--glass);border:1px solid var(--gb);color:var(--label2);text-decoration:none;transition:all 0.2s;}
+    .cli-tab:hover{border-color:var(--blue);color:var(--blue);}
+    .cli-tab.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));border-color:transparent;color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
+    .card{background:var(--glass);backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--gb);border-radius:18px;box-shadow:var(--sh);animation:fu 0.35s ease both;padding:22px;margin-bottom:16px;}
+    .card-title{font-size:16px;font-weight:700;color:var(--label);margin-bottom:4px;}
+    .card-sub{font-size:12.5px;color:var(--label2);margin-bottom:16px;line-height:1.5;}
+    .fila-nuevo{display:flex;gap:10px;flex-wrap:wrap;}
+    .inp{flex:1;min-width:220px;padding:10px 13px;background:rgba(255,255,255,0.75);border:1px solid var(--sep);border-radius:11px;font-size:14px;color:var(--label);outline:none;font-family:inherit;}
+    .inp:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.11);}
+    .btn-add{padding:10px 20px;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;border:none;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(0,118,227,0.28);}
+    .buscador{width:100%;margin-bottom:12px;}
+    .tblw{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;}
+    .tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--label3);padding:9px 12px;text-align:left;border-bottom:1px solid var(--sep2);}
+    .tbl td{padding:8px 12px;font-size:13px;color:var(--label);border-bottom:1px solid var(--sep2);vertical-align:middle;}
+    .tbl tr:last-child td{border-bottom:none;}
+    .tbl tr:hover td{background:var(--fill3);}
+    .inp-fila{width:100%;padding:6px 10px;border:1px solid transparent;border-radius:8px;font-size:13px;font-family:inherit;color:var(--label);background:transparent;outline:none;}
+    .inp-fila:hover{border-color:var(--sep);background:var(--fill3);}
+    .inp-fila:focus{border-color:var(--blue);background:white;}
+    .uso{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:var(--fill2);color:var(--label2);white-space:nowrap;}
+    .uso.activo{background:rgba(0,118,227,0.1);color:var(--blue);}
+    .acc{display:flex;gap:6px;justify-content:flex-end;}
+    .btn-guardar{background:rgba(0,118,227,0.1);color:var(--blue);border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn-guardar:hover{background:rgba(0,118,227,0.2);}
+    .btn-quitar{background:rgba(230,57,70,0.1);color:var(--rojo);border:none;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn-quitar:hover{background:rgba(230,57,70,0.2);}
+    .alerta{background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.18);border-radius:12px;padding:10px 14px;color:var(--rojo);font-size:13px;font-weight:500;margin-bottom:14px;}
+    .exito{background:rgba(52,199,89,0.08);border:1px solid rgba(52,199,89,0.2);border-radius:12px;padding:10px 14px;color:#1A7A35;font-size:13px;font-weight:500;margin-bottom:14px;}
+    .vacio{text-align:center;color:var(--label3);font-size:13px;padding:26px;}
+</style>
+}
+
+<partial name="_Tabs" />
+
+@if (TempData["Error"] != null) { <div class="alerta">@TempData["Error"]</div> }
+@if (TempData["Exito"] != null) { <div class="exito">@TempData["Exito"]</div> }
+
+@if (!hayTabla)
+{
+    <div class="card">
+        <div class="card-title">Falta crear la tabla</div>
+        <div class="card-sub">
+            El catálogo de medios vive en la tabla <strong>MediosPublicitarios</strong>.
+            Ejecuta la sección 14 de <strong>Scripts/PanelAdmin.sql</strong>, que la crea
+            y carga los medios iniciales, y vuelve a esta pantalla.
+        </div>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-title">Agregar un medio</div>
+        <div class="card-sub">
+            Los medios son la lista cerrada de canales por los que llega un cliente.
+            Es cerrada a propósito: si fuera texto libre, "Instagram" e "instagram"
+            contarían como canales distintos y el informe no serviría.
+        </div>
+        <form action="/Clientes/CrearMedio" method="post" class="fila-nuevo">
+            @Html.AntiForgeryToken()
+            <input type="text" name="nombre" class="inp" maxlength="120"
+                   placeholder="Ej: Feria de Oriente" required autofocus/>
+            <button type="submit" class="btn-add">Agregar</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Medios registrados · @medios.Count</div>
+        <div class="card-sub">
+            Renombrar un medio también actualiza los clientes que ya lo tenían, para que
+            el informe de canales no quede partido entre el nombre viejo y el nuevo.
+            Eliminarlo solo quita la opción para los registros nuevos: los clientes que
+            ya lo tenían lo conservan.
+        </div>
+
+        <input type="text" id="buscar" class="inp buscador" placeholder="Buscar medio..." oninput="filtrar()"/>
+
+        @if (medios.Count > 0)
+        {
+            <div class="tblw">
+                <table class="tbl" id="tablaMedios">
+                    <thead>
+                        <tr><th>Medio</th><th style="width:110px">Clientes</th><th style="width:190px"></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var m in medios)
+                    {
+                        <tr>
+                            <td colspan="3" style="padding:0">
+                                <form action="/Clientes/EditarMedio" method="post"
+                                      style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin:0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="idMedio" value="@m.Id"/>
+                                    <input type="text" name="nombre" value="@m.Nombre" maxlength="120"
+                                           class="inp-fila" style="flex:1"/>
+                                    <span class="uso @(m.Clientes > 0 ? "activo" : "")">
+                                        @m.Clientes @(m.Clientes == 1 ? "cliente" : "clientes")
+                                    </span>
+                                    <span class="acc">
+                                        <button type="submit" class="btn-guardar">Guardar</button>
+                                        <button type="submit" class="btn-quitar"
+                                                formaction="/Clientes/EliminarMedio"
+                                                onclick="return confirm('¿Quitar &quot;@m.Nombre&quot; de la lista? Los @m.Clientes clientes que ya lo tienen lo conservan.')">
+                                            Eliminar
+                                        </button>
+                                    </span>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="vacio">Todavía no hay medios en la lista.</div>
+        }
+    </div>
+}
+
+@section Scripts {
+<script>
+    function filtrar(){
+        var q = document.getElementById('buscar').value.toLowerCase();
+        document.querySelectorAll('#tablaMedios tbody tr').forEach(function(tr){
+            tr.style.display = tr.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
+    }
+</script>
+}

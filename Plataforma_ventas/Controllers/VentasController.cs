@@ -64,6 +64,7 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Proyectos = proyectos;
 
             ViewBag.Unidad = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+            ViewBag.Medios = await MediosRepo.ListarAsync(con);
 
             // El origen de la venta es una columna nueva: si el script todavía no se
             // ejecutó, el listado sigue funcionando y todas se muestran como registradas
