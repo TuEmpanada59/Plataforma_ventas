@@ -166,6 +166,23 @@ namespace Plataforma_ventas.Controllers
                     });
             ViewBag.Mapa = mapa;
 
+            // Mismo agrupado que el mapa del asesor: una barra por torre. La lista de
+            // unidades servía para buscar una en concreto, no para leer cómo va el
+            // lanzamiento, que es lo que se mira desde Reportes.
+            ViewBag.MapaTorres = mapa
+                .GroupBy(m => string.IsNullOrWhiteSpace((string)m.Torre) ? "Sin torre" : (string)m.Torre)
+                .Select(g => new
+                {
+                    Torre = g.Key,
+                    Total = g.Count(),
+                    Vendidos = g.Count(x => (string)x.Estado == "VENDIDO"),
+                    Reservados = g.Count(x => (string)x.Estado == "RESERVADO"),
+                    EnProceso = g.Count(x => (string)x.Estado == "EN PROCESO"),
+                    Disponibles = g.Count(x => (string)x.Estado == "DISPONIBLE"),
+                })
+                .OrderBy(t => t.Torre, StringComparer.OrdinalIgnoreCase)
+                .ToList<dynamic>();
+
             // ── Por dónde se enteraron los compradores ──
             var medios = new List<dynamic>();
             try

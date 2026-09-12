@@ -19,6 +19,7 @@
     var destinos   = ViewBag.Destinos    as List<dynamic> ?? new List<dynamic>();
     var medios     = ViewBag.Medios      as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
+    var mapaTorres = ViewBag.MapaTorres  as List<dynamic> ?? new List<dynamic>();
     DateTime ahoraCol;
     try {
         ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/Bogota"));
@@ -85,18 +86,17 @@
     .hoy-stat{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 16px;}
     .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;white-space:nowrap;}
     .hoy-stat-lbl{font-size:10px;color:rgba(255,255,255,0.65);margin-top:1px;font-weight:500;}
-    .mapa-wrap{display:flex;flex-direction:column;gap:4px;max-height:320px;overflow-y:auto;padding:14px;}
-    .mapa-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;transition:background 0.15s;}
-    .mapa-row:hover{background:var(--fill3);}
-    .mapa-estado{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-    .mapa-apto{font-size:13px;font-weight:600;color:var(--label);min-width:60px;}
-    .mapa-tipo{font-size:11px;color:var(--label3);min-width:40px;}
-    .mapa-area{font-size:11px;color:var(--label2);min-width:60px;}
-    .mapa-torre{font-size:11px;color:var(--label2);flex:1;}
-    .mapa-quien{font-size:11px;font-weight:600;white-space:nowrap;margin-right:4px;}
-    .mapa-bdg{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;}
-    .mapa-D{background:rgba(230,57,70,0.12);color:var(--rojo)}.mapa-V{background:rgba(52,199,89,0.12);color:#1EA851}
-    .mapa-R{background:rgba(255,149,0,0.12);color:#CC7700}.mapa-P{background:rgba(90,90,200,0.12);color:#5A5AC8}
+    .torres-barras{display:flex;flex-direction:column;gap:16px;padding:16px;}
+    .torre-bloque{display:flex;flex-direction:column;gap:6px;}
+    .torre-cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .torre-nom{font-size:14px;font-weight:700;color:var(--label);}
+    .torre-tot{font-size:11.5px;color:var(--label2);}
+    .torre-barra{display:flex;height:22px;border-radius:8px;overflow:hidden;background:var(--fill2);}
+    .torre-barra span{display:block;height:100%;transition:width .4s ease;}
+    .seg-v{background:#1EA851;}.seg-r{background:#CC7700;}.seg-p{background:#5A5AC8;}.seg-d{background:var(--rojo);}
+    .torre-cifras{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
+    .torre-cifras i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+    .pt-v{background:#1EA851;}.pt-r{background:#CC7700;}.pt-p{background:#5A5AC8;}.pt-d{background:var(--rojo);}
     .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
     .destino-row{display:flex;align-items:center;gap:10px;}
     .destino-bar-wrap{flex:1;height:8px;background:var(--fill3);border-radius:20px;overflow:hidden;}
@@ -296,26 +296,42 @@
             <a href="/Reportes/ReportePDF" class="ios-btn" style="background:var(--rojo)">PDF técnico</a>
         </div>
     </div>
-    @if (mapa.Count > 0) {
-        <div class="mapa-wrap">
-            @foreach (var m in mapa) {
-                var clsE = m.Estado == "DISPONIBLE" ? "D" : m.Estado == "VENDIDO" ? "V" : m.Estado == "RESERVADO" ? "R" : "P";
-                var colE = m.Estado == "DISPONIBLE" ? "var(--rojo)" : m.Estado == "VENDIDO" ? "#1EA851" : m.Estado == "RESERVADO" ? "#CC7700" : "#5A5AC8";
-                string quien = m.Estado == "EN PROCESO" ? (string)m.EnProcesoPor
-                             : m.Estado == "RESERVADO"  ? (string)m.ReservadoPor : "";
-                <div class="mapa-row">
-                    <div class="mapa-estado" style="background:@colE"></div>
-                    <div class="mapa-apto">@m.Apto</div>
-                    <div class="mapa-tipo">@m.Tipo</div>
-                    <div class="mapa-area">@m.Metros m²</div>
-                    <div class="mapa-torre">@m.Torre</div>
-                    @if (!string.IsNullOrEmpty(quien))
-                    {
-                        <span class="mapa-quien" style="color:@colE">@quien</span>
-                    }
-                    <span class="mapa-bdg mapa-@clsE">@m.Estado</span>
+    @if (mapaTorres.Count > 0) {
+        <div class="torres-barras">
+        @foreach (var t in mapaTorres) {
+            int tot = (int)t.Total;
+            // Porcentaje sobre el total de la torre: así se comparan torres de
+            // distinto tamaño, que es lo que interesa al leer el avance.
+            double pV = tot > 0 ? (double)(int)t.Vendidos    * 100 / tot : 0;
+            double pR = tot > 0 ? (double)(int)t.Reservados  * 100 / tot : 0;
+            double pP = tot > 0 ? (double)(int)t.EnProceso   * 100 / tot : 0;
+            double pD = tot > 0 ? (double)(int)t.Disponibles * 100 / tot : 0;
+            int colocado = (int)t.Vendidos + (int)t.Reservados + (int)t.EnProceso;
+            int porcColocado = tot > 0 ? (int)Math.Round((double)colocado * 100 / tot) : 0;
+            // Los anchos se arman antes: una llamada con comillas dentro de un atributo
+            // cortaría el atributo al parsear la vista.
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            string wV = pV.ToString("0.##", inv), wR = pR.ToString("0.##", inv);
+            string wP = pP.ToString("0.##", inv), wD = pD.ToString("0.##", inv);
+            <div class="torre-bloque">
+                <div class="torre-cab">
+                    <span class="torre-nom">@t.Torre</span>
+                    <span class="torre-tot">@colocado de @tot colocados · @porcColocado%</span>
                 </div>
-            }
+                <div class="torre-barra">
+                    @if (pV > 0) { <span class="seg-v" style="width:@wV%" title="@t.Vendidos vendidos"></span> }
+                    @if (pR > 0) { <span class="seg-r" style="width:@wR%" title="@t.Reservados reservados"></span> }
+                    @if (pP > 0) { <span class="seg-p" style="width:@wP%" title="@t.EnProceso en proceso"></span> }
+                    @if (pD > 0) { <span class="seg-d" style="width:@wD%" title="@t.Disponibles disponibles"></span> }
+                </div>
+                <div class="torre-cifras">
+                    <span><i class="pt-v"></i>@t.Vendidos vendidos</span>
+                    <span><i class="pt-r"></i>@t.Reservados reservados</span>
+                    <span><i class="pt-p"></i>@t.EnProceso en proceso</span>
+                    <span><i class="pt-d"></i>@t.Disponibles disponibles</span>
+                </div>
+            </div>
+        }
         </div>
     } else {
         <div class="empty">No hay inmuebles en este proyecto</div>
