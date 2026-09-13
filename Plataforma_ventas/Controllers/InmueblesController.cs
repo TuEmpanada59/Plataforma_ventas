@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Data.SqlClient;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using Plataforma_ventas.Filters;
 using Plataforma_ventas.Hubs;
+using DColor = System.Drawing.Color;
 
 namespace Plataforma_ventas.Controllers
 {
@@ -700,6 +703,147 @@ namespace Plataforma_ventas.Controllers
                 ? $"Reserva asignada a {nombreAsesor}."
                 : $"La reserva de {uAsig.Articulo} {uAsig.Singular} quedó sin asesor asignado.";
             return RedirectToAction("Reservas");
+        }
+
+
+        /// <summary>
+        /// Excel con las reservas activas del proyecto: unidad, torre, precio bloqueado,
+        /// asesor, observación y fecha.
+        /// </summary>
+        /// <remarks>
+        /// Va aparte de los informes generales a propósito. Una reserva es información
+        /// operativa del día —a quién hay que perseguir para que cierre— mientras que los
+        /// informes miden lo que ya se cerró. Mezclarlas obligaría a filtrar cada vez.
+        ///
+        /// Se entrega en Excel y no en PDF porque este listado se trabaja: se filtra, se
+        /// ordena y se le agregan columnas. El PDF sirve para presentar, no para eso.
+        /// </remarks>
+        public async Task<IActionResult> ExportarReservas()
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            var proyNombre = HttpContext.Session.GetString("ProyectoNombre") ?? "Proyecto";
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var u = await Proyecto.UnidadAsync(HttpContext, con, idProy);
+
+            // Columnas agregadas después: el informe no puede depender de que el script
+            // esté al día.
+            var cmdCols = new SqlCommand(@"SELECT COL_LENGTH('Inmuebles','ObservacionReserva'),
+                                                  COL_LENGTH('Inmuebles','Etapa')", con);
+            bool hayObs = false, hayEtapa = false;
+            using (var rc = (SqlDataReader)await cmdCols.ExecuteReaderAsync())
+                if (await rc.ReadAsync())
+                {
+                    hayObs = rc[0] is not (null or DBNull);
+                    hayEtapa = rc[1] is not (null or DBNull);
+                }
+
+            var reservas = new List<(string Apto, string Torre, string Etapa, string Piso, string Tipo,
+                                     string Metros, long Precio, string Asesor, string Obs, string Fecha)>();
+            var cmd = new SqlCommand($@"
+                SELECT i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros,
+                       {(hayEtapa ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
+                       {(hayObs ? "ISNULL(i.ObservacionReserva,'')" : "''")} AS Observacion,
+                       ISNULL(i.PrecioReserva,0) AS PrecioReserva, i.FechaReserva,
+                       ISNULL(us.Nombre + ' ' + us.Apellido, '') AS Asesor
+                FROM Inmuebles i
+                LEFT JOIN Usuarios us ON us.IdUsuario = i.IdVendedorReserva
+                WHERE i.IdProyecto=@proy AND i.Estado='RESERVADO'
+                ORDER BY i.Torre, i.FechaReserva DESC", con);
+            cmd.Parameters.AddWithValue("@proy", idProy);
+            using (var r = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    reservas.Add((
+                        r["Apto"]?.ToString() ?? "",
+                        r["Torre"]?.ToString() ?? "",
+                        r["Etapa"]?.ToString() ?? "",
+                        r["Piso"]?.ToString() ?? "",
+                        r["Tipo"]?.ToString() ?? "",
+                        r["Metros"]?.ToString() ?? "",
+                        Convert.ToInt64(r["PrecioReserva"]),
+                        r["Asesor"]?.ToString() ?? "",
+                        r["Observacion"]?.ToString() ?? "",
+                        r["FechaReserva"] == DBNull.Value ? "" : ((DateTime)r["FechaReserva"]).ToString("dd/MM/yyyy HH:mm")));
+
+            ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Reservas");
+
+            ws.Cells[1, 1].Value = $"Informe de reservas — {proyNombre}";
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Size = 14;
+            ws.Cells[1, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+            ws.Cells[1, 1, 1, 9].Merge = true;
+
+            ws.Cells[2, 1].Value = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}  ·  {reservas.Count} reservas activas";
+            ws.Cells[2, 1].Style.Font.Color.SetColor(DColor.Gray);
+            ws.Cells[2, 1, 2, 9].Merge = true;
+
+            var headers = new[] { u.Titulo, "Torre", "Etapa", "Piso", "Tipo", "Área m²",
+                                  "Precio bloqueado", "Asesor", "Observación", "Fecha de reserva" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var c = ws.Cells[4, i + 1];
+                c.Value = headers[i];
+                c.Style.Font.Bold = true;
+                c.Style.Font.Color.SetColor(DColor.White);
+                c.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                c.Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(0, 58, 112));
+                c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+            }
+
+            int row = 5;
+            foreach (var r in reservas)
+            {
+                ws.Cells[row, 1].Value = r.Apto;
+                ws.Cells[row, 2].Value = r.Torre;
+                ws.Cells[row, 3].Value = r.Etapa;
+                ws.Cells[row, 4].Value = r.Piso;
+                ws.Cells[row, 5].Value = r.Tipo;
+                ws.Cells[row, 6].Value = r.Metros;
+                ws.Cells[row, 7].Value = r.Precio;
+                ws.Cells[row, 7].Style.Numberformat.Format = "$#,##0";
+                // Sin asesor se resalta: es una reserva que nadie tiene asignada y que hay
+                // que repartir antes de que se cierre.
+                if (string.IsNullOrWhiteSpace(r.Asesor))
+                {
+                    ws.Cells[row, 8].Value = "SIN ASIGNAR";
+                    ws.Cells[row, 8].Style.Font.Color.SetColor(DColor.FromArgb(204, 119, 0));
+                    ws.Cells[row, 8].Style.Font.Bold = true;
+                }
+                else ws.Cells[row, 8].Value = r.Asesor;
+                ws.Cells[row, 9].Value = r.Obs;
+                ws.Cells[row, 9].Style.WrapText = true;
+                ws.Cells[row, 10].Value = r.Fecha;
+                row++;
+            }
+
+            if (reservas.Count > 0)
+            {
+                ws.Cells[row, 1].Value = "Total bloqueado";
+                ws.Cells[row, 1].Style.Font.Bold = true;
+                ws.Cells[row, 7].Formula = $"SUM(G5:G{row - 1})";
+                ws.Cells[row, 7].Style.Font.Bold = true;
+                ws.Cells[row, 7].Style.Numberformat.Format = "$#,##0";
+                ws.Cells[row, 1, row, 10].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                ws.Cells[row, 1, row, 10].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(235, 241, 248));
+            }
+            else
+            {
+                ws.Cells[5, 1].Value = "No hay reservas activas en este proyecto.";
+                ws.Cells[5, 1, 5, 10].Merge = true;
+                ws.Cells[5, 1].Style.Font.Color.SetColor(DColor.Gray);
+            }
+
+            ws.Cells[4, 1, Math.Max(row, 5), 10].AutoFitColumns();
+            // La observación se deja ancha y con ajuste de texto: es lo que se lee.
+            ws.Column(9).Width = 45;
+
+            var bytes = package.GetAsByteArray();
+            var nombre = $"Reservas_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
         }
 
         /// <summary>

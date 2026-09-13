@@ -40,6 +40,8 @@
     .ios-btn.ghost{background:var(--fill3);color:var(--label);box-shadow:none;border:1px solid var(--sep);}
     .ios-btn.rojo{background:rgba(230,57,70,0.1);color:var(--rojo);box-shadow:none;border:1px solid rgba(230,57,70,0.2);}
     .ios-btn.rojo:hover{background:rgba(230,57,70,0.2);}
+    .ios-btn.verde{background:#1EA851;box-shadow:0 4px 12px rgba(52,199,89,0.28);}
+    .ios-btn.verde:hover{background:#167A3D;}
     .res-banner{background:linear-gradient(135deg,var(--azul),var(--blue));border-radius:18px;padding:16px 22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 8px 24px rgba(0,118,227,0.25);animation:fu 0.3s ease both;flex-wrap:wrap;gap:12px;}
     .res-banner-title{font-size:20px;font-weight:700;color:white;letter-spacing:-0.5px;}
     .res-banner-sub{font-size:12px;color:rgba(255,255,255,0.7);margin-top:2px;}
@@ -74,7 +76,14 @@
 <div class="card">
     <div class="card-head">
         <span class="card-title">Lista de reservas</span>
-        <a href="/Inmuebles" class="ios-btn ghost" style="font-size:12px;padding:6px 14px;">&#8592; Volver a inmuebles</a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            @* El informe sale de aquí y no de Reportes: una reserva es información del
+               día (a quién hay que perseguir), no un cierre. *@
+            <a href="/Inmuebles/ExportarReservas" class="ios-btn verde" style="font-size:12px;padding:6px 14px;">
+                &#128202; Informe de reservas
+            </a>
+            <a href="/Inmuebles" class="ios-btn ghost" style="font-size:12px;padding:6px 14px;">&#8592; Volver a inmuebles</a>
+        </div>
     </div>
     @if (reservas.Count > 0)
     {
