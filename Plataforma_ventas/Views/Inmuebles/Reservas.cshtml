@@ -9,6 +9,7 @@
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     var reservas   = ViewBag.Reservas as List<dynamic> ?? new List<dynamic>();
     var asesores   = ViewBag.Asesores as List<(int Id, string Nombre)> ?? new List<(int, string)>();
+    bool hayObs    = ViewBag.HayObservacion != null && (bool)ViewBag.HayObservacion;
     var iniciales  = ((nombre.Length >= 1 ? nombre.Substring(0, 1) : "") + (apellido.Length >= 1 ? apellido.Substring(0, 1) : "")).ToUpper();
     ViewBag.Iniciales = iniciales;
 }
@@ -22,6 +23,10 @@
     .sel-asesor{padding:5px 10px;border:1px solid var(--sep);border-radius:9px;background:var(--fill3);font-size:12.5px;font-family:inherit;color:var(--label);outline:none;max-width:190px;}
     .sel-asesor:focus{border-color:var(--blue);background:white;}
     .sin-asesor{font-size:11px;color:#CC7700;font-weight:600;margin-top:3px;}
+    .obs-input{width:210px;min-height:42px;padding:6px 9px;border:1px solid var(--sep);border-radius:9px;background:var(--fill3);font-size:12.5px;font-family:inherit;color:var(--label);outline:none;resize:vertical;}
+    .obs-input:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(0,118,227,0.08);}
+    .btn-obs{background:rgba(0,118,227,0.1);color:var(--blue);border:none;padding:6px 10px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;}
+    .btn-obs:hover{background:rgba(0,118,227,0.2);}
     .card-title{font-size:15px;font-weight:600;color:var(--label);}
     .tbl-wrap{overflow-x:auto;}
     .tbl{width:100%;border-collapse:collapse;}
@@ -78,7 +83,8 @@
                 <thead>
                     <tr>
                         <th>Apto</th><th>Área / Tipo</th><th>Torre · Piso</th>
-                        <th>Precio bloqueado</th><th>Reservado por</th><th>Fecha reserva</th><th>Acciones</th>
+                        <th>Precio bloqueado</th><th>Reservado por</th><th>Observación</th>
+                        <th>Fecha reserva</th><th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,6 +116,26 @@
                                 @if (idVendedorReserva == 0)
                                 {
                                     <div class="sin-asesor">Asígnale un asesor</div>
+                                }
+                            </td>
+                            <td>
+                                @if (hayObs)
+                                {
+                                    @* El asesor la escribe con el cliente enfrente; el
+                                       administrador la completa después sin tener que
+                                       liberar la reserva y volverla a hacer. *@
+                                    <form action="/Inmuebles/EditarObservacionReserva" method="post"
+                                          style="margin:0;display:flex;gap:6px;align-items:flex-start">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="idInmueble" value="@r.Id"/>
+                                        <textarea name="observacion" rows="2" maxlength="500"
+                                                  class="obs-input" placeholder="Sin observación">@r.Observacion</textarea>
+                                        <button type="submit" class="btn-obs" title="Guardar la observación">&#10003;</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span style="font-size:11px;color:var(--label3)">Ejecuta la sección 6 del script</span>
                                 }
                             </td>
                             <td><span class="fecha-tag">@r.FechaReserva</span></td>

@@ -421,9 +421,16 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)rp["IdProyectos"], rp["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
-            var cmd = new SqlCommand(@"
+            // La observación es una columna agregada después: si el script no se ejecutó,
+            // la pantalla sigue funcionando sin ella.
+            var cmdColObs = new SqlCommand("SELECT COL_LENGTH('Inmuebles','ObservacionReserva')", con);
+            bool hayColumnaObs = (await cmdColObs.ExecuteScalarAsync()) is not (null or DBNull);
+            ViewBag.HayObservacion = hayColumnaObs;
+
+            var cmd = new SqlCommand($@"
                 SELECT i.IdInmuebles, i.Apto, i.Metros, i.Tipo, i.Torre, i.Piso,
                        i.PrecioReserva, i.FechaReserva, i.IdVendedorReserva,
+                       {(hayColumnaObs ? "ISNULL(i.ObservacionReserva,'')" : "''")} AS Observacion,
                        u.Nombre + ' ' + u.Apellido AS NombreVendedor
                 FROM Inmuebles i
                 LEFT JOIN Usuarios u ON u.IdUsuario = i.IdVendedorReserva
@@ -447,6 +454,7 @@ namespace Plataforma_ventas.Controllers
                                      ((DateTime)rr["FechaReserva"]).ToString("dd/MM/yyyy HH:mm"),
                     NombreVendedor = rr["NombreVendedor"]?.ToString() ?? "",
                     IdVendedorReserva = rr["IdVendedorReserva"] == DBNull.Value ? 0 : (int)rr["IdVendedorReserva"],
+                    Observacion = rr["Observacion"]?.ToString() ?? "",
                 });
             rr.Close();
 
@@ -691,6 +699,47 @@ namespace Plataforma_ventas.Controllers
             TempData["Exito"] = idVendedor > 0
                 ? $"Reserva asignada a {nombreAsesor}."
                 : $"La reserva de {uAsig.Articulo} {uAsig.Singular} quedó sin asesor asignado.";
+            return RedirectToAction("Reservas");
+        }
+
+        /// <summary>
+        /// Edits the note attached to a reservation. The adviser writes it in a hurry while
+        /// the client is in front of them, so the administrator has to be able to complete
+        /// it afterwards without having to release the reservation and make it again.
+        /// </summary>
+        /// <param name="idInmueble">Reserved property.</param>
+        /// <param name="observacion">New note; empty clears it.</param>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditarObservacionReserva(int idInmueble, string observacion)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var cmdCol = new SqlCommand("SELECT COL_LENGTH('Inmuebles','ObservacionReserva')", con);
+            if ((await cmdCol.ExecuteScalarAsync()) is null or DBNull)
+            {
+                TempData["Error"] = "La base todavía no tiene la columna de observaciones. " +
+                                    "Ejecuta la sección 6 de Scripts/PanelAdmin.sql.";
+                return RedirectToAction("Reservas");
+            }
+
+            // Solo sobre reservas activas: si ya se liberó o se vendió, la observación de
+            // la reserva dejó de existir y escribirla sería dejar un dato huérfano.
+            var cmd = new SqlCommand(@"
+                UPDATE Inmuebles SET ObservacionReserva=@obs
+                WHERE IdInmuebles=@id AND IdProyecto=@proy AND Estado='RESERVADO'", con);
+            cmd.Parameters.AddWithValue("@obs", (observacion ?? "").Trim());
+            cmd.Parameters.AddWithValue("@id", idInmueble);
+            cmd.Parameters.AddWithValue("@proy", idProy);
+
+            if (await cmd.ExecuteNonQueryAsync() == 0)
+                TempData["Error"] = "Esa reserva ya no está activa.";
+            else
+                TempData["Exito"] = "Observación actualizada.";
+
             return RedirectToAction("Reservas");
         }
 
