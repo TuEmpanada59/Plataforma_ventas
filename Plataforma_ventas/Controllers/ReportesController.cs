@@ -179,6 +179,22 @@ namespace Plataforma_ventas.Controllers
                     Reservados = g.Count(x => (string)x.Estado == "RESERVADO"),
                     EnProceso = g.Count(x => (string)x.Estado == "EN PROCESO"),
                     Disponibles = g.Count(x => (string)x.Estado == "DISPONIBLE"),
+                    // Dentro de cada torre, el detalle por área: la torre dice cuánto
+                    // falta y el área dice qué es lo que falta, que es lo accionable.
+                    Areas = g.GroupBy(x => (string)x.Metros)
+                             .Select(a => new
+                             {
+                                 Metros = a.Key,
+                                 Total = a.Count(),
+                                 Vendidos = a.Count(x => (string)x.Estado == "VENDIDO"),
+                                 Reservados = a.Count(x => (string)x.Estado == "RESERVADO"),
+                                 EnProceso = a.Count(x => (string)x.Estado == "EN PROCESO"),
+                                 Disponibles = a.Count(x => (string)x.Estado == "DISPONIBLE"),
+                             })
+                             .OrderBy(a => double.TryParse(a.Metros.Replace(",", "."),
+                                          System.Globalization.NumberStyles.Any,
+                                          System.Globalization.CultureInfo.InvariantCulture, out double mts) ? mts : 0)
+                             .ToList<dynamic>(),
                 })
                 .OrderBy(t => t.Torre, StringComparer.OrdinalIgnoreCase)
                 .ToList<dynamic>();

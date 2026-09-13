@@ -97,6 +97,13 @@
     .torre-cifras{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
     .torre-cifras i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
     .pt-v{background:#1EA851;}.pt-r{background:#CC7700;}.pt-p{background:#5A5AC8;}.pt-d{background:var(--rojo);}
+    .areas-detalle{display:flex;flex-direction:column;gap:5px;margin-top:8px;padding-left:12px;border-left:2px solid var(--sep2);}
+    .area-fila{display:flex;align-items:center;gap:10px;}
+    .area-nom{font-size:12px;font-weight:600;color:var(--label2);min-width:72px;}
+    .area-barra{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--fill2);flex:1;min-width:0;}
+    .area-barra span{display:block;height:100%;}
+    .area-cifra{font-size:11px;color:var(--label3);min-width:96px;text-align:right;}
+    @@media(max-width:640px){.area-nom{min-width:60px;}.area-cifra{min-width:74px;}}
     .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
     .destino-row{display:flex;align-items:center;gap:10px;}
     .destino-bar-wrap{flex:1;height:8px;background:var(--fill3);border-radius:20px;overflow:hidden;}
@@ -329,6 +336,30 @@
                     <span><i class="pt-r"></i>@t.Reservados reservados</span>
                     <span><i class="pt-p"></i>@t.EnProceso en proceso</span>
                     <span><i class="pt-d"></i>@t.Disponibles disponibles</span>
+                </div>
+                @* Detalle por área dentro de la torre: la barra de arriba dice cuánto
+                   falta, estas dicen qué es lo que falta. *@
+                <div class="areas-detalle">
+                @foreach (var a in (List<dynamic>)t.Areas)
+                {
+                    int totA = (int)a.Total;
+                    double aV = totA > 0 ? (double)(int)a.Vendidos    * 100 / totA : 0;
+                    double aR = totA > 0 ? (double)(int)a.Reservados  * 100 / totA : 0;
+                    double aP = totA > 0 ? (double)(int)a.EnProceso   * 100 / totA : 0;
+                    double aD = totA > 0 ? (double)(int)a.Disponibles * 100 / totA : 0;
+                    string aWV = aV.ToString("0.##", inv), aWR = aR.ToString("0.##", inv);
+                    string aWP = aP.ToString("0.##", inv), aWD = aD.ToString("0.##", inv);
+                    <div class="area-fila">
+                        <span class="area-nom">@a.Metros m²</span>
+                        <span class="area-barra">
+                            @if (aV > 0) { <span class="seg-v" style="width:@aWV%" title="@a.Vendidos vendidos"></span> }
+                            @if (aR > 0) { <span class="seg-r" style="width:@aWR%" title="@a.Reservados reservados"></span> }
+                            @if (aP > 0) { <span class="seg-p" style="width:@aWP%" title="@a.EnProceso en proceso"></span> }
+                            @if (aD > 0) { <span class="seg-d" style="width:@aWD%" title="@a.Disponibles disponibles"></span> }
+                        </span>
+                        <span class="area-cifra">@a.Disponibles disp. de @totA</span>
+                    </div>
+                }
                 </div>
             </div>
         }
