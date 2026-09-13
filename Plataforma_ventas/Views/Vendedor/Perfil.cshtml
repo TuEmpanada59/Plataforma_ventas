@@ -60,7 +60,7 @@
     .ios-btn.rojo{background:rgba(230,57,70,0.1);color:var(--rojo);}
     .ios-btn.rojo:hover{background:rgba(230,57,70,0.18);}
     .acciones{display:flex;gap:8px;flex-wrap:wrap;}
-    .obs-reserva{font-size:11px;color:var(--label2);background:var(--fill3);border-radius:8px;padding:5px 8px;margin-top:5px;max-width:230px;white-space:normal;line-height:1.4;}
+    .obs-reserva{font-size:12px;color:var(--label);background:var(--fill3);border-radius:8px;padding:6px 9px;max-width:260px;white-space:normal;line-height:1.45;}
     .mapa-leyenda{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
     .torres-barras{display:flex;flex-direction:column;gap:16px;padding:16px;}
     .torre-bloque{display:flex;flex-direction:column;gap:6px;}
@@ -150,7 +150,8 @@
                     <thead>
                         <tr>
                             <th>Apto</th><th>Torre</th><th>Piso</th><th>Área</th><th>Tipo</th>
-                            <th>Precio reservado</th><th>Fecha de reserva</th><th>Acciones</th>
+                            <th>Precio reservado</th><th>Observación</th>
+                            <th>Fecha de reserva</th><th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -163,13 +164,19 @@
                             <td>@r.Metros m²</td>
                             <td>@r.Tipo</td>
                             <td class="precio num">$@string.Format("{0:N0}", r.PrecioReserva)</td>
-                            <td class="de">
-                                @r.FechaReserva
+                            @* Solo lectura: la observación la completa el administrador
+                               desde Reservas. Aquí el asesor la consulta. *@
+                            <td>
                                 @if (!string.IsNullOrWhiteSpace(r.Observacion as string))
                                 {
                                     <div class="obs-reserva" title="@r.Observacion">@r.Observacion</div>
                                 }
+                                else
+                                {
+                                    <span style="color:var(--label3);font-size:12px">&#8212;</span>
+                                }
                             </td>
+                            <td class="de">@r.FechaReserva</td>
                             <td>
                                 <div class="acciones">
                                     <a href="/Vendedor/ContinuarVenta?idInmueble=@r.Id" class="ios-btn">Continuar venta</a>
