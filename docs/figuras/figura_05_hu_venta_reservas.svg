@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="700" viewBox="0 0 1180 700">
+<rect width="1180" height="700" fill="#F4F7FA"/>
+<text x="30" y="40" font-family="Segoe UI, Arial" font-size="19" font-weight="700" fill="#003A70">Plataforma de Lanzamientos Inmobiliarios</text>
+<text x="30" y="62" font-family="Segoe UI, Arial" font-size="13.5" fill="#5A6472">Historias de usuario — Flujo de venta del asesor, reservas y cumplimiento</text>
+<line x1="30" y1="76" x2="1150" y2="76" stroke="#D6DEE8" stroke-width="1.5"/>
+<rect x="30" y="96" width="360" height="270" rx="10" fill="#FFFFFF" stroke="#D6DEE8" stroke-width="1.5"/>
+<rect x="30" y="96" width="360" height="34" rx="10" fill="#003A70"/>
+<rect x="30" y="120" width="360" height="10" fill="#003A70"/>
+<text x="42" y="118" font-family="Segoe UI, Arial" font-size="12.5" font-weight="700" fill="#FFFFFF">HU-403</text>
+<circle cx="372" cy="113" r="6" fill="#1EA851"/>
+<text x="42" y="148" font-family="Segoe UI, Arial" font-size="13" font-weight="700" fill="#003A70">Listas de precio con</text>
+<text x="42" y="165" font-family="Segoe UI, Arial" font-size="13" font-weight="700" fill="#003A70">escalamiento</text>
+<text x="42" y="188" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">COMO</text>
+<text x="42" y="202" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">administrador</text>
+<text x="42" y="220" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">QUIERO</text>
+<text x="42" y="234" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">que la lista suba sola cada cierto</text>
+<text x="42" y="248" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">número de ventas</text>
+<text x="42" y="266" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">PARA</text>
+<text x="42" y="280" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">aplicar la política de precios sin</text>
+<text x="42" y="294" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">intervención manual</text>
+<line x1="42" y1="336" x2="378" y2="336" stroke="#D6DEE8"/>
+<text x="42" y="354" font-family="Segoe UI, Arial" font-size="10.5" fill="#5A6472">Prioridad</text>
+<rect x="98" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="111" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="124" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="137" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="150" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<text x="378" y="354" text-anchor="end" font-family="Segoe UI, Arial" font-size="10.5" font-weight="700" fill="#1EA851">Implementada</text>
+<rect x="420" y="96" width="360" height="270" rx="10" fill="#FFFFFF" stroke="#D6DEE8" stroke-width="1.5"/>
+<rect x="420" y="96" width="360" height="34" rx="10" fill="#003A70"/>
+<rect x="420" y="120" width="360" height="10" fill="#003A70"/>
+<text x="432" y="118" font-family="Segoe UI, Arial" font-size="12.5" font-weight="700" fill="#FFFFFF">HU-502</text>
+<circle cx="762" cy="113" r="6" fill="#1EA851"/>
+<text x="432" y="148" font-family="Segoe UI, Arial" font-size="13" font-weight="700" fill="#003A70">Tomar una unidad disponible</text>
+<text x="432" y="171" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">COMO</text>
+<text x="432" y="185" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">asesor</text>
+<text x="432" y="203" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">QUIERO</text>
+<text x="432" y="217" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">marcar como en proceso la unidad que</text>
+<text x="432" y="231" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">estoy negociando</text>
+<text x="432" y="249" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">PARA</text>
+<text x="432" y="263" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">que ningún otro asesor la ofrezca al</text>
+<text x="432" y="277" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">mismo tiempo</text>
+<line x1="432" y1="336" x2="768" y2="336" stroke="#D6DEE8"/>
+<text x="432" y="354" font-family="Segoe UI, Arial" font-size="10.5" fill="#5A6472">Prioridad</text>
+<rect x="488" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="501" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="514" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="527" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="540" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<text x="768" y="354" text-anchor="end" font-family="Segoe UI, Arial" font-size="10.5" font-weight="700" fill="#1EA851">Implementada</text>
+<rect x="810" y="96" width="360" height="270" rx="10" fill="#FFFFFF" stroke="#D6DEE8" stroke-width="1.5"/>
+<rect x="810" y="96" width="360" height="34" rx="10" fill="#003A70"/>
+<rect x="810" y="120" width="360" height="10" fill="#003A70"/>
+<text x="822" y="118" font-family="Segoe UI, Arial" font-size="12.5" font-weight="700" fill="#FFFFFF">HU-503</text>
+<circle cx="1152" cy="113" r="6" fill="#1EA851"/>
+<text x="822" y="148" font-family="Segoe UI, Arial" font-size="13" font-weight="700" fill="#003A70">Reservar con precio bloqueado</text>
+<text x="822" y="171" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">COMO</text>
+<text x="822" y="185" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">asesor</text>
+<text x="822" y="203" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">QUIERO</text>
+<text x="822" y="217" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">reservar una unidad congelando su precio</text>
+<text x="822" y="231" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">actual</text>
+<text x="822" y="249" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">PARA</text>
+<text x="822" y="263" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">respetar el valor prometido aunque la</text>
+<text x="822" y="277" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">lista suba</text>
+<line x1="822" y1="336" x2="1158" y2="336" stroke="#D6DEE8"/>
+<text x="822" y="354" font-family="Segoe UI, Arial" font-size="10.5" fill="#5A6472">Prioridad</text>
+<rect x="878" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="891" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="904" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="917" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="930" y="345" width="9" height="9" rx="2" fill="#CC7700"/>
+<text x="1158" y="354" text-anchor="end" font-family="Segoe UI, Arial" font-size="10.5" font-weight="700" fill="#1EA851">Implementada</text>
+<rect x="30" y="394" width="360" height="270" rx="10" fill="#FFFFFF" stroke="#D6DEE8" stroke-width="1.5"/>
+<rect x="30" y="394" width="360" height="34" rx="10" fill="#003A70"/>
+<rect x="30" y="418" width="360" height="10" fill="#003A70"/>
+<text x="42" y="416" font-family="Segoe UI, Arial" font-size="12.5" font-weight="700" fill="#FFFFFF">HU-601</text>
+<circle cx="372" cy="411" r="6" fill="#1EA851"/>
+<text x="42" y="446" font-family="Segoe UI, Arial" font-size="13" font-weight="700" fill="#003A70">Verificación SAGRILAFT previa</text>
+<text x="42" y="469" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">COMO</text>
+<text x="42" y="483" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">oficial de cumplimiento</text>
+<text x="42" y="501" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">QUIERO</text>
+<text x="42" y="515" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">confirmar la consulta antes de registrar</text>
+<text x="42" y="529" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">al cliente</text>
+<text x="42" y="547" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">PARA</text>
+<text x="42" y="561" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">cumplir la normativa antilavado</text>
+<line x1="42" y1="634" x2="378" y2="634" stroke="#D6DEE8"/>
+<text x="42" y="652" font-family="Segoe UI, Arial" font-size="10.5" fill="#5A6472">Prioridad</text>
+<rect x="98" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="111" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="124" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="137" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="150" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<text x="378" y="652" text-anchor="end" font-family="Segoe UI, Arial" font-size="10.5" font-weight="700" fill="#1EA851">Implementada</text>
+<rect x="420" y="394" width="360" height="270" rx="10" fill="#FFFFFF" stroke="#D6DEE8" stroke-width="1.5"/>
+<rect x="420" y="394" width="360" height="34" rx="10" fill="#003A70"/>
+<rect x="420" y="418" width="360" height="10" fill="#003A70"/>
+<text x="432" y="416" font-family="Segoe UI, Arial" font-size="12.5" font-weight="700" fill="#FFFFFF">HU-602</text>
+<circle cx="762" cy="411" r="6" fill="#1EA851"/>
+<text x="432" y="446" font-family="Segoe UI, Arial" font-size="13" font-weight="700" fill="#003A70">Registrar la venta</text>
+<text x="432" y="469" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">COMO</text>
+<text x="432" y="483" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">asesor</text>
+<text x="432" y="501" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">QUIERO</text>
+<text x="432" y="515" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">registrar la venta con cliente nuevo o</text>
+<text x="432" y="529" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">existente</text>
+<text x="432" y="547" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">PARA</text>
+<text x="432" y="561" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">cerrar la operación con el precio</text>
+<text x="432" y="575" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">correcto</text>
+<line x1="432" y1="634" x2="768" y2="634" stroke="#D6DEE8"/>
+<text x="432" y="652" font-family="Segoe UI, Arial" font-size="10.5" fill="#5A6472">Prioridad</text>
+<rect x="488" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="501" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="514" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="527" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="540" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<text x="768" y="652" text-anchor="end" font-family="Segoe UI, Arial" font-size="10.5" font-weight="700" fill="#1EA851">Implementada</text>
+<rect x="810" y="394" width="360" height="270" rx="10" fill="#FFFFFF" stroke="#D6DEE8" stroke-width="1.5"/>
+<rect x="810" y="394" width="360" height="34" rx="10" fill="#003A70"/>
+<rect x="810" y="418" width="360" height="10" fill="#003A70"/>
+<text x="822" y="416" font-family="Segoe UI, Arial" font-size="12.5" font-weight="700" fill="#FFFFFF">HU-404</text>
+<circle cx="1152" cy="411" r="6" fill="#1EA851"/>
+<text x="822" y="446" font-family="Segoe UI, Arial" font-size="13" font-weight="700" fill="#003A70">Administración de reservas</text>
+<text x="822" y="469" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">COMO</text>
+<text x="822" y="483" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">administrador</text>
+<text x="822" y="501" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">QUIERO</text>
+<text x="822" y="515" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">ver las reservas activas, su asesor y su</text>
+<text x="822" y="529" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">observación</text>
+<text x="822" y="547" font-family="Segoe UI, Arial" font-size="10" font-weight="700" fill="#0076E3">PARA</text>
+<text x="822" y="561" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">hacer seguimiento a lo que está por</text>
+<text x="822" y="575" font-family="Segoe UI, Arial" font-size="11" fill="#5A6472">cerrarse</text>
+<line x1="822" y1="634" x2="1158" y2="634" stroke="#D6DEE8"/>
+<text x="822" y="652" font-family="Segoe UI, Arial" font-size="10.5" fill="#5A6472">Prioridad</text>
+<rect x="878" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="891" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="904" y="643" width="9" height="9" rx="2" fill="#CC7700"/>
+<rect x="917" y="643" width="9" height="9" rx="2" fill="#E5EAF0"/>
+<rect x="930" y="643" width="9" height="9" rx="2" fill="#E5EAF0"/>
+<text x="1158" y="652" text-anchor="end" font-family="Segoe UI, Arial" font-size="10.5" font-weight="700" fill="#1EA851">Implementada</text>
+</svg>
