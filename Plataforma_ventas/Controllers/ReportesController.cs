@@ -142,8 +142,12 @@ namespace Plataforma_ventas.Controllers
 
             var mapa = new List<dynamic>();
             // Se incluye quién tiene el inmueble cuando está EN PROCESO o RESERVADO.
-            var cmdMapa = new SqlCommand(@"
-                SELECT i.Apto, i.Tipo, i.Metros, i.Torre, i.Estado,
+            var cmdColEtapaMapa = new SqlCommand("SELECT COL_LENGTH('Inmuebles','Etapa')", con);
+            bool hayEtapaMapa = (await cmdColEtapaMapa.ExecuteScalarAsync()) is not (null or DBNull);
+
+            var cmdMapa = new SqlCommand($@"
+                SELECT i.IdInmuebles, i.Apto, i.Tipo, i.Metros, i.Torre, i.Piso, i.Estado,
+                       {(hayEtapaMapa ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
                        ISNULL(up.Nombre + ' ' + up.Apellido, '') AS EnProcesoPor,
                        ISNULL(ur.Nombre + ' ' + ur.Apellido, '') AS ReservadoPor
                 FROM Inmuebles i
@@ -156,10 +160,13 @@ namespace Plataforma_ventas.Controllers
                 while (await rm.ReadAsync())
                     mapa.Add(new
                     {
+                        Id = Convert.ToInt32(rm["IdInmuebles"]),
                         Apto = rm["Apto"]?.ToString() ?? "",
                         Tipo = rm["Tipo"]?.ToString() ?? "",
                         Metros = rm["Metros"]?.ToString() ?? "",
                         Torre = rm["Torre"]?.ToString() ?? "",
+                        Piso = rm["Piso"]?.ToString() ?? "",
+                        Etapa = rm["Etapa"]?.ToString() ?? "",
                         Estado = rm["Estado"]?.ToString() ?? "",
                         EnProcesoPor = (rm["EnProcesoPor"]?.ToString() ?? "").Trim(),
                         ReservadoPor = (rm["ReservadoPor"]?.ToString() ?? "").Trim(),
@@ -198,6 +205,12 @@ namespace Plataforma_ventas.Controllers
                 })
                 .OrderBy(t => t.Torre, StringComparer.OrdinalIgnoreCase)
                 .ToList<dynamic>();
+
+            // ── Mapa por piso y línea: la misma cuadrícula del mapa de ventas en Excel ──
+            // Una torre (y etapa) por cuadrícula; un renglón por piso; una columna por
+            // línea de apartamentos, agrupadas en interior y exterior.
+            ViewBag.MapaPisos = Plataforma_ventas.MapaPisos.Construir(mapa);
+            ViewBag.ProyectoIdMapa = idProy;
 
             // ── Por dónde se enteraron los compradores ──
             var medios = new List<dynamic>();

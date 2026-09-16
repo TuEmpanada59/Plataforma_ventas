@@ -19,7 +19,7 @@
     var destinos   = ViewBag.Destinos    as List<dynamic> ?? new List<dynamic>();
     var medios     = ViewBag.Medios      as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
-    var mapaTorres = ViewBag.MapaTorres  as List<dynamic> ?? new List<dynamic>();
+    var mapaPisos  = ViewBag.MapaPisos as List<Plataforma_ventas.MapaPisos.Torre> ?? new List<Plataforma_ventas.MapaPisos.Torre>();
     DateTime ahoraCol;
     try {
         ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/Bogota"));
@@ -86,24 +86,26 @@
     .hoy-stat{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 16px;}
     .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;white-space:nowrap;}
     .hoy-stat-lbl{font-size:10px;color:rgba(255,255,255,0.65);margin-top:1px;font-weight:500;}
-    .torres-barras{display:flex;flex-direction:column;gap:16px;padding:16px;}
-    .torre-bloque{display:flex;flex-direction:column;gap:6px;}
-    .torre-cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
-    .torre-nom{font-size:14px;font-weight:700;color:var(--label);}
-    .torre-tot{font-size:11.5px;color:var(--label2);}
-    .torre-barra{display:flex;height:22px;border-radius:8px;overflow:hidden;background:var(--fill2);}
-    .torre-barra span{display:block;height:100%;transition:width .4s ease;}
-    .seg-v{background:#1EA851;}.seg-r{background:#CC7700;}.seg-p{background:#5A5AC8;}.seg-d{background:var(--rojo);}
-    .torre-cifras{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--label2);}
-    .torre-cifras i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
-    .pt-v{background:#1EA851;}.pt-r{background:#CC7700;}.pt-p{background:#5A5AC8;}.pt-d{background:var(--rojo);}
-    .areas-detalle{display:flex;flex-direction:column;gap:5px;margin-top:8px;padding-left:12px;border-left:2px solid var(--sep2);}
-    .area-fila{display:flex;align-items:center;gap:10px;}
-    .area-nom{font-size:12px;font-weight:600;color:var(--label2);min-width:72px;}
-    .area-barra{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--fill2);flex:1;min-width:0;}
-    .area-barra span{display:block;height:100%;}
-    .area-cifra{font-size:11px;color:var(--label3);min-width:96px;text-align:right;}
-    @@media(max-width:640px){.area-nom{min-width:60px;}.area-cifra{min-width:74px;}}
+    .mp-torre{padding:14px 16px 6px;}
+    .mp-titulo{font-size:14px;font-weight:700;color:var(--label);margin-bottom:8px;}
+    .mp-scroll{overflow-x:auto;}
+    .mp{border-collapse:separate;border-spacing:5px 4px;width:100%;}
+    .mp th.mp-piso,.mp td.mp-piso{width:44px;text-align:right;font-size:12px;font-weight:700;color:var(--label3);padding-right:6px;white-space:nowrap;}
+    .mp-banda{font-size:11px;font-weight:700;letter-spacing:0.06em;padding:5px 0;border-radius:7px;text-align:center;}
+    .mp-banda.int{background:rgba(0,118,227,0.10);color:var(--azul);}
+    .mp-banda.ext{background:rgba(255,149,0,0.14);color:#A66000;}
+    .mp-linea{background:var(--azul);color:#fff;border-radius:7px;padding:5px 8px;text-align:center;white-space:nowrap;}
+    .mp-linea.ext{background:#A66000;}
+    .mp-linea-nom{font-size:12px;font-weight:700;display:block;}
+    .mp-linea-m2{font-size:10.5px;opacity:.85;display:block;}
+    .mp-celda{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 9px;border-radius:7px;border:1px solid;font-size:11.5px;min-width:118px;transition:background .3s;}
+    .mp-apto{font-weight:700;}
+    .mp-estado{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+    .mp-celda.e-D{background:rgba(230,57,70,0.10);border-color:rgba(230,57,70,0.45);color:#B02030;}
+    .mp-celda.e-V{background:rgba(52,199,89,0.14);border-color:rgba(52,199,89,0.5);color:#167A3D;}
+    .mp-celda.e-R{background:rgba(255,149,0,0.14);border-color:rgba(255,149,0,0.5);color:#A66000;}
+    .mp-celda.e-P{background:rgba(90,90,200,0.12);border-color:rgba(90,90,200,0.45);color:#4A4AB0;}
+    .mp-vacia{background:transparent;}
     .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
     .destino-row{display:flex;align-items:center;gap:10px;}
     .destino-bar-wrap{flex:1;height:8px;background:var(--fill3);border-radius:20px;overflow:hidden;}
@@ -303,67 +305,59 @@
             <a href="/Reportes/ReportePDF" class="ios-btn" style="background:var(--rojo)">PDF técnico</a>
         </div>
     </div>
-    @if (mapaTorres.Count > 0) {
-        <div class="torres-barras">
-        @foreach (var t in mapaTorres) {
-            int tot = (int)t.Total;
-            // Porcentaje sobre el total de la torre: así se comparan torres de
-            // distinto tamaño, que es lo que interesa al leer el avance.
-            double pV = tot > 0 ? (double)(int)t.Vendidos    * 100 / tot : 0;
-            double pR = tot > 0 ? (double)(int)t.Reservados  * 100 / tot : 0;
-            double pP = tot > 0 ? (double)(int)t.EnProceso   * 100 / tot : 0;
-            double pD = tot > 0 ? (double)(int)t.Disponibles * 100 / tot : 0;
-            int colocado = (int)t.Vendidos + (int)t.Reservados + (int)t.EnProceso;
-            int porcColocado = tot > 0 ? (int)Math.Round((double)colocado * 100 / tot) : 0;
-            // Los anchos se arman antes: una llamada con comillas dentro de un atributo
-            // cortaría el atributo al parsear la vista.
-            var inv = System.Globalization.CultureInfo.InvariantCulture;
-            string wV = pV.ToString("0.##", inv), wR = pR.ToString("0.##", inv);
-            string wP = pP.ToString("0.##", inv), wD = pD.ToString("0.##", inv);
-            <div class="torre-bloque">
-                <div class="torre-cab">
-                    <span class="torre-nom">@t.Torre</span>
-                    <span class="torre-tot">@colocado de @tot colocados · @porcColocado%</span>
-                </div>
-                <div class="torre-barra">
-                    @if (pV > 0) { <span class="seg-v" style="width:@wV%" title="@t.Vendidos vendidos"></span> }
-                    @if (pR > 0) { <span class="seg-r" style="width:@wR%" title="@t.Reservados reservados"></span> }
-                    @if (pP > 0) { <span class="seg-p" style="width:@wP%" title="@t.EnProceso en proceso"></span> }
-                    @if (pD > 0) { <span class="seg-d" style="width:@wD%" title="@t.Disponibles disponibles"></span> }
-                </div>
-                <div class="torre-cifras">
-                    <span><i class="pt-v"></i>@t.Vendidos vendidos</span>
-                    <span><i class="pt-r"></i>@t.Reservados reservados</span>
-                    <span><i class="pt-p"></i>@t.EnProceso en proceso</span>
-                    <span><i class="pt-d"></i>@t.Disponibles disponibles</span>
-                </div>
-                @* Detalle por área dentro de la torre: la barra de arriba dice cuánto
-                   falta, estas dicen qué es lo que falta. *@
-                <div class="areas-detalle">
-                @foreach (var a in (List<dynamic>)t.Areas)
-                {
-                    int totA = (int)a.Total;
-                    double aV = totA > 0 ? (double)(int)a.Vendidos    * 100 / totA : 0;
-                    double aR = totA > 0 ? (double)(int)a.Reservados  * 100 / totA : 0;
-                    double aP = totA > 0 ? (double)(int)a.EnProceso   * 100 / totA : 0;
-                    double aD = totA > 0 ? (double)(int)a.Disponibles * 100 / totA : 0;
-                    string aWV = aV.ToString("0.##", inv), aWR = aR.ToString("0.##", inv);
-                    string aWP = aP.ToString("0.##", inv), aWD = aD.ToString("0.##", inv);
-                    <div class="area-fila">
-                        <span class="area-nom">@a.Metros m²</span>
-                        <span class="area-barra">
-                            @if (aV > 0) { <span class="seg-v" style="width:@aWV%" title="@a.Vendidos vendidos"></span> }
-                            @if (aR > 0) { <span class="seg-r" style="width:@aWR%" title="@a.Reservados reservados"></span> }
-                            @if (aP > 0) { <span class="seg-p" style="width:@aWP%" title="@a.EnProceso en proceso"></span> }
-                            @if (aD > 0) { <span class="seg-d" style="width:@aWD%" title="@a.Disponibles disponibles"></span> }
-                        </span>
-                        <span class="area-cifra">@a.Disponibles disp. de @totA</span>
-                    </div>
-                }
+    @if (mapaPisos.Count > 0) {
+        @foreach (var tor in mapaPisos) {
+            var titulo = (string.IsNullOrEmpty(tor.Etapa) ? "" : tor.Etapa + " · ") + (string.IsNullOrEmpty(tor.Nombre) ? "Torre única" : "Torre " + tor.Nombre);
+            int nInt = tor.Lineas.Count(l => l.Tipo != "EXT");
+            int nExt = tor.Lineas.Count - nInt;
+            <div class="mp-torre">
+                <div class="mp-titulo">@titulo</div>
+                <div class="mp-scroll">
+                <table class="mp">
+                    <thead>
+                        @if (nInt > 0 && nExt > 0) {
+                            <tr>
+                                <th class="mp-piso"></th>
+                                <th class="mp-banda int" colspan="@nInt">INTERIOR</th>
+                                <th class="mp-banda ext" colspan="@nExt">EXTERIOR</th>
+                            </tr>
+                        }
+                        <tr>
+                            <th class="mp-piso">Piso</th>
+                            @foreach (var l in tor.Lineas) {
+                                string tipoCls = l.Tipo == "EXT" ? "ext" : "int";
+                                <th class="mp-linea @tipoCls">
+                                    <span class="mp-linea-nom">@l.Nombre</span>
+                                    <span class="mp-linea-m2">@l.Metros m²</span>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var piso in tor.Pisos) {
+                        <tr>
+                            <td class="mp-piso">@piso.Nombre</td>
+                            @foreach (var c in piso.Celdas) {
+                                if (c == null) {
+                                    <td class="mp-vacia"></td>
+                                } else {
+                                    string cls = c.Estado == "DISPONIBLE" ? "D" : c.Estado == "VENDIDO" ? "V" : c.Estado == "RESERVADO" ? "R" : "P";
+                                    string tip = string.IsNullOrEmpty(c.Quien) ? c.Estado : c.Estado + " · " + c.Quien;
+                                    <td>
+                                        <div class="mp-celda e-@cls" data-id="@c.Id" title="@tip">
+                                            <span class="mp-apto">@c.Apto</span>
+                                            <span class="mp-estado">@c.Estado</span>
+                                        </div>
+                                    </td>
+                                }
+                            }
+                        </tr>
+                    }
+                    </tbody>
+                </table>
                 </div>
             </div>
         }
-        </div>
     } else {
         <div class="empty">No hay inmuebles en este proyecto</div>
     }
@@ -442,7 +436,28 @@
 </div>
 
 @section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
+    // El mapa por piso se actualiza en vivo: cuando un asesor toma, reserva o vende,
+    // la celda cambia sola. El Excel es una foto; esto es la sala en tiempo real.
+    (function(){
+        var PROY = @(ViewBag.ProyectoIdMapa ?? 0);
+        if (!PROY || typeof signalR === 'undefined') return;
+        var conn = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
+        conn.on("InmuebleActualizado", function(idProyecto, idInmueble, estado, quien){
+            if (idProyecto !== PROY) return;
+            var celda = document.querySelector('.mp-celda[data-id="' + idInmueble + '"]');
+            if (!celda) return;
+            var cls = estado === 'DISPONIBLE' ? 'D' : estado === 'VENDIDO' ? 'V' : estado === 'RESERVADO' ? 'R' : 'P';
+            celda.className = 'mp-celda e-' + cls;
+            celda.querySelector('.mp-estado').textContent = estado;
+            celda.title = quien ? estado + ' · ' + quien : estado;
+            celda.style.boxShadow = '0 0 0 3px rgba(0,118,227,0.35)';
+            setTimeout(function(){ celda.style.boxShadow = ''; }, 1500);
+        });
+        conn.start().catch(function(){ /* sin tiempo real: la página sigue sirviendo al recargar */ });
+    })();
+
     function filtrar(){
         const q=document.getElementById('buscar').value.toLowerCase();
         document.querySelectorAll('#tablaVentas tbody tr:not(.asesor-sep)').forEach(tr=>{

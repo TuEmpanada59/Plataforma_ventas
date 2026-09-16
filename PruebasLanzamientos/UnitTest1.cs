@@ -130,4 +130,17 @@ public class UnitTest1
         Assert.Equal("el apartamento", $"{apto.Articulo} {apto.Singular}");
         Assert.Equal("Este", apto.Demostrativo);
     }
+
+    //LineaDe: la línea del apartamento sale del nombre quitando piso y torre
+    [Theory]
+    [InlineData("27A", "27", "A")]          // nomenclatura letra
+    [InlineData("6E", "6", "E")]
+    [InlineData("1204 T3", "12", "04")]     // nomenclatura número + torre
+    [InlineData("101 T1", "1", "01")]
+    [InlineData("801T1", "8", "01")]
+    [InlineData("305", "3", "05")]          // sin torre
+    [InlineData("Local 2", "", "Local 2")]  // sin piso: se usa el nombre completo
+    [InlineData("", "", "")]
+    public void LineaDe_ExtraeLaLinea(string apto, string piso, string esperado)
+        => Assert.Equal(esperado, MapaPisos.LineaDe(apto, piso));
 }
