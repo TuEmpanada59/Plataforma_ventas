@@ -103,8 +103,7 @@
     .mp-estado{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
     .mp-celda.e-D{background:rgba(230,57,70,0.10);border-color:rgba(230,57,70,0.45);color:#B02030;}
     .mp-celda.e-V{background:rgba(52,199,89,0.14);border-color:rgba(52,199,89,0.5);color:#167A3D;}
-    .mp-celda.e-R{background:rgba(255,149,0,0.14);border-color:rgba(255,149,0,0.5);color:#A66000;}
-    .mp-celda.e-P{background:rgba(90,90,200,0.12);border-color:rgba(90,90,200,0.45);color:#4A4AB0;}
+    .mp-celda.e-R{background:rgba(90,200,250,0.18);border-color:rgba(90,200,250,0.65);color:#0A6FA8;}
     .mp-vacia{background:transparent;}
     .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
     .destino-row{display:flex;align-items:center;gap:10px;}
@@ -297,8 +296,7 @@
             <div style="display:flex;gap:10px;font-size:11px;">
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--rojo);display:inline-block;"></span>Disponible</span>
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#1EA851;display:inline-block;"></span>Vendido</span>
-                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#CC7700;display:inline-block;"></span>Reservado</span>
-                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#5A5AC8;display:inline-block;"></span>En proceso</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#5AC8FA;display:inline-block;"></span>Reservado</span>
             </div>
             <a href="/Reportes/GenerarMapa" class="ios-btn azul">Excel</a>
             <a href="/Reportes/ReporteAsesores" class="ios-btn verde">Asesores</a>
@@ -341,12 +339,15 @@
                                 if (c == null) {
                                     <td class="mp-vacia"></td>
                                 } else {
-                                    string cls = c.Estado == "DISPONIBLE" ? "D" : c.Estado == "VENDIDO" ? "V" : c.Estado == "RESERVADO" ? "R" : "P";
-                                    string tip = string.IsNullOrEmpty(c.Quien) ? c.Estado : c.Estado + " · " + c.Quien;
+                                    // En el mapa no se distingue "en proceso": mientras no haya reserva
+                                    // ni venta, la unidad se muestra disponible, como en el Excel.
+                                    string estadoMapa = c.Estado == "VENDIDO" ? "VENDIDO" : c.Estado == "RESERVADO" ? "RESERVADO" : "DISPONIBLE";
+                                    string cls = estadoMapa == "VENDIDO" ? "V" : estadoMapa == "RESERVADO" ? "R" : "D";
+                                    string tip = estadoMapa == "RESERVADO" && !string.IsNullOrEmpty(c.Quien) ? estadoMapa + " · " + c.Quien : estadoMapa;
                                     <td>
                                         <div class="mp-celda e-@cls" data-id="@c.Id" title="@tip">
                                             <span class="mp-apto">@c.Apto</span>
-                                            <span class="mp-estado">@c.Estado</span>
+                                            <span class="mp-estado">@estadoMapa</span>
                                         </div>
                                     </td>
                                 }
@@ -448,10 +449,11 @@
             if (idProyecto !== PROY) return;
             var celda = document.querySelector('.mp-celda[data-id="' + idInmueble + '"]');
             if (!celda) return;
-            var cls = estado === 'DISPONIBLE' ? 'D' : estado === 'VENDIDO' ? 'V' : estado === 'RESERVADO' ? 'R' : 'P';
+            var est = estado === 'VENDIDO' ? 'VENDIDO' : estado === 'RESERVADO' ? 'RESERVADO' : 'DISPONIBLE';
+            var cls = est === 'VENDIDO' ? 'V' : est === 'RESERVADO' ? 'R' : 'D';
             celda.className = 'mp-celda e-' + cls;
-            celda.querySelector('.mp-estado').textContent = estado;
-            celda.title = quien ? estado + ' · ' + quien : estado;
+            celda.querySelector('.mp-estado').textContent = est;
+            celda.title = (est === 'RESERVADO' && quien) ? est + ' · ' + quien : est;
             celda.style.boxShadow = '0 0 0 3px rgba(0,118,227,0.35)';
             setTimeout(function(){ celda.style.boxShadow = ''; }, 1500);
         });
