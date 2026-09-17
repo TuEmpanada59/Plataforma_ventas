@@ -9,7 +9,6 @@
     int disponibles= ViewBag.Disponibles != null ? (int)ViewBag.Disponibles : 0;
     int vendidos   = ViewBag.Vendidos    != null ? (int)ViewBag.Vendidos    : 0;
     int reservados = ViewBag.Reservados  != null ? (int)ViewBag.Reservados  : 0;
-    int enProceso  = ViewBag.EnProceso   != null ? (int)ViewBag.EnProceso   : 0;
     long valorTotal= ViewBag.ValorTotal  != null ? (long)ViewBag.ValorTotal : 0;
     int ventasHoy  = ViewBag.VentasHoy   != null ? (int)ViewBag.VentasHoy   : 0;
     long valorHoy  = ViewBag.ValorHoy    != null ? (long)ViewBag.ValorHoy   : 0;
@@ -49,7 +48,6 @@
     double pctV    = total > 0 ? Math.Round((double)vendidos    / total * 100, 1) : 0;
     double pctD    = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
     double pctR    = total > 0 ? Math.Round((double)reservados  / total * 100, 1) : 0;
-    double pctP    = total > 0 ? Math.Round((double)enProceso   / total * 100, 1) : 0;
 }
 @section Styles {
 <style>
@@ -249,7 +247,6 @@
                     <div class="prog-track"><div class="prog-fill" style="width:@anchoLanz%;background:linear-gradient(90deg,var(--azul),#5AC8FA)"></div></div>
                 </div>
             }
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">En proceso</span><span class="prog-val" style="color:#5A5AC8">@enProceso / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctP)%;background:linear-gradient(90deg,#5A5AC8,#7878E0)"></div></div></div>
         </div>
     </div>
 

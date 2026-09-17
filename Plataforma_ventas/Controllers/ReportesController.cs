@@ -61,12 +61,14 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
+            // El reporte no distingue "en proceso": una unidad que un asesor tiene tomada
+            // todavía no está comprometida, así que cuenta como disponible. Si se mostrara
+            // aparte, los estados no sumarían el total y el informe se leería mal.
             var cmdKpi = new SqlCommand(@"
                 SELECT COUNT(*) AS Total,
-                    SUM(CASE WHEN Estado='DISPONIBLE' THEN 1 ELSE 0 END) AS Disponibles,
+                    SUM(CASE WHEN Estado IN ('DISPONIBLE','EN PROCESO') THEN 1 ELSE 0 END) AS Disponibles,
                     SUM(CASE WHEN Estado='VENDIDO'    THEN 1 ELSE 0 END) AS Vendidos,
-                    SUM(CASE WHEN Estado='RESERVADO'  THEN 1 ELSE 0 END) AS Reservados,
-                    SUM(CASE WHEN Estado='EN PROCESO' THEN 1 ELSE 0 END) AS EnProceso
+                    SUM(CASE WHEN Estado='RESERVADO'  THEN 1 ELSE 0 END) AS Reservados
                 FROM Inmuebles WHERE IdProyecto=@id", con);
             cmdKpi.Parameters.AddWithValue("@id", idProy);
             using (var rk = (SqlDataReader)await cmdKpi.ExecuteReaderAsync())
@@ -76,7 +78,6 @@ namespace Plataforma_ventas.Controllers
                     ViewBag.Disponibles = rk["Disponibles"] == DBNull.Value ? 0 : (int)rk["Disponibles"];
                     ViewBag.Vendidos = rk["Vendidos"] == DBNull.Value ? 0 : (int)rk["Vendidos"];
                     ViewBag.Reservados = rk["Reservados"] == DBNull.Value ? 0 : (int)rk["Reservados"];
-                    ViewBag.EnProceso = rk["EnProceso"] == DBNull.Value ? 0 : (int)rk["EnProceso"];
                 }
 
             // ── Actividad comercial y separación del lanzamiento ───────────────────────
@@ -182,7 +183,7 @@ namespace Plataforma_ventas.Controllers
                 SELECT Tipo,
                     COUNT(*) AS Total,
                     SUM(CASE WHEN Estado='VENDIDO'    THEN 1 ELSE 0 END) AS Vendidos,
-                    SUM(CASE WHEN Estado='DISPONIBLE' THEN 1 ELSE 0 END) AS Disponibles,
+                    SUM(CASE WHEN Estado IN ('DISPONIBLE','EN PROCESO') THEN 1 ELSE 0 END) AS Disponibles,
                     SUM(CASE WHEN Estado='RESERVADO'  THEN 1 ELSE 0 END) AS Reservados
                 FROM Inmuebles WHERE IdProyecto=@id AND Tipo IS NOT NULL AND Tipo != ''
                 GROUP BY Tipo ORDER BY Vendidos DESC", con);
@@ -455,16 +456,18 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
-            int total = 0, disponibles = 0, vendidos = 0, reservados = 0, enProceso = 0;
+            int total = 0, disponibles = 0, vendidos = 0, reservados = 0;
             long valorTotal = 0, valorHoy = 0;
             int ventasHoy = 0;
 
+            // El reporte no distingue "en proceso": una unidad que un asesor tiene tomada
+            // todavía no está comprometida, así que cuenta como disponible. Si se mostrara
+            // aparte, los estados no sumarían el total y el informe se leería mal.
             var cmdKpi = new SqlCommand(@"
                 SELECT COUNT(*) AS Total,
-                    SUM(CASE WHEN Estado='DISPONIBLE' THEN 1 ELSE 0 END) AS Disponibles,
+                    SUM(CASE WHEN Estado IN ('DISPONIBLE','EN PROCESO') THEN 1 ELSE 0 END) AS Disponibles,
                     SUM(CASE WHEN Estado='VENDIDO'    THEN 1 ELSE 0 END) AS Vendidos,
-                    SUM(CASE WHEN Estado='RESERVADO'  THEN 1 ELSE 0 END) AS Reservados,
-                    SUM(CASE WHEN Estado='EN PROCESO' THEN 1 ELSE 0 END) AS EnProceso
+                    SUM(CASE WHEN Estado='RESERVADO'  THEN 1 ELSE 0 END) AS Reservados
                 FROM Inmuebles WHERE IdProyecto=@id", con);
             cmdKpi.Parameters.AddWithValue("@id", idProy);
             using (var rk = (SqlDataReader)await cmdKpi.ExecuteReaderAsync())
@@ -474,7 +477,6 @@ namespace Plataforma_ventas.Controllers
                     disponibles = rk["Disponibles"] == DBNull.Value ? 0 : (int)rk["Disponibles"];
                     vendidos = rk["Vendidos"] == DBNull.Value ? 0 : (int)rk["Vendidos"];
                     reservados = rk["Reservados"] == DBNull.Value ? 0 : (int)rk["Reservados"];
-                    enProceso = rk["EnProceso"] == DBNull.Value ? 0 : (int)rk["EnProceso"];
                 }
 
             var cmdV = new SqlCommand("SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'", con);
@@ -514,7 +516,7 @@ namespace Plataforma_ventas.Controllers
             var cmdT = new SqlCommand(@"
                 SELECT Tipo, COUNT(*) AS Total,
                     SUM(CASE WHEN Estado='VENDIDO'    THEN 1 ELSE 0 END) AS Vendidos,
-                    SUM(CASE WHEN Estado='DISPONIBLE' THEN 1 ELSE 0 END) AS Disponibles,
+                    SUM(CASE WHEN Estado IN ('DISPONIBLE','EN PROCESO') THEN 1 ELSE 0 END) AS Disponibles,
                     SUM(CASE WHEN Estado='RESERVADO'  THEN 1 ELSE 0 END) AS Reservados
                 FROM Inmuebles WHERE IdProyecto=@id AND Tipo IS NOT NULL AND Tipo!=''
                 GROUP BY Tipo ORDER BY Vendidos DESC", con);
@@ -554,7 +556,6 @@ namespace Plataforma_ventas.Controllers
             double pctV = total > 0 ? Math.Round((double)vendidos / total * 100, 1) : 0;
             double pctD = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
             double pctR = total > 0 ? Math.Round((double)reservados / total * 100, 1) : 0;
-            double pctP = total > 0 ? Math.Round((double)enProceso / total * 100, 1) : 0;
 
             var ahoraCol = AhoraColombia();
             var esCo = new System.Globalization.CultureInfo("es-CO");
@@ -1137,14 +1138,8 @@ namespace Plataforma_ventas.Controllers
                         {
                             Colapsado("05 · Preventas y resultados por torre — sin registros.");
                         }
-                        col.Item().PaddingTop(12);
-
-                        // ── MÓDULO 06 · OPCIONES EN PROCESO ──
-                        if (enProceso == 0)
-                            Colapsado("06 · Opciones en proceso — sin registros.");
-                        else
-                            col.Item().PaddingBottom(6).Text($"06 · OPCIONES EN PROCESO — {enProceso} unidad{(enProceso != 1 ? "es" : "")}")
-                                .FontSize(9).Bold().LetterSpacing(0.15f).FontColor(QColor.FromHex("#0077C8"));
+                        // El módulo de opciones en proceso salió del informe: una unidad
+                        // tomada no está comprometida y ya cuenta entre las disponibles.
                     });
 
                     // ── FOOTER ──
@@ -1192,7 +1187,13 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@id", idProy);
             using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
                 while (await reader.ReadAsync())
-                    inmuebles.Add(new { Apto = reader["Apto"]?.ToString() ?? "", Piso = reader["Piso"]?.ToString() ?? "", Torre = reader["Torre"]?.ToString() ?? "", Tipo = reader["Tipo"]?.ToString() ?? "", Metros = reader["Metros"]?.ToString() ?? "", Estado = reader["Estado"]?.ToString() ?? "" });
+                {
+                    // El mapa maneja tres estados: lo que está en proceso se dibuja y se
+                    // cuenta como disponible.
+                    var estadoCrudo = reader["Estado"]?.ToString() ?? "";
+                    var estadoMapa = estadoCrudo is "VENDIDO" or "RESERVADO" ? estadoCrudo : "DISPONIBLE";
+                    inmuebles.Add(new { Apto = reader["Apto"]?.ToString() ?? "", Piso = reader["Piso"]?.ToString() ?? "", Torre = reader["Torre"]?.ToString() ?? "", Tipo = reader["Tipo"]?.ToString() ?? "", Metros = reader["Metros"]?.ToString() ?? "", Estado = estadoMapa });
+                }
 
             ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
             using var package = new ExcelPackage();
@@ -1202,14 +1203,12 @@ namespace Plataforma_ventas.Controllers
             {
                 "VENDIDO" => DColor.FromArgb(52, 199, 89),
                 "RESERVADO" => DColor.FromArgb(255, 149, 0),
-                "EN PROCESO" => DColor.FromArgb(90, 90, 200),
                 _ => DColor.FromArgb(230, 57, 70)
             };
             DColor EstadoTinte(string e) => e switch
             {
                 "VENDIDO" => DColor.FromArgb(223, 246, 230),
                 "RESERVADO" => DColor.FromArgb(255, 238, 214),
-                "EN PROCESO" => DColor.FromArgb(228, 228, 247),
                 _ => DColor.FromArgb(250, 224, 227)
             };
             int PisoNum(string p) { int.TryParse(p, out int n); return n; }
@@ -1239,7 +1238,7 @@ namespace Plataforma_ventas.Controllers
                 return final;
             }
 
-            string[] estados = { "DISPONIBLE", "VENDIDO", "RESERVADO", "EN PROCESO" };
+            string[] estados = { "DISPONIBLE", "VENDIDO", "RESERVADO" };
             var areas = inmuebles.Select(i => (string)i.Metros).Distinct().OrderBy(AreaNum).ToList();
 
             // ════════════════════ HOJA 1 · MAPA GENERAL ════════════════════
@@ -1249,11 +1248,11 @@ namespace Plataforma_ventas.Controllers
             wsMain.Cells[r, 1].Style.Font.Bold = true;
             wsMain.Cells[r, 1].Style.Font.Size = 15;
             wsMain.Cells[r, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
-            wsMain.Cells[r, 1, r, 8].Merge = true;
+            wsMain.Cells[r, 1, r, 7].Merge = true;
             r++;
             wsMain.Cells[r, 1].Value = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}  ·  {inmuebles.Count} inmuebles  ·  {areas.Count} áreas";
             wsMain.Cells[r, 1].Style.Font.Color.SetColor(DColor.FromArgb(110, 110, 110));
-            wsMain.Cells[r, 1, r, 8].Merge = true;
+            wsMain.Cells[r, 1, r, 7].Merge = true;
             r += 2;
 
             // Resumen global por estado (cajas de color)
@@ -1272,13 +1271,12 @@ namespace Plataforma_ventas.Controllers
             r += 2;
 
             // Tabla clasificada por área
-            var headersMain = new[] { "Área m²", "Tipos", "Total", "Disponibles", "Vendidos", "Reservados", "En proceso", "% Vendido" };
+            var headersMain = new[] { "Área m²", "Tipos", "Total", "Disponibles", "Vendidos", "Reservados", "% Vendido" };
             for (int i = 0; i < headersMain.Length; i++) { wsMain.Cells[r, i + 1].Value = headersMain[i]; StyleHeader(wsMain.Cells[r, i + 1]); }
             // Tintar encabezados de estado con su color
             wsMain.Cells[r, 4].Style.Fill.BackgroundColor.SetColor(EstadoColor("DISPONIBLE"));
             wsMain.Cells[r, 5].Style.Fill.BackgroundColor.SetColor(EstadoColor("VENDIDO"));
             wsMain.Cells[r, 6].Style.Fill.BackgroundColor.SetColor(EstadoColor("RESERVADO"));
-            wsMain.Cells[r, 7].Style.Fill.BackgroundColor.SetColor(EstadoColor("EN PROCESO"));
             r++;
 
             foreach (var metros in areas)
@@ -1289,13 +1287,12 @@ namespace Plataforma_ventas.Controllers
                 int disp = inmsA.Count(i => i.Estado == "DISPONIBLE");
                 int vend = inmsA.Count(i => i.Estado == "VENDIDO");
                 int res = inmsA.Count(i => i.Estado == "RESERVADO");
-                int proc = inmsA.Count(i => i.Estado == "EN PROCESO");
                 int pctV = tot > 0 ? (int)Math.Round((double)vend / tot * 100) : 0;
 
                 wsMain.Cells[r, 1].Value = metros; wsMain.Cells[r, 1].Style.Font.Bold = true; Borde(wsMain.Cells[r, 1]);
                 wsMain.Cells[r, 2].Value = tipos; Borde(wsMain.Cells[r, 2]);
                 wsMain.Cells[r, 3].Value = tot; wsMain.Cells[r, 3].Style.Font.Bold = true; Borde(wsMain.Cells[r, 3]);
-                var celdas = new[] { (4, disp, "DISPONIBLE"), (5, vend, "VENDIDO"), (6, res, "RESERVADO"), (7, proc, "EN PROCESO") };
+                var celdas = new[] { (4, disp, "DISPONIBLE"), (5, vend, "VENDIDO"), (6, res, "RESERVADO") };
                 foreach (var (colE, val, estE) in celdas)
                 {
                     var c = wsMain.Cells[r, colE];
@@ -1305,7 +1302,7 @@ namespace Plataforma_ventas.Controllers
                     c.Style.Fill.BackgroundColor.SetColor(EstadoTinte(estE));
                     Borde(c);
                 }
-                wsMain.Cells[r, 8].Value = $"{pctV}%"; wsMain.Cells[r, 8].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; Borde(wsMain.Cells[r, 8]);
+                wsMain.Cells[r, 7].Value = $"{pctV}%"; wsMain.Cells[r, 7].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; Borde(wsMain.Cells[r, 8]);
                 r++;
             }
             // Fila de totales
@@ -1315,10 +1312,9 @@ namespace Plataforma_ventas.Controllers
             wsMain.Cells[r, 4].Value = inmuebles.Count(i => i.Estado == "DISPONIBLE");
             wsMain.Cells[r, 5].Value = inmuebles.Count(i => i.Estado == "VENDIDO");
             wsMain.Cells[r, 6].Value = inmuebles.Count(i => i.Estado == "RESERVADO");
-            wsMain.Cells[r, 7].Value = inmuebles.Count(i => i.Estado == "EN PROCESO");
             int pctVTot = inmuebles.Count > 0 ? (int)Math.Round((double)inmuebles.Count(i => i.Estado == "VENDIDO") / inmuebles.Count * 100) : 0;
-            wsMain.Cells[r, 8].Value = $"{pctVTot}%";
-            for (int c = 1; c <= 8; c++)
+            wsMain.Cells[r, 7].Value = $"{pctVTot}%";
+            for (int c = 1; c <= 7; c++)
             {
                 wsMain.Cells[r, c].Style.Font.Bold = true;
                 wsMain.Cells[r, c].Style.Fill.PatternType = ExcelFillStyle.Solid;
@@ -1341,7 +1337,7 @@ namespace Plataforma_ventas.Controllers
                 c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                 r++;
             }
-            for (int col = 1; col <= 8; col++) wsMain.Column(col).AutoFit();
+            for (int col = 1; col <= 7; col++) wsMain.Column(col).AutoFit();
             wsMain.Column(2).Width = Math.Max(wsMain.Column(2).Width, 16);
 
             // ════════════════════ UNA HOJA POR ÁREA ════════════════════
@@ -1357,7 +1353,7 @@ namespace Plataforma_ventas.Controllers
                 ws.Cells[ar, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
                 ws.Cells[ar, 1, ar, 8].Merge = true;
                 ar++;
-                ws.Cells[ar, 1].Value = $"{inmsA.Count} inmuebles  ·  Disponibles: {inmsA.Count(i => i.Estado == "DISPONIBLE")}  ·  Vendidos: {inmsA.Count(i => i.Estado == "VENDIDO")}  ·  Reservados: {inmsA.Count(i => i.Estado == "RESERVADO")}  ·  En proceso: {inmsA.Count(i => i.Estado == "EN PROCESO")}";
+                ws.Cells[ar, 1].Value = $"{inmsA.Count} inmuebles  ·  Disponibles: {inmsA.Count(i => i.Estado == "DISPONIBLE")}  ·  Vendidos: {inmsA.Count(i => i.Estado == "VENDIDO")}  ·  Reservados: {inmsA.Count(i => i.Estado == "RESERVADO")}";
                 ws.Cells[ar, 1].Style.Font.Color.SetColor(DColor.FromArgb(110, 110, 110));
                 ws.Cells[ar, 1, ar, 8].Merge = true;
                 ar += 2;

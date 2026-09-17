@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using Plataforma_ventas.Filters;
+using DColor = System.Drawing.Color;
 
 namespace Plataforma_ventas.Controllers
 {
@@ -93,6 +96,120 @@ namespace Plataforma_ventas.Controllers
             // esperar los 15 minutos.
             ViewBag.Bloqueadas      = _bloqueo.Listar();
             return View();
+        }
+
+        /// <summary>
+        /// Exports the user list to Excel. Passwords and their hashes never leave the
+        /// database: the file is for the commercial area, who use it to check who has an
+        /// account and on which project, not to audit credentials.
+        /// Performs SELECT queries on Usuarios, Proyectos and Ventas.
+        /// </summary>
+        public async Task<IActionResult> Exportar()
+        {
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var usuarios = new List<(string Nombre, string Apellido, string Usuario, string Rol,
+                                     string Correo, string Documento, string Celular,
+                                     string Proyecto, int Ventas)>();
+            var cmd = new SqlCommand(@"
+                SELECT u.Nombre, u.Apellido, u.Usuario, u.Rol,
+                       ISNULL(u.Correo,'') AS Correo, ISNULL(u.Documento,'') AS Documento,
+                       ISNULL(u.Celular,'') AS Celular,
+                       ISNULL(p.Nombre, '') AS NombreProyecto,
+                       COUNT(v.IdVenta) AS TotalVentas
+                FROM Usuarios u
+                LEFT JOIN Proyectos p ON u.IdProyecto = p.IdProyectos
+                LEFT JOIN Ventas    v ON u.IdUsuario  = v.IdUsuario
+                GROUP BY u.IdUsuario, u.Nombre, u.Apellido, u.Usuario, u.Correo,
+                         u.Documento, u.Celular, u.Rol, p.Nombre
+                ORDER BY u.Rol DESC, p.Nombre, u.Nombre", con);
+            using (var r = (SqlDataReader)await cmd.ExecuteReaderAsync())
+                while (await r.ReadAsync())
+                    usuarios.Add((
+                        r["Nombre"]?.ToString() ?? "",
+                        r["Apellido"]?.ToString() ?? "",
+                        r["Usuario"]?.ToString() ?? "",
+                        r["Rol"]?.ToString() ?? "",
+                        r["Correo"]?.ToString() ?? "",
+                        r["Documento"]?.ToString() ?? "",
+                        r["Celular"]?.ToString() ?? "",
+                        r["NombreProyecto"]?.ToString() ?? "",
+                        Convert.ToInt32(r["TotalVentas"])));
+
+            // Un administrador no puede ver superadministradores en pantalla; tampoco en el archivo.
+            if ((HttpContext.Session.GetString("Rol") ?? "") != "SuperAdministrador")
+                usuarios = usuarios.Where(x => x.Rol != "SuperAdministrador").ToList();
+
+            var bloqueadas = _bloqueo.Listar()
+                .Select(b => b.Usuario)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Usuarios");
+
+            ws.Cells[1, 1].Value = "Usuarios de la plataforma";
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Size = 14;
+            ws.Cells[1, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+            ws.Cells[1, 1, 1, 9].Merge = true;
+
+            int admins = usuarios.Count(x => x.Rol is "Administrador" or "SuperAdministrador");
+            int vendedores = usuarios.Count(x => x.Rol == "Vendedor");
+            ws.Cells[2, 1].Value = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}  ·  {usuarios.Count} usuarios  ·  " +
+                                   $"{admins} administradores  ·  {vendedores} asesores";
+            ws.Cells[2, 1].Style.Font.Color.SetColor(DColor.Gray);
+            ws.Cells[2, 1, 2, 9].Merge = true;
+
+            var headers = new[] { "Nombre", "Apellido", "Usuario", "Rol", "Proyecto asignado",
+                                  "Celular", "Correo", "Documento", "Ventas", "Estado" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var c = ws.Cells[4, i + 1];
+                c.Value = headers[i];
+                c.Style.Font.Bold = true;
+                c.Style.Font.Color.SetColor(DColor.White);
+                c.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                c.Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(0, 58, 112));
+                c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+            }
+
+            int row = 5;
+            foreach (var x in usuarios)
+            {
+                ws.Cells[row, 1].Value = x.Nombre;
+                ws.Cells[row, 2].Value = x.Apellido;
+                ws.Cells[row, 3].Value = x.Usuario;
+                ws.Cells[row, 4].Value = x.Rol;
+                ws.Cells[row, 5].Value = string.IsNullOrWhiteSpace(x.Proyecto) ? "Sin asignar" : x.Proyecto;
+                if (string.IsNullOrWhiteSpace(x.Proyecto))
+                    ws.Cells[row, 5].Style.Font.Color.SetColor(DColor.FromArgb(150, 150, 150));
+                ws.Cells[row, 6].Value = x.Celular;
+                ws.Cells[row, 7].Value = x.Correo;
+                ws.Cells[row, 8].Value = x.Documento;
+                ws.Cells[row, 9].Value = x.Ventas;
+                ws.Cells[row, 9].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                // Una cuenta bloqueada es alguien que no va a poder entrar al lanzamiento:
+                // por eso queda marcada y no escondida en un panel aparte.
+                bool bloqueada = bloqueadas.Contains(x.Usuario);
+                ws.Cells[row, 10].Value = bloqueada ? "BLOQUEADA" : "Activa";
+                if (bloqueada)
+                {
+                    ws.Cells[row, 10].Style.Font.Bold = true;
+                    ws.Cells[row, 10].Style.Font.Color.SetColor(DColor.FromArgb(230, 57, 70));
+                }
+                row++;
+            }
+
+            if (usuarios.Count > 0)
+                ws.Cells[4, 1, row - 1, headers.Length].AutoFilter = true;
+            for (int c = 1; c <= headers.Length; c++) ws.Column(c).AutoFit();
+
+            var bytes = await package.GetAsByteArrayAsync();
+            return File(bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"Usuarios_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
         }
 
         /// <summary>

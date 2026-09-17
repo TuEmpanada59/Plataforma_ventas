@@ -171,6 +171,9 @@
                     <option value="Vendedor">Vendedor</option>
                 </select>
             </div>
+            @* El Excel sale con la lista completa, no con lo que quedó filtrado en pantalla:
+               el filtro es para buscar aquí, el archivo es para llevárselo. *@
+            <a href="/Usuarios/Exportar" class="btn-nuevo" style="background:#1EA851;text-decoration:none;display:inline-flex;align-items:center;">Exportar a Excel</a>
             <button class="btn-nuevo" onclick="abrirCrear()">+ Nuevo usuario</button>
         </div>
     </div>
