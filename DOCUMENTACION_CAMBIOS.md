@@ -553,6 +553,44 @@ filtros se combinan y se conservan al entrar y salir de un área.
 `Controllers/InmueblesController.cs`, `Views/Inmuebles/Index.cshtml`,
 `Scripts/PanelAdmin.sql` (sección 12)
 
+## 13. Actividad comercial: total del proyecto contra total del lanzamiento
+
+Un proyecto no siempre sale a vender desde cero. El área comercial distingue tres
+actividades, y de eso depende qué cuenta como resultado del evento:
+
+| Actividad | Qué es |
+|---|---|
+| **Lanzamiento de proyecto nuevo** | Estreno: todo el inventario sale por primera vez |
+| **Activación** | Se vuelve a salir a vender un inventario que ya tenía ventas |
+| **Lanzamiento de nueva etapa** | Se lanza una etapa de un proyecto con historia |
+
+Antes, un proyecto que llegaba con la mitad del Excel vendida arrancaba el evento
+mostrando un avance que nadie había hecho esa noche. La actividad se elige al cargar
+el archivo, con botones al lado del tipo de proyecto.
+
+**La regla de conteo es una sola:** sale al lanzamiento lo que llega `DISPONIBLE` en
+el Excel. Lo que viene vendido o reservado estaba comprometido antes y es historia del
+proyecto. En un lanzamiento de etapa se exige además que la fila sea de la etapa que se
+lanza, para que lo que sobró de etapas anteriores no infle la meta del evento.
+
+| Decisión | Motivo |
+|---|---|
+| La marca `Inmuebles.EnLanzamiento` se calcula **una vez**, en la carga | Si se recalculara con el estado actual, el total del lanzamiento bajaría a medida que se vende y el porcentaje de avance nunca cuadraría |
+| Lo reservado del Excel cuenta como historia | Es inventario comprometido antes del evento, igual que lo vendido |
+| Tabla `ProyectoActividades` con la foto de las cifras | Permite consultar el evento meses después, cuando el inventario ya se movió, y compara lanzamientos del mismo proyecto |
+| Todo detrás de guardas de esquema | Sin la sección 15 de la migración la plataforma sigue funcionando con las cifras de siempre, y la carga avisa qué falta |
+
+En Reportes aparece una franja con la actividad, el total del proyecto, el total del
+lanzamiento, lo que ya venía comprometido y lo vendido en el evento. El porcentaje de
+avance del informe del día pasa a medirse contra el total del lanzamiento. Cuando no
+hay historia que separar, la franja solo muestra la actividad y las cifras no cambian.
+
+**Archivos modificados:** `Actividades.cs` (nuevo), `Controllers/CargaController.cs`,
+`Controllers/ReportesController.cs`, `Views/Carga/Index.cshtml`,
+`Views/Reportes/Index.cshtml`, `Scripts/PanelAdmin.sql` (sección 15)
+
+---
+
 ---
 
 ## Historial de versiones
