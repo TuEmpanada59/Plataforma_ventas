@@ -591,6 +591,43 @@ hay historia que separar, la franja solo muestra la actividad y las cifras no ca
 
 ---
 
+## 14. Fuera "en proceso" del reporte, exportar usuarios y cuadro de asistencia
+
+Tres cambios pedidos por el área comercial en el mismo paquete.
+
+**El reporte deja de mostrar "en proceso".** Una unidad que un asesor tiene tomada
+todavía no está comprometida: ahora cuenta entre las disponibles en los indicadores,
+el progreso, las tipologías, el Excel del mapa y el PDF técnico, del que se retiró el
+módulo de opciones. Mostrarlo aparte hacía que los estados no sumaran el total y el
+informe se leyera mal. El Dashboard y la vista de Inmuebles lo siguen mostrando en
+vivo, que es donde el dato sirve: saber quién tiene qué en la mano durante el evento.
+
+**Exportar usuarios.** Botón en Usuarios que baja un Excel con nombre, usuario, rol,
+proyecto asignado, contacto, ventas y si la cuenta está bloqueada. Las contraseñas y
+sus hashes nunca salen de la base. Un administrador tampoco ve superadministradores en
+el archivo, igual que no los ve en pantalla.
+
+**Cuadro de asistencia.** Abría directo en una tabla de cuarenta filas. Ahora arriba
+van las cifras que se preguntan primero y una barra por día que compara el tráfico
+contra lo vendido ese mismo día; el cuadro completo queda abajo con la primera columna
+fija al desplazar.
+
+| Decisión | Motivo |
+|---|---|
+| Cada barra se mide contra su propio máximo | En la misma escala, las unidades vendidas quedan invisibles al lado de las familias |
+| El Excel de usuarios sale completo, sin el filtro de pantalla | El filtro es para buscar ahí; el archivo es para llevárselo |
+| La columna "Opciones (en proceso)" del cuadro pasa a "Opciones" | Es un dato que se digita a mano en el cuadro y no tiene relación con el estado de los inmuebles |
+
+**Corrección incluida:** la recolección de las franjas horarias del cuadro usaba una
+variable inexistente, así que lanzaba `ReferenceError`. Ni el resumen se pintaba ni el
+formulario se podía guardar.
+
+**Archivos modificados:** `Controllers/ReportesController.cs`,
+`Controllers/UsuariosController.cs`, `Views/Reportes/Index.cshtml`,
+`Views/Reportes/Asistencia.cshtml`, `Views/Usuarios/Index.cshtml`
+
+---
+
 ---
 
 ## Historial de versiones
