@@ -143,4 +143,44 @@ public class UnitTest1
     [InlineData("", "", "")]
     public void LineaDe_ExtraeLaLinea(string apto, string piso, string esperado)
         => Assert.Equal(esperado, MapaPisos.LineaDe(apto, piso));
+
+    //Actividades.Normalizar: lista blanca; lo desconocido cae en proyecto nuevo
+    [Theory]
+    [InlineData("ACTIVACION", "ACTIVACION")]
+    [InlineData("activacion", "ACTIVACION")]
+    [InlineData("NUEVA_ETAPA", "NUEVA_ETAPA")]
+    [InlineData("PROYECTO_NUEVO", "PROYECTO_NUEVO")]
+    [InlineData("cualquier cosa", "PROYECTO_NUEVO")]
+    [InlineData("", "PROYECTO_NUEVO")]
+    [InlineData(null, "PROYECTO_NUEVO")]
+    public void Normalizar_ValidaLaActividad(string? entrada, string esperado)
+        => Assert.Equal(esperado, Actividades.Normalizar(entrada));
+
+    //EntraAlLanzamiento: sale al evento lo que llega DISPONIBLE en el Excel
+    [Theory]
+    // Estreno: todo lo disponible cuenta, lo comprometido no
+    [InlineData("PROYECTO_NUEVO", "DISPONIBLE", "", "", true)]
+    [InlineData("PROYECTO_NUEVO", "VENDIDO",   "", "", false)]
+    // Activación: el archivo trae ventas viejas y esas son historia
+    [InlineData("ACTIVACION", "DISPONIBLE", "", "", true)]
+    [InlineData("ACTIVACION", "VENDIDO",    "", "", false)]
+    [InlineData("ACTIVACION", "RESERVADO",  "", "", false)]
+    // Etapa nueva: además de disponible, tiene que ser la etapa que se lanza
+    [InlineData("NUEVA_ETAPA", "DISPONIBLE", "Etapa 2", "Etapa 2", true)]
+    [InlineData("NUEVA_ETAPA", "DISPONIBLE", "etapa 2", "Etapa 2", true)]   // sin distinguir mayúsculas
+    [InlineData("NUEVA_ETAPA", "DISPONIBLE", "Etapa 1", "Etapa 2", false)]  // sobrante de la etapa anterior
+    [InlineData("NUEVA_ETAPA", "VENDIDO",    "Etapa 2", "Etapa 2", false)]
+    [InlineData("NUEVA_ETAPA", "DISPONIBLE", "Etapa 1", "", true)]          // sin etapa indicada entran todas
+    public void EntraAlLanzamiento_SeparaElEventoDeLaHistoria(
+        string actividad, string estado, string etapaFila, string etapaLanzada, bool esperado)
+        => Assert.Equal(esperado, Actividades.EntraAlLanzamiento(actividad, estado, etapaFila, etapaLanzada));
+
+    //El título es el que ve el área comercial en pantalla
+    [Fact]
+    public void Titulo_NombraLaActividad()
+    {
+        Assert.Equal("Activación", Actividades.Titulo("ACTIVACION"));
+        Assert.Equal("Lanzamiento de nueva etapa", Actividades.Titulo("NUEVA_ETAPA"));
+        Assert.Equal("Lanzamiento de proyecto nuevo", Actividades.Titulo("otra cosa"));
+    }
 }

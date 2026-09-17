@@ -20,6 +20,20 @@
     var medios     = ViewBag.Medios      as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
     var mapaPisos  = ViewBag.MapaPisos as List<Plataforma_ventas.MapaPisos.Torre> ?? new List<Plataforma_ventas.MapaPisos.Torre>();
+    // Actividad comercial: el total del lanzamiento se separa del total del proyecto
+    // solo cuando hay inventario que ya venía comprometido antes del evento.
+    string actTitulo  = ViewBag.ActividadTitulo as string ?? "Lanzamiento de proyecto nuevo";
+    string etapaLanz  = ViewBag.EtapaLanzada as string ?? "";
+    bool hayLanz      = ViewBag.HayLanzamiento != null && (bool)ViewBag.HayLanzamiento;
+    int totalLanz     = ViewBag.TotalLanzamiento    != null ? (int)ViewBag.TotalLanzamiento    : 0;
+    int vendidosLanz  = ViewBag.VendidosLanzamiento != null ? (int)ViewBag.VendidosLanzamiento : 0;
+    long valorLanz    = ViewBag.ValorLanzamiento    != null ? (long)ViewBag.ValorLanzamiento   : 0;
+    int historico     = ViewBag.HistoricoUnidades   != null ? (int)ViewBag.HistoricoUnidades   : 0;
+    bool separaLanz   = hayLanz && historico > 0;
+    double pctLanz    = totalLanz > 0 ? (double)vendidosLanz / totalLanz : 0;
+    // El ancho de la barra se arma con punto decimal: con la coma de es-CO el CSS
+    // no entiende el valor y la barra queda en blanco.
+    string anchoLanz  = (pctLanz * 100).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
     DateTime ahoraCol;
     try {
         ahoraCol = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("America/Bogota"));
@@ -86,6 +100,15 @@
     .hoy-stat{text-align:center;background:rgba(255,255,255,0.12);border-radius:12px;padding:10px 16px;}
     .hoy-stat-num{font-size:22px;font-weight:300;color:white;letter-spacing:-1px;white-space:nowrap;}
     .hoy-stat-lbl{font-size:10px;color:rgba(255,255,255,0.65);margin-top:1px;font-weight:500;}
+    .act-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--glass);border:1px solid var(--gb);border-radius:14px;padding:12px 16px;box-shadow:var(--sh);}
+    .act-tipo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .act-badge{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:rgba(0,118,227,0.1);color:var(--blue);}
+    .act-etapa{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:20px;background:var(--fill3);color:var(--label2);}
+    .act-cifras{display:flex;gap:22px;flex-wrap:wrap;}
+    .act-cif{display:flex;flex-direction:column;gap:1px;}
+    .act-num{font-size:17px;font-weight:600;color:var(--label);letter-spacing:-0.4px;white-space:nowrap;}
+    .act-lbl{font-size:10.5px;color:var(--label3);font-weight:500;}
+    .act-nota{font-size:12px;color:var(--label3);}
     .mp-torre{padding:14px 16px 6px;}
     .mp-titulo{font-size:14px;font-weight:700;color:var(--label);margin-bottom:8px;}
     .mp-scroll{overflow-x:auto;}
@@ -172,8 +195,32 @@
         <div class="hoy-stat"><div class="hoy-stat-num">$@string.Format("{0:N0}", valorHoy)</div><div class="hoy-stat-lbl">Valor vendido @rotulo</div></div>
         <div class="hoy-stat"><div class="hoy-stat-num">@vendidos</div><div class="hoy-stat-lbl">Total vendidos</div></div>
         <div class="hoy-stat"><div class="hoy-stat-num">@disponibles</div><div class="hoy-stat-lbl">Disponibles</div></div>
-        <div class="hoy-stat"><div class="hoy-stat-num">@string.Format("{0:P0}", total > 0 ? (double)vendidos/total : 0)</div><div class="hoy-stat-lbl">% Avance</div></div>
+        <div class="hoy-stat">
+            <div class="hoy-stat-num">@string.Format("{0:P0}", separaLanz ? pctLanz : (total > 0 ? (double)vendidos/total : 0))</div>
+            <div class="hoy-stat-lbl">@(separaLanz ? "% Avance del lanzamiento" : "% Avance")</div>
+        </div>
     </div>
+</div>
+
+<!-- ACTIVIDAD COMERCIAL -->
+@* Solo aparece cuando el proyecto llegó con inventario comprometido: en un estreno
+   las tres cifras serían la misma y la franja sobraría. *@
+<div class="act-bar">
+    <div class="act-tipo">
+        <span class="act-badge">@actTitulo</span>
+        @if (!string.IsNullOrEmpty(etapaLanz)) { <span class="act-etapa">@etapaLanz</span> }
+    </div>
+    @if (separaLanz) {
+        <div class="act-cifras">
+            <div class="act-cif"><span class="act-num">@total</span><span class="act-lbl">Total del proyecto</span></div>
+            <div class="act-cif"><span class="act-num">@totalLanz</span><span class="act-lbl">Total del lanzamiento</span></div>
+            <div class="act-cif"><span class="act-num">@historico</span><span class="act-lbl">Comprometidas antes</span></div>
+            <div class="act-cif"><span class="act-num">@vendidosLanz</span><span class="act-lbl">Vendidas en el lanzamiento</span></div>
+            <div class="act-cif"><span class="act-num">$@string.Format("{0:N0}", valorLanz)</span><span class="act-lbl">Valor del lanzamiento</span></div>
+        </div>
+    } else {
+        <div class="act-nota">Todo el inventario del proyecto sale en esta actividad.</div>
+    }
 </div>
 
 <!-- KPIs -->
@@ -193,6 +240,15 @@
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:#1EA851">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:var(--rojo)">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctR)%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div></div>
+            @if (separaLanz) {
+                <div class="prog-row">
+                    <div class="prog-meta">
+                        <span class="prog-name">Avance del lanzamiento</span>
+                        <span class="prog-val" style="color:var(--blue)">@vendidosLanz / @totalLanz</span>
+                    </div>
+                    <div class="prog-track"><div class="prog-fill" style="width:@anchoLanz%;background:linear-gradient(90deg,var(--azul),#5AC8FA)"></div></div>
+                </div>
+            }
             <div class="prog-row"><div class="prog-meta"><span class="prog-name">En proceso</span><span class="prog-val" style="color:#5A5AC8">@enProceso / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctP)%;background:linear-gradient(90deg,#5A5AC8,#7878E0)"></div></div></div>
         </div>
     </div>

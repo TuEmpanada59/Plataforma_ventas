@@ -79,6 +79,69 @@ namespace Plataforma_ventas.Controllers
                     ViewBag.EnProceso = rk["EnProceso"] == DBNull.Value ? 0 : (int)rk["EnProceso"];
                 }
 
+            // ── Actividad comercial y separación del lanzamiento ───────────────────────
+            // El total del proyecto es la foto completa; el total del lanzamiento es lo que
+            // realmente salió a vender en este evento. En una activación las dos cifras no
+            // coinciden, y medir el avance sobre la primera regala un porcentaje que nadie
+            // hizo esa noche. Todo va detrás de una guarda: sin la sección 15 de la
+            // migración la pantalla sigue funcionando con las cifras de siempre.
+            var cmdColAct = new SqlCommand("SELECT COL_LENGTH('Proyectos','Actividad')", con);
+            bool hayActividad = (await cmdColAct.ExecuteScalarAsync()) is not (null or DBNull);
+            var cmdColEnLanz = new SqlCommand("SELECT COL_LENGTH('Inmuebles','EnLanzamiento')", con);
+            bool hayEnLanzamiento = (await cmdColEnLanz.ExecuteScalarAsync()) is not (null or DBNull);
+
+            string actividad = Actividades.ProyectoNuevo, etapaLanzada = "";
+            if (hayActividad)
+            {
+                var cmdAct = new SqlCommand(
+                    "SELECT ISNULL(Actividad,'') AS Actividad, ISNULL(EtapaLanzamiento,'') AS Etapa " +
+                    "FROM Proyectos WHERE IdProyectos=@id", con);
+                cmdAct.Parameters.AddWithValue("@id", idProy);
+                using (var rA = (SqlDataReader)await cmdAct.ExecuteReaderAsync())
+                    if (await rA.ReadAsync())
+                    {
+                        actividad = Actividades.Normalizar(rA["Actividad"]?.ToString());
+                        etapaLanzada = rA["Etapa"]?.ToString() ?? "";
+                    }
+            }
+            ViewBag.Actividad = actividad;
+            ViewBag.ActividadTitulo = Actividades.Titulo(actividad);
+            ViewBag.EtapaLanzada = etapaLanzada;
+
+            // Se pasan por object para no hacer aritmética sobre dynamic, que resuelve en
+            // tiempo de ejecución y falla en la vista y no aquí.
+            object? oTotal = ViewBag.Total, oVendidos = ViewBag.Vendidos;
+            int totalProyecto = oTotal == null ? 0 : Convert.ToInt32(oTotal);
+            int totalLanzamiento = totalProyecto;
+            int vendidosLanzamiento = oVendidos == null ? 0 : Convert.ToInt32(oVendidos);
+            long valorLanzamiento = 0;
+            if (hayEnLanzamiento)
+            {
+                var cmdLanz = new SqlCommand(@"
+                    SELECT SUM(CASE WHEN EnLanzamiento=1 THEN 1 ELSE 0 END) AS TotalLanz,
+                           SUM(CASE WHEN EnLanzamiento=1 AND Estado='VENDIDO' THEN 1 ELSE 0 END) AS VendLanz
+                    FROM Inmuebles WHERE IdProyecto=@id", con);
+                cmdLanz.Parameters.AddWithValue("@id", idProy);
+                using (var rL = (SqlDataReader)await cmdLanz.ExecuteReaderAsync())
+                    if (await rL.ReadAsync())
+                    {
+                        totalLanzamiento = rL["TotalLanz"] == DBNull.Value ? 0 : Convert.ToInt32(rL["TotalLanz"]);
+                        vendidosLanzamiento = rL["VendLanz"] == DBNull.Value ? 0 : Convert.ToInt32(rL["VendLanz"]);
+                    }
+
+                var cmdValLanz = new SqlCommand(@"
+                    SELECT ISNULL(SUM(v.PrecioVenta),0)
+                    FROM Ventas v JOIN Inmuebles i ON i.IdInmuebles = v.IdInmueble
+                    WHERE v.IdProyecto=@id AND v.Estado='ACTIVA' AND i.EnLanzamiento=1", con);
+                cmdValLanz.Parameters.AddWithValue("@id", idProy);
+                valorLanzamiento = Convert.ToInt64((await cmdValLanz.ExecuteScalarAsync())!);
+            }
+            ViewBag.HayLanzamiento = hayEnLanzamiento;
+            ViewBag.TotalLanzamiento = totalLanzamiento;
+            ViewBag.VendidosLanzamiento = vendidosLanzamiento;
+            ViewBag.ValorLanzamiento = valorLanzamiento;
+            ViewBag.HistoricoUnidades = Math.Max(0, totalProyecto - totalLanzamiento);
+
             var cmdValor = new SqlCommand("SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'", con);
             cmdValor.Parameters.AddWithValue("@id", idProy);
             ViewBag.ValorTotal = (long)(await cmdValor.ExecuteScalarAsync())!;

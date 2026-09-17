@@ -93,6 +93,35 @@
                 </div>
                 <input type="hidden" name="tipoProyecto" id="tipoProyecto" value="APARTAMENTOS"/>
             </div>
+            @* La actividad decide qué cuenta como resultado del evento: en una activación
+               o en una etapa nueva el archivo llega con unidades ya vendidas, y esas no las
+               vendió nadie esa noche. *@
+            <div class="campo">
+                <label>Actividad</label>
+                <div class="tipo-row">
+                    <button type="button" class="tipo-btn sel" id="actPROYECTO_NUEVO" onclick="selAct('PROYECTO_NUEVO')">
+                        Proyecto nuevo
+                    </button>
+                    <button type="button" class="tipo-btn" id="actACTIVACION" onclick="selAct('ACTIVACION')">
+                        Activación
+                    </button>
+                    <button type="button" class="tipo-btn" id="actNUEVA_ETAPA" onclick="selAct('NUEVA_ETAPA')">
+                        Nueva etapa
+                    </button>
+                </div>
+                <input type="hidden" name="actividad" id="actividad" value="PROYECTO_NUEVO"/>
+                <div id="ayudaActividad" style="font-size:11.5px;color:var(--label3);margin-top:6px;">
+                    Todo el inventario sale por primera vez.
+                </div>
+            </div>
+            <div class="campo" id="campoEtapa" style="display:none;">
+                <label>Etapa que se lanza</label>
+                <input type="text" name="etapaLanzamiento" id="etapaLanzamiento" placeholder="Ej: Etapa 2"/>
+                <div style="font-size:11.5px;color:var(--label3);margin-top:6px;">
+                    Debe coincidir con el nombre de la hoja del Excel. Si lo dejas vacío,
+                    cuenta como lanzamiento todo lo que llegue disponible.
+                </div>
+            </div>
             <div class="drop-zone" id="dropZone">
                 <input type="file" name="archivo" accept=".xlsx,.xls" id="fileInput" required/>
                 <div class="drop-ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--label2)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
@@ -148,6 +177,20 @@
             var btn=document.getElementById('btn'+x);
             if(btn) btn.classList.toggle('sel',x===t);
         });
+    }
+    const ACTS={
+        'PROYECTO_NUEVO':'Todo el inventario sale por primera vez.',
+        'ACTIVACION':'El archivo puede traer unidades ya vendidas: esas cuentan como historia del proyecto.',
+        'NUEVA_ETAPA':'Solo la etapa que se lanza cuenta como meta del evento.'
+    };
+    function selAct(a){
+        document.getElementById('actividad').value=a;
+        Object.keys(ACTS).forEach(function(x){
+            var btn=document.getElementById('act'+x);
+            if(btn) btn.classList.toggle('sel',x===a);
+        });
+        document.getElementById('ayudaActividad').textContent=ACTS[a];
+        document.getElementById('campoEtapa').style.display=(a==='NUEVA_ETAPA')?'':'none';
     }
     function copiar(txt){navigator.clipboard.writeText(txt).then(function(){alert('Código copiado: '+txt);});}
     const fileInput=document.getElementById('fileInput'),fileName=document.getElementById('fileName'),dropZone=document.getElementById('dropZone');

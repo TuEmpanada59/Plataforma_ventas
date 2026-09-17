@@ -68,9 +68,12 @@ namespace Plataforma_ventas.Controllers
         /// <param name="archivo">The Excel (.xlsx) file to parse.</param>
         /// <param name="nombreProyecto">Display name for the new project.</param>
         /// <param name="tipoProyecto">Project type: "APARTAMENTOS" or "LOTES".</param>
+        /// <param name="actividad">Commercial activity: PROYECTO_NUEVO, ACTIVACION or NUEVA_ETAPA.</param>
+        /// <param name="etapaLanzamiento">Sheet name of the stage being launched (NUEVA_ETAPA only).</param>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Subir(IFormFile archivo, string nombreProyecto, string tipoProyecto)
+        public async Task<IActionResult> Subir(IFormFile archivo, string nombreProyecto, string tipoProyecto,
+                                               string actividad = "", string etapaLanzamiento = "")
         {
             int idAdmin = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
 
@@ -96,6 +99,12 @@ namespace Plataforma_ventas.Controllers
                 TempData["Error"] = "Debes ingresar el nombre del proyecto.";
                 return RedirectToAction("Index");
             }
+
+            // La actividad decide qué cuenta como resultado del lanzamiento. Un valor
+            // desconocido cae en proyecto nuevo, donde no hay historia que separar.
+            actividad = Actividades.Normalizar(actividad);
+            etapaLanzamiento = (etapaLanzamiento ?? "").Trim();
+            if (actividad != Actividades.NuevaEtapa) etapaLanzamiento = "";
 
             if (tipoProyecto != "APARTAMENTOS" && tipoProyecto != "LOTES" &&
                 tipoProyecto != "SUITES" && tipoProyecto != "SALUD" && tipoProyecto != "OFICINAS")
@@ -268,6 +277,17 @@ namespace Plataforma_ventas.Controllers
                 var cmdColOrigen = new SqlCommand("SELECT COL_LENGTH('Ventas','Origen')", con);
                 bool hayColumnaOrigen = (await cmdColOrigen.ExecuteScalarAsync()) is not (null or DBNull);
 
+                // Y con la actividad: sin la sección 15 de la migración el proyecto se carga
+                // igual, solo que no se separa el total del lanzamiento del total del proyecto.
+                var cmdColAct = new SqlCommand("SELECT COL_LENGTH('Proyectos','Actividad')", con);
+                bool hayColActividad = (await cmdColAct.ExecuteScalarAsync()) is not (null or DBNull);
+
+                var cmdColEnLanz = new SqlCommand("SELECT COL_LENGTH('Inmuebles','EnLanzamiento')", con);
+                bool hayColEnLanzamiento = (await cmdColEnLanz.ExecuteScalarAsync()) is not (null or DBNull);
+
+                var cmdTablaAct = new SqlCommand("SELECT OBJECT_ID('ProyectoActividades','U')", con);
+                bool hayTablaActividades = (await cmdTablaAct.ExecuteScalarAsync()) is not (null or DBNull);
+
                 var cmdCheck = new SqlCommand(@"SELECT COUNT(*) FROM Proyectos
                     WHERE UPPER(Nombre)=UPPER(@n) AND IdAdminCreador=@admin AND Activo=1", con);
                 cmdCheck.Parameters.AddWithValue("@n", nombreProyecto.Trim());
@@ -283,17 +303,24 @@ namespace Plataforma_ventas.Controllers
                 // ── Transacción: proyecto + inmuebles + áreas ──────────────────────────
                 using var tx = con.BeginTransaction();
 
-                var cmdProy = new SqlCommand(@"INSERT INTO Proyectos
-                    (Nombre, FechaCarga, Activo, ListaActual, IdAdminCreador, CodigoAcceso, TipProyecto)
+                var cmdProy = new SqlCommand($@"INSERT INTO Proyectos
+                    (Nombre, FechaCarga, Activo, ListaActual, IdAdminCreador, CodigoAcceso, TipProyecto
+                     {(hayColActividad ? ", Actividad, EtapaLanzamiento" : "")})
                     OUTPUT INSERTED.IdProyectos
-                    VALUES (@n, GETDATE(), 1, 1, @admin, @codigo, @tipo)", con, tx);
+                    VALUES (@n, GETDATE(), 1, 1, @admin, @codigo, @tipo
+                     {(hayColActividad ? ", @act, @etapaLanz" : "")})", con, tx);
+                if (hayColActividad)
+                {
+                    cmdProy.Parameters.AddWithValue("@act", actividad);
+                    cmdProy.Parameters.AddWithValue("@etapaLanz", etapaLanzamiento);
+                }
                 cmdProy.Parameters.AddWithValue("@n", nombreProyecto.Trim());
                 cmdProy.Parameters.AddWithValue("@admin", idAdmin);
                 cmdProy.Parameters.AddWithValue("@codigo", codigo);
                 cmdProy.Parameters.AddWithValue("@tipo", tipoProyecto);
                 int idProyecto = (int)(await cmdProy.ExecuteScalarAsync())!;
 
-                int insertados = 0, reservadosExcel = 0, vendidosExcel = 0;
+                int insertados = 0, reservadosExcel = 0, vendidosExcel = 0, enLanzamiento = 0;
                 int idClienteImportado = 0;   // se crea solo si el archivo trae vendidos
 
                 foreach (var h in hojas)
@@ -314,13 +341,19 @@ namespace Plataforma_ventas.Controllers
                     // dejarlo suelto haría que al escriturar se cobrara la lista vigente.
                     long precioLista1 = GetLista(0);
 
+                    // Sale al evento lo que llega disponible; lo que viene vendido o
+                    // reservado ya estaba comprometido y es historia del proyecto.
+                    bool entraAlLanzamiento = Actividades.EntraAlLanzamiento(
+                        actividad, estadoFila, h.Etapa, etapaLanzamiento);
+
                     var cmdInm = new SqlCommand($@"INSERT INTO Inmuebles
                         (IdProyecto,Apto,Tipo,Piso,Metros,Lista1,Lista2,Lista3,Lista4,Lista5,Estado,Torre,
-                         {(hayColumnaEtapa ? "Etapa," : "")}PrecioReserva,FechaReserva)
+                         {(hayColumnaEtapa ? "Etapa," : "")}{(hayColEnLanzamiento ? "EnLanzamiento," : "")}PrecioReserva,FechaReserva)
                         OUTPUT INSERTED.IdInmuebles
                         VALUES (@proy,@apto,@tipo,@piso,@metros,@l1,@l2,@l3,@l4,@l5,@estado,@torre,
-                                {(hayColumnaEtapa ? "@etapa," : "")}@precioRes,
+                                {(hayColumnaEtapa ? "@etapa," : "")}{(hayColEnLanzamiento ? "@enLanz," : "")}@precioRes,
                                 CASE WHEN @estado='RESERVADO' THEN GETDATE() END)", con, tx);
+                    if (hayColEnLanzamiento) cmdInm.Parameters.AddWithValue("@enLanz", entraAlLanzamiento);
 
                     cmdInm.Parameters.AddWithValue("@proy", idProyecto);
                     cmdInm.Parameters.AddWithValue("@apto", apto);
@@ -347,6 +380,7 @@ namespace Plataforma_ventas.Controllers
 
                     int idInmueble = Convert.ToInt32((await cmdInm.ExecuteScalarAsync())!);
                     insertados++;
+                    if (entraAlLanzamiento) enLanzamiento++;
                     if (estadoFila == "RESERVADO") reservadosExcel++;
 
                     // Un inmueble que ya llega vendido tiene que aparecer en Ventas: si no,
@@ -383,6 +417,24 @@ namespace Plataforma_ventas.Controllers
                 cmdAreas.Parameters.AddWithValue("@proy", idProyecto);
                 await cmdAreas.ExecuteNonQueryAsync();
 
+                // La actividad queda registrada con la foto de las cifras al arrancar: así
+                // el evento se puede consultar meses después, cuando el inventario ya se movió.
+                if (hayTablaActividades)
+                {
+                    var cmdAct = new SqlCommand(@"INSERT INTO ProyectoActividades
+                        (IdProyecto, Tipo, Etapa, FechaInicio, TotalProyecto, TotalLanzamiento,
+                         HistoricoVendidas, HistoricoReservadas)
+                        VALUES (@proy, @tipo, @etapa, GETDATE(), @total, @lanz, @vend, @res)", con, tx);
+                    cmdAct.Parameters.AddWithValue("@proy", idProyecto);
+                    cmdAct.Parameters.AddWithValue("@tipo", actividad);
+                    cmdAct.Parameters.AddWithValue("@etapa", etapaLanzamiento);
+                    cmdAct.Parameters.AddWithValue("@total", insertados);
+                    cmdAct.Parameters.AddWithValue("@lanz", enLanzamiento);
+                    cmdAct.Parameters.AddWithValue("@vend", vendidosExcel);
+                    cmdAct.Parameters.AddWithValue("@res", reservadosExcel);
+                    await cmdAct.ExecuteNonQueryAsync();
+                }
+
                 tx.Commit();
 
                 HttpContext.Session.SetString("ProyectoId", idProyecto.ToString());
@@ -412,8 +464,20 @@ namespace Plataforma_ventas.Controllers
                     detalleEstados += $" {vendidosExcel} llegaron vendidos: ya están en Ventas, " +
                                       "complétales el cliente y el asesor desde ahí.";
 
+                // Resumen de la actividad: es donde el administrador caza en el momento si el
+                // sistema entendió mal el archivo, en vez de descubrirlo con el evento andando.
+                var detalleActividad = $" Actividad: {Actividades.Titulo(actividad)}";
+                if (etapaLanzamiento.Length > 0) detalleActividad += $" ({etapaLanzamiento})";
+                detalleActividad += ".";
+                if (hayColEnLanzamiento && enLanzamiento != insertados)
+                    detalleActividad += $" Salen al lanzamiento {enLanzamiento} de {insertados}; " +
+                                        $"las demás ya venían comprometidas y cuentan como historia del proyecto.";
+                if (!hayColActividad || !hayColEnLanzamiento)
+                    detalleActividad += " (Para separar el total del lanzamiento del total del proyecto, " +
+                                        "ejecuta la sección 15 de Scripts/PanelAdmin.sql y vuelve a cargar el archivo.)";
+
                 TempData["Exito"] = $"Proyecto '{nombreProyecto}' cargado con {insertados} {tipoLabel}. " +
-                                    $"Listas detectadas: {listasDetectadas}.{detalleEstados}";
+                                    $"Listas detectadas: {listasDetectadas}.{detalleActividad}{detalleEstados}";
                 TempData["Codigo"] = codigo;
             }
             catch (Exception ex)

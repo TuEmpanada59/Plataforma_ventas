@@ -477,5 +477,78 @@ FROM (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM MediosPublicitarios m WHERE m.Nombre = v.Nombre);
 GO
 
+-- ============================================================================
+-- 15) ACTIVIDAD COMERCIAL DEL PROYECTO
+--     Un proyecto puede salir a vender de tres formas distintas, y de eso depende
+--     qué cuenta como resultado del evento:
+--       PROYECTO_NUEVO  estreno, todo el inventario sale por primera vez
+--       ACTIVACION      se vuelve a salir con un inventario que ya tenía ventas
+--       NUEVA_ETAPA     se lanza una etapa de un proyecto con historia
+--     La regla de conteo es una sola: entra al lanzamiento lo que llega DISPONIBLE
+--     en el Excel. Lo que llega vendido o reservado estaba comprometido antes.
+-- ============================================================================
+IF COL_LENGTH('Proyectos', 'Actividad') IS NULL
+BEGIN
+    ALTER TABLE Proyectos ADD Actividad NVARCHAR(30) NOT NULL
+        CONSTRAINT DF_Proyectos_Actividad DEFAULT 'PROYECTO_NUEVO';
+    PRINT 'Columna Proyectos.Actividad creada.';
+END
+GO
+
+IF COL_LENGTH('Proyectos', 'EtapaLanzamiento') IS NULL
+BEGIN
+    ALTER TABLE Proyectos ADD EtapaLanzamiento NVARCHAR(100) NOT NULL
+        CONSTRAINT DF_Proyectos_EtapaLanz DEFAULT '';
+    PRINT 'Columna Proyectos.EtapaLanzamiento creada.';
+END
+GO
+
+-- Marca por unidad. Se calcula UNA vez, en el momento de la carga, y no se vuelve
+-- a tocar: si se recalculara con el estado actual, el total del lanzamiento bajaría
+-- solo a medida que se venden las unidades y el porcentaje de avance no cuadraría.
+IF COL_LENGTH('Inmuebles', 'EnLanzamiento') IS NULL
+BEGIN
+    ALTER TABLE Inmuebles ADD EnLanzamiento BIT NOT NULL
+        CONSTRAINT DF_Inmuebles_EnLanz DEFAULT 1;
+    PRINT 'Columna Inmuebles.EnLanzamiento creada.';
+
+    -- Reconstrucción para los proyectos ya cargados: queda fuera del lanzamiento lo
+    -- que se importó vendido desde el Excel y lo que llegó reservado sin asesor.
+    IF COL_LENGTH('Ventas', 'Origen') IS NOT NULL
+        EXEC sp_executesql N'
+            UPDATE i SET i.EnLanzamiento = 0
+            FROM Inmuebles i
+            JOIN Ventas v ON v.IdInmueble = i.IdInmuebles AND v.Origen = ''EXCEL''';
+
+    IF COL_LENGTH('Inmuebles', 'IdVendedorReserva') IS NOT NULL
+        EXEC sp_executesql N'
+            UPDATE Inmuebles SET EnLanzamiento = 0
+            WHERE Estado = ''RESERVADO'' AND IdVendedorReserva IS NULL';
+
+    PRINT 'Inmuebles.EnLanzamiento reconstruido para los proyectos existentes.';
+END
+GO
+
+-- Historial de actividades: una fila por evento comercial del proyecto, con la foto
+-- de las cifras al momento de arrancar. Guardar la foto permite comparar lanzamientos
+-- del mismo proyecto meses después, cuando el inventario ya se movió.
+IF OBJECT_ID('ProyectoActividades', 'U') IS NULL
+BEGIN
+    CREATE TABLE ProyectoActividades (
+        IdActividad         INT           IDENTITY(1,1) PRIMARY KEY,
+        IdProyecto          INT           NOT NULL,
+        Tipo                NVARCHAR(30)  NOT NULL DEFAULT 'PROYECTO_NUEVO',
+        Etapa               NVARCHAR(100) NOT NULL DEFAULT '',
+        FechaInicio         DATETIME      NOT NULL DEFAULT GETDATE(),
+        TotalProyecto       INT           NOT NULL DEFAULT 0,
+        TotalLanzamiento    INT           NOT NULL DEFAULT 0,
+        HistoricoVendidas   INT           NOT NULL DEFAULT 0,
+        HistoricoReservadas INT           NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IX_ProyActividades_Proy ON ProyectoActividades (IdProyecto, FechaInicio DESC);
+    PRINT 'Tabla ProyectoActividades creada.';
+END
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO
