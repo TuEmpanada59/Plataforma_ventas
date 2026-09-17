@@ -49,7 +49,26 @@
     .tbl .lbl{font-weight:600;color:var(--azul);text-align:left;}
     .tbl .tot{font-weight:700;background:rgba(0,118,227,0.04);}
     .tbl .sec td{background:rgba(0,58,112,0.06);font-weight:700;color:var(--azul);font-size:11px;text-transform:uppercase;}
-    @@media(max-width:900px){.metric-grid,.franja-grid{grid-template-columns:repeat(2,1fr)!important;}.torre-row{grid-template-columns:1fr 1fr!important;}}
+    .res-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--sep2);}
+    .res-kpi{background:var(--glass);padding:14px 16px;display:flex;flex-direction:column;gap:2px;}
+    .res-num{font-size:24px;font-weight:300;letter-spacing:-1px;line-height:1.1;white-space:nowrap;}
+    .res-lbl{font-size:10.5px;color:var(--label3);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
+    .res-sub{font-size:11px;color:var(--label2);}
+    .dias-chart{padding:16px 18px;display:flex;flex-direction:column;gap:14px;}
+    .dia-fila{display:flex;flex-direction:column;gap:5px;}
+    .dia-cab{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .dia-nom{font-size:13px;font-weight:700;color:var(--label);}
+    .dia-conv{font-size:11.5px;color:var(--label2);}
+    .dia-barra{display:flex;align-items:center;gap:8px;}
+    .dia-barra .cap{font-size:10.5px;color:var(--label3);min-width:62px;}
+    .dia-track{flex:1;height:14px;background:var(--fill3);border-radius:7px;overflow:hidden;min-width:0;}
+    .dia-fill{height:100%;border-radius:7px;transition:width .4s ease;}
+    .dia-val{font-size:11.5px;font-weight:700;min-width:62px;text-align:right;white-space:nowrap;}
+    .tbl td:first-child,.tbl th:first-child{position:sticky;left:0;background:var(--glass);z-index:1;}
+    .tbl .sec td:first-child{background:rgba(0,58,112,0.06);}
+    .tbl .tot{font-weight:700;background:rgba(0,118,227,0.04);}
+    .res-vacio{padding:24px 18px;font-size:13px;color:var(--label3);}
+    @@media(max-width:900px){.metric-grid,.franja-grid{grid-template-columns:repeat(2,1fr)!important;}.torre-row{grid-template-columns:1fr 1fr!important;}.res-kpis{grid-template-columns:repeat(2,1fr);}}
 </style>
 }
 
@@ -113,8 +132,20 @@
     </form>
 
     <!-- RESUMEN EN VIVO -->
+    @* Lo primero que pregunta el área comercial no es una tabla de cuarenta filas, es
+       cuánta gente entró y cuánto se vendió. Eso va arriba y en grande; el detalle
+       completo se queda abajo para el que lo necesite. *@
+    <div class="card" style="margin-bottom:14px;">
+        <div class="card-head">
+            <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Grafico("#0076E3", 16) Resumen del lanzamiento</span>
+            <span id="resumenMeta" style="font-size:12px;color:var(--label3)"></span>
+        </div>
+        <div class="res-kpis" id="resKpis"></div>
+        <div class="dias-chart" id="diasChart"></div>
+    </div>
+
     <div class="card">
-        <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Grafico("#0076E3", 16) Vista previa del cuadro</span></div>
+        <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Lista("#0076E3", 16) Cuadro completo</span></div>
         <div style="overflow-x:auto;padding:6px 0;">
             <table class="tbl" id="resumenTabla"><tbody></tbody></table>
         </div>
@@ -287,7 +318,7 @@ function recolectar() {
             });
         });
         const franjas = [];
-        b.querySelectorAll('.franja').forEach(f => {
+        block.querySelectorAll('.franja').forEach(f => {
             franjas.push({
                 desde: parseInt(f.dataset.desde),
                 hasta: parseInt(f.dataset.hasta),
@@ -317,11 +348,80 @@ function prepararEnvio() {
 function fmt(n){ return '$ ' + (parseInt(n)||0).toLocaleString('es-CO'); }
 function pct(num,den){ return den>0 ? Math.round(num/den*100)+'%' : '0%'; }
 
+// Cifra grande y abreviada: en pesos el número completo no cabe en la tarjeta.
+function fmtCorto(n){
+    n = parseInt(n)||0;
+    if (n >= 1000000000) return '$ ' + (n/1000000000).toFixed(n >= 10000000000 ? 0 : 1).replace('.',',') + ' mil M';
+    if (n >= 1000000)    return '$ ' + (n/1000000).toFixed(n >= 10000000 ? 0 : 1).replace('.',',') + ' M';
+    return fmt(n);
+}
+
+function renderTablero(dias) {
+    const kpis = document.getElementById('resKpis');
+    const chart = document.getElementById('diasChart');
+    const meta = document.getElementById('resumenMeta');
+    if (!kpis) return;
+
+    const sum = (f) => dias.reduce((a,d)=>a+f(d),0);
+    const tSum = (d,f) => d.torres.reduce((a,t)=>a+f(t),0);
+    const sumT = (f) => dias.reduce((a,d)=>a+tSum(d,f),0);
+
+    const familias = sum(d=>d.familias);
+    const personas = sum(d=>d.adultos) + sum(d=>d.ninos);
+    const unidades = sumT(t=>t.preventas) + sumT(t=>t.ventas);
+    const valor    = sumT(t=>t.valorPreventa) + sumT(t=>t.valorVenta);
+    const opciones = sumT(t=>t.opciones);
+
+    meta.textContent = dias.length + (dias.length === 1 ? ' día' : ' días') + ' de lanzamiento';
+    kpis.innerHTML = `
+      <div class="res-kpi"><span class="res-num" style="color:var(--azul)">${familias}</span><span class="res-lbl">Familias</span><span class="res-sub">${personas} personas</span></div>
+      <div class="res-kpi"><span class="res-num" style="color:#1EA851">${unidades}</span><span class="res-lbl">Unidades vendidas</span><span class="res-sub">preventas y ventas</span></div>
+      <div class="res-kpi"><span class="res-num" style="color:#1EA851">${fmtCorto(valor)}</span><span class="res-lbl">Valor vendido</span><span class="res-sub">${fmt(valor)}</span></div>
+      <div class="res-kpi"><span class="res-num" style="color:#CC7700">${opciones}</span><span class="res-lbl">Opciones</span><span class="res-sub">${fmtCorto(sumT(t=>t.valorOpciones))}</span></div>
+      <div class="res-kpi"><span class="res-num" style="color:var(--blue)">${pct(unidades,familias)}</span><span class="res-lbl">Conversión</span><span class="res-sub">ventas sobre familias</span></div>`;
+
+    // Una barra por día: el tráfico contra lo que se vendió ese mismo día. Cada barra
+    // se mide contra su propio máximo, porque comparar familias con unidades en la
+    // misma escala dejaría las ventas invisibles.
+    const maxFam = Math.max(1, ...dias.map(d=>d.familias));
+    const maxVen = Math.max(1, ...dias.map(d=>tSum(d,t=>t.preventas)+tSum(d,t=>t.ventas)));
+    chart.innerHTML = dias.map((d,i) => {
+        const ven = tSum(d,t=>t.preventas)+tSum(d,t=>t.ventas);
+        const val = tSum(d,t=>t.valorPreventa)+tSum(d,t=>t.valorVenta);
+        const wF = (d.familias/maxFam*100).toFixed(1);
+        const wV = (ven/maxVen*100).toFixed(1);
+        return `
+        <div class="dia-fila">
+          <div class="dia-cab">
+            <span class="dia-nom">${d.nombreDia || ('Día ' + (i+1))}</span>
+            <span class="dia-conv">${pct(ven,d.familias)} de conversión · ${fmtCorto(val)}</span>
+          </div>
+          <div class="dia-barra">
+            <span class="cap">Familias</span>
+            <span class="dia-track"><span class="dia-fill" style="width:${wF}%;background:linear-gradient(90deg,var(--azul),#5AC8FA)"></span></span>
+            <span class="dia-val" style="color:var(--azul)">${d.familias}</span>
+          </div>
+          <div class="dia-barra">
+            <span class="cap">Unidades</span>
+            <span class="dia-track"><span class="dia-fill" style="width:${wV}%;background:linear-gradient(90deg,#1EA851,#34C759)"></span></span>
+            <span class="dia-val" style="color:#1EA851">${ven}</span>
+          </div>
+        </div>`;
+    }).join('');
+}
+
 function renderResumen() {
     const data = recolectar();
     const dias = data.dias;
     const tb = document.querySelector('#resumenTabla tbody');
-    if (!dias.length) { tb.innerHTML = '<tr><td style="padding:24px;color:var(--label3)">Agrega al menos un día para ver el resumen.</td></tr>'; return; }
+    if (!dias.length) {
+        tb.innerHTML = '<tr><td class="res-vacio">Agrega al menos un día para ver el resumen.</td></tr>';
+        document.getElementById('resKpis').innerHTML = '';
+        document.getElementById('diasChart').innerHTML = '<div class="res-vacio">Agrega al menos un día para ver el resumen.</div>';
+        document.getElementById('resumenMeta').textContent = '';
+        return;
+    }
+    renderTablero(dias);
 
     const sum = (f) => dias.reduce((a,d)=>a+f(d),0);
     const tSum = (d,f) => d.torres.reduce((a,t)=>a+f(t),0);
@@ -367,7 +467,7 @@ function renderResumen() {
     filaTMoney('Valor preventa', t=>t.valorPreventa);
     filaTInt('Ventas', t=>t.ventas);
     filaTMoney('Valor de venta', t=>t.valorVenta);
-    filaTInt('Opciones (en proceso)', t=>t.opciones);
+    filaTInt('Opciones', t=>t.opciones);
     filaTMoney('Opciones (en pesos)', t=>t.valorOpciones);
     filaTInt('Ventas totales unidades', t=>t.preventas+t.ventas);
     filaTMoney('Ventas totales pesos', t=>t.valorPreventa+t.valorVenta);

@@ -1812,7 +1812,7 @@ namespace Plataforma_ventas.Controllers
             FilaTorreMoney("Valor preventa", t => (long)t.ValorPreventa);
             FilaTorreInt("Ventas", t => (long)(int)t.Ventas);
             FilaTorreMoney("Valor de venta", t => (long)t.ValorVenta);
-            FilaTorreInt("Opciones (En proceso)", t => (long)(int)t.Opciones);
+            FilaTorreInt("Opciones", t => (long)(int)t.Opciones);
             FilaTorreMoney("Opciones (En pesos)", t => (long)t.ValorOpciones);
             FilaTorreInt("Ventas totales unidades", t => (long)((int)t.Preventas + (int)t.Ventas));
             FilaTorreMoney("Ventas totales pesos", t => (long)t.ValorPreventa + (long)t.ValorVenta);
