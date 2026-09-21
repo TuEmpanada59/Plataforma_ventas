@@ -23,11 +23,15 @@ jobs:
         with:
           dotnet-version: '10.x'
 
+      # Se nombra el proyecto explícitamente: en la raíz hay dos (la aplicación y el
+      # de pruebas). Sin la ruta, el SDK resuelve la solución completa y publicar
+      # varios proyectos a una sola carpeta de salida es un error, así que el
+      # despliegue se cae antes de llegar a Azure.
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build Plataforma_ventas/Plataforma_ventas.csproj --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish Plataforma_ventas/Plataforma_ventas.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
