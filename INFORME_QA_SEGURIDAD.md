@@ -30,7 +30,7 @@ Se encontraron **3 hallazgos críticos** que **deben** resolverse antes de produ
 ## 3. Hallazgos (ordenados por severidad)
 
 ### 🔴 C-1 — Credenciales de base de datos reales versionadas en git
-- **Dónde:** `Plataforma_ventas/appsettings.json` → `ConnectionStrings:DefaultConnection` contiene `User ID=slezcano;Password=Ss1007243645@` de `dbqa.database.windows.net`. Está en el repo **y en el historial** (`git log` lo muestra).
+- **Dónde:** `Plataforma_ventas/appsettings.json` → `ConnectionStrings:DefaultConnection` contenía usuario y contraseña reales del servidor de Azure SQL de pruebas. Estaba en el repo **y en el historial**. *(El valor literal se retiró de este informe: citarlo aquí volvía a publicar la credencial que el propio hallazgo pedía proteger. La contraseña ya fue rotada.)*
 - **Impacto:** Cualquiera con acceso al repositorio (o a un fork/clone) obtiene credenciales directas a la BD de Azure SQL. Exfiltración/borrado total de datos.
 - **OWASP:** A02 (Cryptographic/Secrets), A05 (Misconfiguration).
 - **Solución:**
