@@ -2,17 +2,17 @@
 
 ## Montar una base nueva (producción)
 
-Cuatro archivos, en este orden:
+Un solo archivo: **`BaseCompleta.sql`**. Se ejecuta sobre una base vacía y deja el
+esquema, las migraciones, los índices y el catálogo de medios, y al final informa qué
+quedó pendiente. Es la unión de `EsquemaBase.sql`, `PanelAdmin.sql` y
+`VerificarBase.sql`, que también se pueden correr por separado en ese mismo orden.
 
-| Paso | Qué se ejecuta | Qué hace |
-|---|---|---|
-| 1 | `EsquemaBase.sql` | Crea las tablas, las claves y los valores por defecto |
-| 2 | `PanelAdmin.sql` | Columnas y tablas agregadas después, los índices y la lista de medios |
-| 3 | `Asistencias.sql` | Tablas del cuadro de asistencia |
-| 4 | `VerificarBase.sql` | Solo consulta: confirma que no falte nada |
+**`Asistencias.sql` no va en el montaje de una base nueva.** Ese script borra y recrea
+sus tablas, y `EsquemaBase.sql` ya las trae. Peor: al intentar borrar `AsistenciaDia`
+choca con la clave foránea de `AsistenciaFranja` y falla. Solo sirve para una base
+antigua que todavía no tenga esas tablas.
 
-El paso 4 no modifica nada: lista tablas, columnas y datos mínimos, y marca con `>>>`
-todo lo que falte. Si sale limpio, la base está lista.
+Después de ejecutarlo falta una sola cosa: la fila del usuario administrador.
 
 ## No copiar los datos de pruebas
 
@@ -26,6 +26,8 @@ se puede escribir a mano, así que esa fila se copia desde la otra base.
 
 ## Los archivos
 
+- **`BaseCompleta.sql`** — todo lo anterior en un solo archivo, en el orden correcto.
+  Es el que se usa para montar una base nueva.
 - **`EsquemaBase.sql`** — esquema completo, generado desde la base de pruebas con el
   asistente de SSMS. **No trae los índices no agrupados**, porque el asistente los
   omite; los crea la sección 16 de `PanelAdmin.sql`. Está en UTF-8 con BOM: si se
@@ -34,7 +36,7 @@ se puede escribir a mano, así que esa fila se copia desde la otra base.
 - **`PanelAdmin.sql`** — migración incremental, dividida en secciones numeradas. Cada
   sección revisa si su cambio ya está aplicado, así que se puede volver a ejecutar
   completo sin romper nada. Aquí también se siembran los medios publicitarios.
-- **`Asistencias.sql`** — tablas del cuadro de asistencia del lanzamiento. **Ojo:**
-  este sí borra y recrea sus tablas, así que no se ejecuta sobre una base con cuadros
-  de asistencia ya diligenciados.
+- **`Asistencias.sql`** — tablas del cuadro de asistencia, para bases antiguas que no
+  las tengan. **Ojo:** borra y recrea sus tablas. No se ejecuta sobre una base montada
+  con `EsquemaBase.sql`, ni sobre una que ya tenga cuadros diligenciados.
 - **`VerificarBase.sql`** — diagnóstico. No modifica nada.
