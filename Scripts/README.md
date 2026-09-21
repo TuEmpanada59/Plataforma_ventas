@@ -2,19 +2,14 @@
 
 ## Montar una base nueva (producción)
 
-Los scripts de esta carpeta **no crean la base completa**. Solo traen lo que se fue
-agregando después del arranque. Las tablas centrales (`Usuarios`, `Proyectos`,
-`Inmuebles`, `Ventas`, `Clientes`, `ProyectoAreaListas`) se crearon a mano en su
-momento y viven dentro de la base, no en el repositorio.
+Cuatro archivos, en este orden:
 
-Para montar una base nueva, en este orden:
-
-| Paso | Qué se ejecuta | De dónde sale |
+| Paso | Qué se ejecuta | Qué hace |
 |---|---|---|
-| 1 | Esquema base | Generado desde la base de pruebas con **solo esquema**, sin datos |
-| 2 | `PanelAdmin.sql` | Este repositorio. Completo; es idempotente |
-| 3 | `Asistencias.sql` | Este repositorio |
-| 4 | `VerificarBase.sql` | Este repositorio. Solo consulta, confirma que no falte nada |
+| 1 | `EsquemaBase.sql` | Crea las tablas, las claves y los valores por defecto |
+| 2 | `PanelAdmin.sql` | Columnas y tablas agregadas después, los índices y la lista de medios |
+| 3 | `Asistencias.sql` | Tablas del cuadro de asistencia |
+| 4 | `VerificarBase.sql` | Solo consulta: confirma que no falte nada |
 
 El paso 4 no modifica nada: lista tablas, columnas y datos mínimos, y marca con `>>>`
 todo lo que falte. Si sale limpio, la base está lista.
@@ -31,6 +26,11 @@ se puede escribir a mano, así que esa fila se copia desde la otra base.
 
 ## Los archivos
 
+- **`EsquemaBase.sql`** — esquema completo, generado desde la base de pruebas con el
+  asistente de SSMS. **No trae los índices no agrupados**, porque el asistente los
+  omite; los crea la sección 16 de `PanelAdmin.sql`. Está en UTF-8 con BOM: si se
+  vuelve a guardar en otra codificación, la columna `Usuarios.Contraseña` puede quedar
+  con el nombre corrupto y el inicio de sesión falla sin explicación.
 - **`PanelAdmin.sql`** — migración incremental, dividida en secciones numeradas. Cada
   sección revisa si su cambio ya está aplicado, así que se puede volver a ejecutar
   completo sin romper nada. Aquí también se siembran los medios publicitarios.
