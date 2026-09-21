@@ -550,5 +550,76 @@ BEGIN
 END
 GO
 
+-- ============================================================================
+-- 16) ÍNDICES
+--     Las secciones anteriores crean sus índices junto con la tabla, dentro del
+--     mismo IF. Eso deja un hueco: si la base se montó a partir de un script de
+--     esquema generado desde otra base, las tablas ya existen, el IF no entra y
+--     los índices nunca se crean. El asistente "Generar scripts" de SSMS además
+--     omite los índices no agrupados salvo que se le pida expresamente.
+--     Esta sección los crea aparte, comprobando uno por uno.
+-- ============================================================================
+IF OBJECT_ID('HistorialListas','U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_HistorialListas_Proy'
+                                               AND object_id = OBJECT_ID('HistorialListas'))
+BEGIN
+    CREATE INDEX IX_HistorialListas_Proy ON HistorialListas (IdProyecto, Fecha DESC);
+    PRINT 'Índice IX_HistorialListas_Proy creado.';
+END
+GO
+
+IF OBJECT_ID('AsistenciaFranja','U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AsistFranja_Dia'
+                                               AND object_id = OBJECT_ID('AsistenciaFranja'))
+BEGIN
+    CREATE INDEX IX_AsistFranja_Dia ON AsistenciaFranja (IdDia, Orden);
+    PRINT 'Índice IX_AsistFranja_Dia creado.';
+END
+GO
+
+IF OBJECT_ID('AjustesPrecio','U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AjustesPrecio_Proy'
+                                               AND object_id = OBJECT_ID('AjustesPrecio'))
+BEGIN
+    CREATE INDEX IX_AjustesPrecio_Proy ON AjustesPrecio (IdProyecto, Fecha DESC);
+    PRINT 'Índice IX_AjustesPrecio_Proy creado.';
+END
+GO
+
+IF OBJECT_ID('AjustesPrecioDetalle','U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_AjusteDet_Ajuste'
+                                               AND object_id = OBJECT_ID('AjustesPrecioDetalle'))
+BEGIN
+    CREATE INDEX IX_AjusteDet_Ajuste ON AjustesPrecioDetalle (IdAjuste);
+    PRINT 'Índice IX_AjusteDet_Ajuste creado.';
+END
+GO
+
+IF OBJECT_ID('ProyectoActividades','U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_ProyActividades_Proy'
+                                               AND object_id = OBJECT_ID('ProyectoActividades'))
+BEGIN
+    CREATE INDEX IX_ProyActividades_Proy ON ProyectoActividades (IdProyecto, FechaInicio DESC);
+    PRINT 'Índice IX_ProyActividades_Proy creado.';
+END
+GO
+
+-- Este es único: es lo que impide que queden dos medios publicitarios con el mismo
+-- nombre, que después aparecen repetidos en el formulario de venta y parten en dos
+-- las cifras del reporte de "cómo se enteraron".
+IF OBJECT_ID('MediosPublicitarios','U') IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Medios_Nombre'
+                                               AND object_id = OBJECT_ID('MediosPublicitarios'))
+BEGIN
+    IF EXISTS (SELECT Nombre FROM MediosPublicitarios GROUP BY Nombre HAVING COUNT(*) > 1)
+        PRINT 'ATENCIÓN: hay medios publicitarios repetidos. Depúralos y vuelve a ejecutar esta sección.';
+    ELSE
+    BEGIN
+        CREATE UNIQUE INDEX UX_Medios_Nombre ON MediosPublicitarios (Nombre);
+        PRINT 'Índice UX_Medios_Nombre creado.';
+    END
+END
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

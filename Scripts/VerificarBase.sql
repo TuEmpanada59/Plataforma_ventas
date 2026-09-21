@@ -74,6 +74,33 @@ FROM    Columnas c
 ORDER BY CASE WHEN OBJECT_ID(c.Tabla,'U') IS NULL OR COL_LENGTH(c.Tabla, c.Columna) IS NULL
               THEN 0 ELSE 1 END, c.Tabla, c.Columna;
 
+PRINT '=== ÍNDICES ===';
+
+-- Un script de esquema generado desde otra base suele venir sin los índices no
+-- agrupados: el asistente de SSMS los omite salvo que se le pidan. La sección 16
+-- de PanelAdmin.sql los crea; esto confirma que quedaron.
+;WITH Indices AS (
+    SELECT * FROM (VALUES
+        ('HistorialListas',     'IX_HistorialListas_Proy'),
+        ('AsistenciaFranja',    'IX_AsistFranja_Dia'),
+        ('AjustesPrecio',       'IX_AjustesPrecio_Proy'),
+        ('AjustesPrecioDetalle','IX_AjusteDet_Ajuste'),
+        ('ProyectoActividades', 'IX_ProyActividades_Proy'),
+        ('MediosPublicitarios', 'UX_Medios_Nombre')
+    ) AS i(Tabla, Indice)
+)
+SELECT  i.Tabla, i.Indice,
+        CASE WHEN OBJECT_ID(i.Tabla,'U') IS NULL THEN '>>> NO EXISTE LA TABLA'
+             WHEN NOT EXISTS (SELECT 1 FROM sys.indexes x
+                              WHERE x.name = i.Indice AND x.object_id = OBJECT_ID(i.Tabla))
+             THEN '>>> FALTA: corre la sección 16 de PanelAdmin.sql'
+             ELSE 'ok' END AS Estado
+FROM    Indices i
+ORDER BY CASE WHEN OBJECT_ID(i.Tabla,'U') IS NULL
+              OR NOT EXISTS (SELECT 1 FROM sys.indexes x
+                             WHERE x.name = i.Indice AND x.object_id = OBJECT_ID(i.Tabla))
+              THEN 0 ELSE 1 END, i.Tabla;
+
 PRINT '=== DATOS MÍNIMOS ===';
 
 -- Los medios publicitarios son lista fija: sin ellos el formulario de venta sale
@@ -95,6 +122,21 @@ UNION ALL
 SELECT  'Proyectos activos',
         (SELECT COUNT(*) FROM Proyectos WHERE Activo = 1),
         'informativo';
+
+-- La columna de la contraseña lleva eñe. Si el script de esquema se guardó con otra
+-- codificación, la columna puede haber quedado creada con el nombre corrupto, y la
+-- aplicación falla en el login sin decir por qué. Se busca por patrón para no
+-- depender de la eñe en este mismo archivo.
+SELECT  'Columna de contraseña' AS Comprobacion,
+        ISNULL((SELECT TOP 1 name COLLATE DATABASE_DEFAULT FROM sys.columns
+                WHERE object_id = OBJECT_ID('Usuarios') AND name LIKE 'Contrase%'), '(ninguna)') AS NombreReal,
+        CASE WHEN NOT EXISTS (SELECT 1 FROM sys.columns
+                              WHERE object_id = OBJECT_ID('Usuarios') AND name LIKE 'Contrase%')
+             THEN '>>> FALTA LA COLUMNA'
+             WHEN EXISTS (SELECT 1 FROM sys.columns
+                          WHERE object_id = OBJECT_ID('Usuarios') AND name = N'Contraseña')
+             THEN 'ok'
+             ELSE '>>> NOMBRE CORRUPTO: la eñe no sobrevivió a la codificación' END AS Estado;
 
 PRINT '=== FIN DE LA VERIFICACIÓN ===';
 PRINT 'Todo lo que aparezca con >>> hay que resolverlo antes del lanzamiento.';
