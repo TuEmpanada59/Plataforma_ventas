@@ -3,8 +3,7 @@
     <stop offset="0" stop-color="#0076e3"/><stop offset="1" stop-color="#00c9ff"/>
   </linearGradient></defs>
   <rect width="64" height="64" rx="14" fill="url(#g)"/>
-  <g stroke="#fff" stroke-linecap="round" fill="none">
-    <path d="M18 47 V 24 L 32 39 L 46 24 V 47" stroke-width="7" stroke-linejoin="round"/>
-    <path d="M11 17 H 27" stroke-width="5" opacity=".9"/>
-    <path d="M33 17 H 53" stroke-width="5" opacity=".55"/>
+  <g fill="#fff">
+    <path d="M9 30 C 22 17, 41 16, 55 20 C 43 30, 26 33, 11 33 Z"/>
+    <path d="M17 42 C 28 34, 40 33, 49 35 C 40 43, 28 46, 19 46 Z" opacity=".8"/>
   </g></svg>
