@@ -71,9 +71,15 @@ namespace Plataforma_ventas.Controllers
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
-            var cmd = new SqlCommand(@"
+            // La columna de estado se agregó después: sin ella todas las cuentas se
+            // consideran activas y el ingreso funciona igual que siempre.
+            var cmdColActivo = new SqlCommand("SELECT COL_LENGTH('Usuarios','Activo')", con);
+            bool hayActivo = (await cmdColActivo.ExecuteScalarAsync()) is not (null or DBNull);
+
+            var cmd = new SqlCommand($@"
                 SELECT u.IdUsuario, u.Nombre, u.Apellido, u.Rol, u.IdProyecto,
                        u.Contraseña,
+                       {(hayActivo ? "ISNULL(u.Activo,1)" : "CAST(1 AS BIT)")} AS Activo,
                        p.Nombre AS NombreProyecto, p.IdProyectos
                 FROM Usuarios u
                 LEFT JOIN Proyectos p ON u.IdProyecto = p.IdProyectos
@@ -81,7 +87,33 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@u", model.Usuario ?? "");
 
             using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync() && BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""))
+            // Verify lanza si lo guardado no tiene forma de hash (por ejemplo, una
+            // contraseña escrita a mano en texto plano). Sin esta guarda, un dato mal
+            // cargado tumba el ingreso con un error 500 en vez de decir que la
+            // credencial no sirve.
+            bool hayFila = await reader.ReadAsync();
+            bool claveOk = false;
+            if (hayFila)
+            {
+                try { claveOk = BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""); }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "La contraseña guardada de '{Usuario}' no es un hash válido. " +
+                                         "Hay que restablecerla desde el panel de usuarios.", model.Usuario);
+                    claveOk = false;
+                }
+            }
+
+            // Cuenta inactiva: la persona ya no trabaja en el proyecto, pero su
+            // historial de ventas sigue vivo y por eso el usuario no se borró.
+            if (hayFila && claveOk && reader["Activo"] != DBNull.Value && !(bool)reader["Activo"])
+            {
+                _logger.LogWarning("Login rechazado: cuenta '{Usuario}' inactiva. IP: {Ip}", model.Usuario, ip);
+                ModelState.AddModelError("", "Esta cuenta está inactiva. Comunícate con el administrador.");
+                return View(model);
+            }
+
+            if (hayFila && claveOk)
             {
                 _bloqueo.Limpiar(model.Usuario ?? "");
 

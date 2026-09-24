@@ -11,6 +11,8 @@
     int vendedores  = ViewBag.TotalVendedores != null ? (int)ViewBag.TotalVendedores : 0;
     int totalProy   = ViewBag.TotalProyectos  != null ? (int)ViewBag.TotalProyectos  : 0;
     bool esSuperAdmin = (ViewBag.RolActual as string) == "SuperAdministrador";
+    bool hayEstado    = ViewBag.HayEstadoCuenta != null && (bool)ViewBag.HayEstadoCuenta;
+    int inactivos     = ViewBag.TotalInactivos != null ? (int)ViewBag.TotalInactivos : 0;
     var bloqueadas = ViewBag.Bloqueadas as IReadOnlyList<Plataforma_ventas.Services.CuentaBloqueada>
                      ?? new List<Plataforma_ventas.Services.CuentaBloqueada>();
 }
@@ -64,6 +66,14 @@
     .btn-pwd{background:rgba(255,149,0,0.1);color:#CC7700;}
     .btn-pwd:hover{background:rgba(255,149,0,0.2);}
     .actions-cell{display:flex;gap:5px;align-items:center;}
+    .sel-bar{display:none;align-items:center;gap:8px;padding:10px 16px;background:rgba(0,118,227,0.06);border:1px solid rgba(0,118,227,0.25);border-radius:12px;margin-bottom:10px;flex-wrap:wrap;}
+    .sel-bar.on{display:flex;}
+    .sel-num{font-size:13px;color:var(--label);}
+    .sel-fila,#selTodos{width:15px;height:15px;cursor:pointer;accent-color:var(--blue);}
+    .fila-inactiva td{opacity:.55;}
+    .bdg-est{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .bdg-est.act{background:rgba(52,199,89,0.14);color:#167A3D;}
+    .bdg-est.ina{background:rgba(142,142,147,0.18);color:#5c5c61;}
     .bloq-card{background:rgba(230,57,70,0.05);border:1px solid rgba(230,57,70,0.28);border-radius:18px;overflow:hidden;margin-bottom:14px;}
     .bloq-head{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid rgba(230,57,70,0.18);flex-wrap:wrap;gap:8px;}
     .bloq-title{font-size:15px;font-weight:600;color:var(--rojo);}
@@ -178,15 +188,30 @@
             <button class="btn-nuevo" onclick="abrirCrear()">+ Nuevo usuario</button>
         </div>
     </div>
+    @* La barra solo aparece cuando hay algo marcado: sin selección no hay nada que
+       hacer y un botón de eliminar siempre visible es una invitación al accidente. *@
+    <div id="barraSel" class="sel-bar">
+        <span class="sel-num"><strong id="selCuenta">0</strong> seleccionados</span>
+        <div style="flex:1"></div>
+        @if (hayEstado) {
+            <button type="button" class="btn-sm btn-pwd" onclick="accionMasiva('inactivar')">Inactivar</button>
+            <button type="button" class="btn-sm btn-edit" onclick="accionMasiva('activar')">Activar</button>
+        }
+        <button type="button" class="btn-sm btn-del" onclick="accionMasiva('eliminar')">Eliminar</button>
+        <button type="button" class="btn-sm" style="background:transparent;color:var(--label3)" onclick="limpiarSeleccion()">Cancelar</button>
+    </div>
+
     <div class="tbl-wrap">
         <table class="tbl" id="tablaUsuarios">
             <thead>
                 <tr>
+                    <th style="width:34px"><input type="checkbox" id="selTodos" onclick="marcarTodos(this)" title="Seleccionar todo"/></th>
                     <th>Usuario</th>
                     <th>Contacto</th>
                     <th>Proyecto asignado</th>
                     <th>Rol</th>
                     <th style="text-align:center">Ventas</th>
+                    @if (hayEstado) { <th>Estado</th> }
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -195,7 +220,9 @@
                 string uNom = u.Nombre as string ?? "";
                 string uApe = u.Apellido as string ?? "";
                 var ini = ((uNom.Length > 0 ? uNom.Substring(0,1) : "") + (uApe.Length > 0 ? uApe.Substring(0,1) : "")).ToUpper();
-                <tr data-nombre="@u.Nombre @u.Apellido" data-usuario="@u.Usuario" data-proy="@u.NombreProyecto" data-rol="@u.Rol">
+                bool uActivo = u.Activo == null || (bool)u.Activo;
+                <tr data-nombre="@u.Nombre @u.Apellido" data-usuario="@u.Usuario" data-proy="@u.NombreProyecto" data-rol="@u.Rol" class="@(uActivo ? "" : "fila-inactiva")">
+                    <td><input type="checkbox" class="sel-fila" value="@u.Id" data-nom="@u.Nombre @u.Apellido" onclick="actualizarSeleccion()"/></td>
                     <td>
                         <div class="user-info">
                             <div class="av-usr">@ini</div>
@@ -226,6 +253,15 @@
                     </td>
                     <td><span class="bdg @(u.Rol == "SuperAdministrador" ? "S" : u.Rol == "Administrador" ? "A" : "V")">@(u.Rol == "SuperAdministrador" ? "Super Admin" : u.Rol)</span></td>
                     <td style="text-align:center;font-size:15px;font-weight:600;color:var(--blue)">@u.TotalVentas</td>
+                    @if (hayEstado) {
+                        <td>
+                            @if (uActivo) {
+                                <span class="bdg-est act">Activo</span>
+                            } else {
+                                <span class="bdg-est ina">Inactivo</span>
+                            }
+                        </td>
+                    }
                     <td>
                         <div class="actions-cell">
                             <button class="btn-sm btn-edit"
@@ -360,6 +396,26 @@
     </div>
 </div>
 
+@* Un solo formulario para las tres acciones: la dirección se fija al confirmar.
+   Los identificadores se agregan en ese momento, no antes. *@
+<form id="formMasivo" method="post" style="display:none">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="activar" id="masivoActivar" value="false"/>
+    <div id="masivoIds"></div>
+</form>
+
+<div class="modal-bg" id="modalMasivo">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-title" id="masivoTitulo">Confirmar</div>
+        <p style="font-size:13px;color:var(--label2);margin-bottom:12px" id="masivoTexto"></p>
+        <div id="masivoLista" style="max-height:240px;overflow-y:auto;background:var(--fill3);border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.7"></div>
+        <div class="modal-footer">
+            <button type="button" class="btn-ghost" onclick="cerrarMasivo()">Cancelar</button>
+            <button type="button" class="btn-nuevo" id="masivoConfirmar">Confirmar</button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
     var esSuperAdmin = @(esSuperAdmin ? "true" : "false");
@@ -412,6 +468,73 @@
         m.addEventListener('click', function(e){ if(e.target === m) m.classList.remove('open'); });
     });
 
+    // ── Selección múltiple ──
+    function filasVisibles(){
+        return Array.from(document.querySelectorAll('#tablaUsuarios tbody tr'))
+                    .filter(function(tr){ return tr.style.display !== 'none'; });
+    }
+    function seleccionadas(){
+        return Array.from(document.querySelectorAll('.sel-fila:checked'));
+    }
+    function marcarTodos(chk){
+        // Solo lo que se está viendo: con un filtro puesto, marcar todo no debe
+        // arrastrar usuarios que no están en pantalla.
+        filasVisibles().forEach(function(tr){
+            var c = tr.querySelector('.sel-fila');
+            if (c) c.checked = chk.checked;
+        });
+        actualizarSeleccion();
+    }
+    function actualizarSeleccion(){
+        var n = seleccionadas().length;
+        document.getElementById('selCuenta').textContent = n;
+        document.getElementById('barraSel').classList.toggle('on', n > 0);
+        var todas = filasVisibles().length;
+        var maestro = document.getElementById('selTodos');
+        if (maestro) { maestro.checked = n > 0 && n === todas; maestro.indeterminate = n > 0 && n < todas; }
+    }
+    function limpiarSeleccion(){
+        document.querySelectorAll('.sel-fila').forEach(function(c){ c.checked = false; });
+        var m = document.getElementById('selTodos');
+        if (m) { m.checked = false; m.indeterminate = false; }
+        actualizarSeleccion();
+    }
+    function cerrarMasivo(){ document.getElementById('modalMasivo').classList.remove('open'); }
+
+    function accionMasiva(accion){
+        var marcadas = seleccionadas();
+        if (!marcadas.length) return;
+
+        var nombres = marcadas.map(function(c){ return c.dataset.nom || c.value; });
+        var cfg = {
+            eliminar:  { titulo:'Eliminar usuarios',  accion:'/Usuarios/EliminarVarios',
+                         texto:'Se van a eliminar estas cuentas. No se puede deshacer. Las que tengan ventas registradas se saltan y te lo digo al final.' },
+            inactivar: { titulo:'Inactivar usuarios', accion:'/Usuarios/CambiarEstadoVarios',
+                         texto:'Estas personas dejarán de poder entrar. Sus ventas y su historial se conservan.' },
+            activar:   { titulo:'Activar usuarios',   accion:'/Usuarios/CambiarEstadoVarios',
+                         texto:'Estas personas vuelven a tener acceso.' }
+        }[accion];
+
+        document.getElementById('masivoTitulo').textContent = cfg.titulo;
+        document.getElementById('masivoTexto').textContent  = cfg.texto;
+        // Los nombres a la vista: es donde uno cacha que se coló alguien que no era.
+        document.getElementById('masivoLista').textContent = nombres.join(' · ');
+
+        var f = document.getElementById('formMasivo');
+        f.action = cfg.accion;
+        document.getElementById('masivoActivar').value = (accion === 'activar') ? 'true' : 'false';
+        var cont = document.getElementById('masivoIds');
+        cont.innerHTML = '';
+        marcadas.forEach(function(c){
+            var i = document.createElement('input');
+            i.type = 'hidden'; i.name = 'ids'; i.value = c.value;
+            cont.appendChild(i);
+        });
+
+        document.getElementById('masivoConfirmar').onclick = function(){ f.submit(); };
+        document.getElementById('modalMasivo').classList.add('open');
+    }
+
     function filtrarTabla(){
         var buscar = document.getElementById('searchInput').value.toLowerCase();
         var proy   = document.getElementById('filterProy').value.toLowerCase();
@@ -425,7 +548,9 @@
                   && (!proy   || trProy === proy)
                   && (!rol    || trRol  === rol);
             tr.style.display = ok ? '' : 'none';
+            if (!ok) { var c = tr.querySelector('.sel-fila'); if (c) c.checked = false; }
         });
+        actualizarSeleccion();
     }
 </script>
 }

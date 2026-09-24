@@ -146,7 +146,8 @@ namespace Plataforma_ventas.Controllers
                 // mitad del archivo y fallar en la otra dejaría el proyecto incompleto.
                 var hojas = new List<(ExcelWorksheet Ws, string Etapa, int TotalRows,
                                       int ColApto, int ColTipo, int ColPiso, int ColMetros,
-                                      int ColEstado, int ColTorre, int[] ColListas, int[] Mapeo)>();
+                                      int ColEstado, int ColTorre, int ColListaNegociada,
+                                      int[] ColListas, int[] Mapeo)>();
                 int listasDetectadas = 0;
 
                 foreach (var hoja in hojasConDatos)
@@ -156,6 +157,8 @@ namespace Plataforma_ventas.Controllers
 
                     int colApto = -1, colTipo = -1, colPiso = -1, colMetros = -1;
                     int colEstado = -1, colTorre = -1, colProyecto = -1, colSuite = -1;
+                    // Con qué lista se negoció lo que ya está vendido o reservado.
+                    int colListaNegociada = -1;
 
                     int[] colListas = new int[10];
                     for (int i = 0; i < 10; i++) colListas[i] = -1;
@@ -171,6 +174,8 @@ namespace Plataforma_ventas.Controllers
                         if (header == "ESTADO") colEstado = c;
                         if (header == "TORRE") colTorre = c;
                         if (header == "SUITE") colSuite = c;
+                        if (header == "VENDIDO EN LISTA" || header == "LISTA VENDIDA" ||
+                            header == "VENDIDOENLISTA"  || header == "LISTA NEGOCIADA") colListaNegociada = c;
                         if (header == "PROYECTO") colProyecto = c;
                         for (int li = 1; li <= 10; li++)
                             if (header == $"LISTA{li}") colListas[li - 1] = c;
@@ -260,7 +265,8 @@ namespace Plataforma_ventas.Controllers
                     }
 
                     hojas.Add((hoja, variasEtapas ? hoja.Name.Trim() : "", totalRows,
-                               colApto, colTipo, colPiso, colMetros, colEstado, colTorre, colListas, mapeo));
+                               colApto, colTipo, colPiso, colMetros, colEstado, colTorre,
+                               colListaNegociada, colListas, mapeo));
                 }
 
                 using var con = new SqlConnection(_conn);
@@ -321,6 +327,8 @@ namespace Plataforma_ventas.Controllers
                 int idProyecto = (int)(await cmdProy.ExecuteScalarAsync())!;
 
                 int insertados = 0, reservadosExcel = 0, vendidosExcel = 0, enLanzamiento = 0;
+                int listasNegociadasCaidas = 0;
+                var conteoPorLista = new int[6];   // índice 1..5
                 int idClienteImportado = 0;   // se crea solo si el archivo trae vendidos
 
                 foreach (var h in hojas)
@@ -336,10 +344,24 @@ namespace Plataforma_ventas.Controllers
 
                     var estadoFila = Texto.EstadoInmueble(h.ColEstado > 0 ? h.Ws.Cells[row, h.ColEstado].Text : "");
 
-                    // Un inmueble que llega reservado o vendido se queda con el precio de la
-                    // Lista 1: es el precio con el que se negoció antes del lanzamiento, y
-                    // dejarlo suelto haría que al escriturar se cobrara la lista vigente.
-                    long precioLista1 = GetLista(0);
+                    // Un inmueble que llega reservado o vendido conserva el precio con el
+                    // que se negoció, no el de la lista vigente: si no, al escriturar se
+                    // le cobraría al cliente un precio que nunca aceptó.
+                    //
+                    // La columna VENDIDO EN LISTA dice con cuál se cerró. Sin ella se
+                    // asume la Lista 1, que es como venían los archivos antiguos.
+                    int listaNegociada = (h.ColListaNegociada > 0 && estadoFila != "DISPONIBLE")
+                        ? Listas.ListaNegociada(h.Ws.Cells[row, h.ColListaNegociada].Text)
+                        : 1;
+                    long precioNegociado = GetLista(listaNegociada - 1);
+                    // La lista indicada puede venir vacía en ese archivo: antes que dejar
+                    // la unidad sin precio, se cae a la Lista 1 y se avisa al final.
+                    if (precioNegociado <= 0 && listaNegociada != 1)
+                    {
+                        precioNegociado = GetLista(0);
+                        listaNegociada = 1;
+                        listasNegociadasCaidas++;
+                    }
 
                     // Sale al evento lo que llega disponible; lo que viene vendido o
                     // reservado ya estaba comprometido y es historia del proyecto.
@@ -360,7 +382,7 @@ namespace Plataforma_ventas.Controllers
                     cmdInm.Parameters.AddWithValue("@tipo", h.ColTipo > 0 ? h.Ws.Cells[row, h.ColTipo].Text?.Trim() ?? "" : "");
                     cmdInm.Parameters.AddWithValue("@piso", h.ColPiso > 0 ? h.Ws.Cells[row, h.ColPiso].Text?.Trim() ?? "" : "");
                     cmdInm.Parameters.AddWithValue("@metros", h.Ws.Cells[row, h.ColMetros].Text?.Trim() ?? "");
-                    cmdInm.Parameters.AddWithValue("@l1", precioLista1);
+                    cmdInm.Parameters.AddWithValue("@l1", GetLista(0));
                     cmdInm.Parameters.AddWithValue("@l2", GetLista(1));
                     cmdInm.Parameters.AddWithValue("@l3", GetLista(2));
                     cmdInm.Parameters.AddWithValue("@l4", GetLista(3));
@@ -369,7 +391,7 @@ namespace Plataforma_ventas.Controllers
                     // La reserva que viene del Excel no tiene asesor, pero sí precio: el de
                     // la Lista 1, que es el que el resto de la plataforma respeta al vender.
                     cmdInm.Parameters.AddWithValue("@precioRes",
-                        estadoFila == "RESERVADO" && precioLista1 > 0 ? (object)precioLista1 : DBNull.Value);
+                        estadoFila == "RESERVADO" && precioNegociado > 0 ? (object)precioNegociado : DBNull.Value);
                     // La torre puede venir en su propia columna o embebida en el nombre de
                     // la unidad ("1204 T3"). Se guarda normalizada para poder agrupar y
                     // filtrar por torre sin depender de cómo venga escrita en el Excel.
@@ -381,6 +403,7 @@ namespace Plataforma_ventas.Controllers
                     int idInmueble = Convert.ToInt32((await cmdInm.ExecuteScalarAsync())!);
                     insertados++;
                     if (entraAlLanzamiento) enLanzamiento++;
+                    if (estadoFila != "DISPONIBLE") conteoPorLista[listaNegociada]++;
                     if (estadoFila == "RESERVADO") reservadosExcel++;
 
                     // Un inmueble que ya llega vendido tiene que aparecer en Ventas: si no,
@@ -395,12 +418,13 @@ namespace Plataforma_ventas.Controllers
                         var cmdVenta = new SqlCommand($@"INSERT INTO Ventas
                             (IdInmueble,IdCliente,IdUsuario,IdProyecto,ListaAplicada,PrecioVenta,
                              Destino,Estado,Observaciones{(hayColumnaOrigen ? ",Origen" : "")})
-                            VALUES (@inm,@cli,@usr,@proy,1,@precio,NULL,'ACTIVA',@obs{(hayColumnaOrigen ? ",'EXCEL'" : "")})", con, tx);
+                            VALUES (@inm,@cli,@usr,@proy,@lista,@precio,NULL,'ACTIVA',@obs{(hayColumnaOrigen ? ",'EXCEL'" : "")})", con, tx);
+                        cmdVenta.Parameters.AddWithValue("@lista", listaNegociada);
                         cmdVenta.Parameters.AddWithValue("@inm", idInmueble);
                         cmdVenta.Parameters.AddWithValue("@cli", idClienteImportado);
                         cmdVenta.Parameters.AddWithValue("@usr", idAdmin);
                         cmdVenta.Parameters.AddWithValue("@proy", idProyecto);
-                        cmdVenta.Parameters.AddWithValue("@precio", precioLista1);
+                        cmdVenta.Parameters.AddWithValue("@precio", precioNegociado);
                         cmdVenta.Parameters.AddWithValue("@obs",
                             "Venta cargada desde el Excel del proyecto. Falta completar cliente y asesor.");
                         await cmdVenta.ExecuteNonQueryAsync();
@@ -463,6 +487,25 @@ namespace Plataforma_ventas.Controllers
                 if (vendidosExcel > 0)
                     detalleEstados += $" {vendidosExcel} llegaron vendidos: ya están en Ventas, " +
                                       "complétales el cliente y el asesor desde ahí.";
+
+                // Con qué lista entró lo ya negociado: es la cifra que el área comercial
+                // revisa primero, porque de ahí sale el valor que se le cobra al cliente.
+                int negociados = conteoPorLista.Sum();
+                if (negociados > 0)
+                {
+                    var porLista = Enumerable.Range(1, 5)
+                        .Where(i => conteoPorLista[i] > 0)
+                        .Select(i => $"{conteoPorLista[i]} en la Lista {i}");
+                    detalleEstados += " Precios respetados según la columna VENDIDO EN LISTA: " +
+                                      string.Join(", ", porLista) + ".";
+                    if (hojas.All(h => h.ColListaNegociada <= 0))
+                        detalleEstados = detalleEstados.Replace(
+                            "Precios respetados según la columna VENDIDO EN LISTA:",
+                            "El archivo no trae la columna VENDIDO EN LISTA, así que todo lo negociado quedó con el precio de la Lista 1:");
+                    if (listasNegociadasCaidas > 0)
+                        detalleEstados += $" Atención: {listasNegociadasCaidas} indicaban una lista sin precio " +
+                                          "y quedaron con el de la Lista 1.";
+                }
 
                 // Resumen de la actividad: es donde el administrador caza en el momento si el
                 // sistema entendió mal el archivo, en vez de descubrirlo con el evento andando.

@@ -257,4 +257,20 @@ public class UnitTest1
             Assert.DoesNotContain('1', c);
         }
     }
+
+    //ListaNegociada: con qué lista se cerró lo que llega vendido o reservado en el Excel.
+    //Si se toma la lista equivocada, al cliente se le cobra un precio que nunca aceptó.
+    [Theory]
+    [InlineData("3", 3)]
+    [InlineData("1", 1)]
+    [InlineData("5", 5)]
+    [InlineData(" 4 ", 4)]
+    [InlineData("Lista 2", 2)]     // por si alguien escribe la palabra
+    [InlineData("", 1)]            // sin dato: la Lista 1, como los archivos antiguos
+    [InlineData(null, 1)]
+    [InlineData("0", 1)]           // fuera de rango
+    [InlineData("9", 1)]
+    [InlineData("abc", 1)]
+    public void ListaNegociada_LeeLaColumnaDelExcel(string? entrada, int esperado)
+        => Assert.Equal(esperado, Listas.ListaNegociada(entrada));
 }

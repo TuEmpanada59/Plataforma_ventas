@@ -621,5 +621,21 @@ BEGIN
 END
 GO
 
+-- ============================================================================
+-- 17) USUARIOS ACTIVOS E INACTIVOS
+--     Un asesor que sale del equipo no se puede borrar: sus ventas quedarían
+--     huérfanas y la base lo rechaza por la llave foránea de Ventas. Antes eso
+--     terminaba en un error 500 sin explicación.
+--     Con esta columna la cuenta se inactiva: la persona no puede entrar, pero
+--     su historial y sus cifras siguen intactos en los reportes.
+-- ============================================================================
+IF COL_LENGTH('Usuarios', 'Activo') IS NULL
+BEGIN
+    ALTER TABLE Usuarios ADD Activo BIT NOT NULL
+        CONSTRAINT DF_Usuarios_Activo DEFAULT 1;
+    PRINT 'Columna Usuarios.Activo creada. Todas las cuentas existentes quedan activas.';
+END
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

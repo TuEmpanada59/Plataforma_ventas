@@ -51,11 +51,17 @@ namespace Plataforma_ventas.Controllers
                     proyectos.Add(((int)r["IdProyectos"], r["Nombre"]?.ToString() ?? ""));
             ViewBag.Proyectos = proyectos;
 
+            // La columna de estado se agregó después; sin ella todo se ve como activo.
+            var cmdColAct = new SqlCommand("SELECT COL_LENGTH('Usuarios','Activo')", con);
+            bool hayActivo = (await cmdColAct.ExecuteScalarAsync()) is not (null or DBNull);
+            ViewBag.HayEstadoCuenta = hayActivo;
+
             // Todos los usuarios del sistema con su proyecto asignado
             var usuarios = new List<dynamic>();
-            var cmd = new SqlCommand(@"
+            var cmd = new SqlCommand($@"
                 SELECT u.IdUsuario, u.Nombre, u.Apellido, u.Usuario, u.Correo,
                        u.Documento, u.Celular, u.Rol, u.IdProyecto,
+                       {(hayActivo ? "ISNULL(u.Activo,1)" : "CAST(1 AS BIT)")} AS Activo,
                        ISNULL(p.Nombre, '—') AS NombreProyecto,
                        COUNT(v.IdVenta) AS TotalVentas
                 FROM Usuarios u
@@ -63,6 +69,7 @@ namespace Plataforma_ventas.Controllers
                 LEFT JOIN Ventas    v ON u.IdUsuario  = v.IdUsuario
                 GROUP BY u.IdUsuario, u.Nombre, u.Apellido, u.Usuario, u.Correo,
                          u.Documento, u.Celular, u.Rol, u.IdProyecto, p.Nombre
+                         {(hayActivo ? ", u.Activo" : "")}
                 ORDER BY u.Rol DESC, p.Nombre, u.Nombre", con);
 
             using (var reader = (SqlDataReader)await cmd.ExecuteReaderAsync())
@@ -80,6 +87,7 @@ namespace Plataforma_ventas.Controllers
                         IdProyecto    = reader["IdProyecto"] == DBNull.Value ? 0 : (int)reader["IdProyecto"],
                         NombreProyecto= reader["NombreProyecto"]?.ToString() ?? "—",
                         TotalVentas   = (int)reader["TotalVentas"],
+                        Activo        = reader["Activo"] == DBNull.Value || (bool)reader["Activo"],
                     });
 
             // El Admin no ve ni puede gestionar SuperAdministradores
@@ -91,6 +99,7 @@ namespace Plataforma_ventas.Controllers
             ViewBag.TotalUsuarios   = usuarios.Count;
             ViewBag.TotalAdmins     = usuarios.Count(u => u.Rol == "Administrador" || u.Rol == "SuperAdministrador");
             ViewBag.TotalVendedores = usuarios.Count(u => u.Rol == "Vendedor");
+            ViewBag.TotalInactivos  = usuarios.Count(u => !u.Activo);
             ViewBag.TotalProyectos  = proyectos.Count;
             ViewBag.RolActual       = HttpContext.Session.GetString("Rol") ?? "";
             // Cuentas bloqueadas por intentos fallidos, para poder liberarlas sin
@@ -779,11 +788,207 @@ namespace Plataforma_ventas.Controllers
                 }
             }
 
+            var motivo = await MotivoNoEliminableAsync(con, idUsuario);
+            if (motivo != null)
+            {
+                TempData["Error"] = motivo;
+                return RedirectToAction("Index");
+            }
+
             var cmd = new SqlCommand("DELETE FROM Usuarios WHERE IdUsuario=@id", con);
             cmd.Parameters.AddWithValue("@id", idUsuario);
             await cmd.ExecuteNonQueryAsync();
 
             TempData["Exito"] = "Usuario eliminado correctamente.";
+            return RedirectToAction("Index");
+        }
+
+        // ══════════════════════ ACCIONES SOBRE VARIOS USUARIOS ══════════════════════
+        // Entre lanzamientos el equipo rota: entran diez asesores y salen otros tantos.
+        // Hacerlo de a uno son treinta confirmaciones seguidas, y ahí es donde alguien
+        // borra la fila equivocada.
+
+        /// <summary>
+        /// Dice por qué un usuario no se puede eliminar, o null si sí se puede.
+        /// Eliminar a quien ya vendió dejaría el historial huérfano, y la base lo rechaza
+        /// de todos modos por la llave foránea: antes eso terminaba en un error 500.
+        /// </summary>
+        private async Task<string?> MotivoNoEliminableAsync(SqlConnection con, int idUsuario)
+        {
+            var cmdVentas = new SqlCommand("SELECT COUNT(*) FROM Ventas WHERE IdUsuario=@id", con);
+            cmdVentas.Parameters.AddWithValue("@id", idUsuario);
+            int ventas = Convert.ToInt32(await cmdVentas.ExecuteScalarAsync());
+            if (ventas > 0)
+                return $"Tiene {ventas} venta{(ventas == 1 ? "" : "s")} registrada{(ventas == 1 ? "" : "s")}: " +
+                       "inactívalo en vez de eliminarlo para no perder el historial";
+
+            // Inmuebles que todavía tiene en la mano. Se miran las dos columnas porque
+            // solo una de ellas tiene llave foránea declarada: la otra dejaría el
+            // inmueble apuntando a un usuario que ya no existe.
+            var cmdInm = new SqlCommand(
+                "SELECT COUNT(*) FROM Inmuebles WHERE IdVendedorEnProceso=@id OR IdVendedorReserva=@id", con);
+            cmdInm.Parameters.AddWithValue("@id", idUsuario);
+            int inmuebles = Convert.ToInt32(await cmdInm.ExecuteScalarAsync());
+            if (inmuebles > 0)
+                return $"Tiene {inmuebles} inmueble{(inmuebles == 1 ? "" : "s")} tomado{(inmuebles == 1 ? "" : "s")} " +
+                       "o reservado: libéralos primero";
+
+            var cmdSup = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE IdSuperior=@id", con);
+            cmdSup.Parameters.AddWithValue("@id", idUsuario);
+            if (Convert.ToInt32(await cmdSup.ExecuteScalarAsync()) > 0)
+                return "Hay usuarios que dependen de él";
+
+            return null;
+        }
+
+        /// <summary>
+        /// Comprueba lo que no depende de los datos: permisos y candados de rol. Devuelve
+        /// el motivo del rechazo o null. Vale tanto para eliminar como para inactivar,
+        /// porque dejar sin cuenta al último superadministrador es igual de grave que
+        /// borrarlo.
+        /// </summary>
+        private async Task<string?> MotivoNoPermitidoAsync(SqlConnection con, int idUsuario,
+                                                           string usuarioObjetivo, string rolObjetivo)
+        {
+            int idActual = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
+            string rolSesion = HttpContext.Session.GetString("Rol") ?? "";
+
+            if (idUsuario == idActual) return "Es tu propia cuenta";
+            if (rolObjetivo == "SuperAdministrador" && rolSesion != "SuperAdministrador")
+                return "No tienes permisos sobre un superadministrador";
+
+            if (rolObjetivo == "SuperAdministrador")
+            {
+                var cmd = new SqlCommand(
+                    "SELECT COUNT(*) FROM Usuarios WHERE Rol='SuperAdministrador' AND IdUsuario<>@id", con);
+                cmd.Parameters.AddWithValue("@id", idUsuario);
+                if (Convert.ToInt32(await cmd.ExecuteScalarAsync()) == 0)
+                    return "Es el último superadministrador: nadie podría administrar la plataforma";
+            }
+            return null;
+        }
+
+        /// <summary>Datos mínimos de un usuario para poder decidir y para informar.</summary>
+        private async Task<(string Usuario, string Rol)?> DatosUsuarioAsync(SqlConnection con, int id)
+        {
+            var cmd = new SqlCommand("SELECT Usuario, Rol FROM Usuarios WHERE IdUsuario=@id", con);
+            cmd.Parameters.AddWithValue("@id", id);
+            using var r = (SqlDataReader)await cmd.ExecuteReaderAsync();
+            if (!await r.ReadAsync()) return null;
+            return (r["Usuario"]?.ToString() ?? "", r["Rol"]?.ToString() ?? "");
+        }
+
+        /// <summary>
+        /// Elimina varios usuarios. Una fila que no se pueda borrar no detiene a las
+        /// demás: se salta y se explica al final, para no dejar la operación a medias
+        /// sin que nadie sepa qué alcanzó a pasar.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EliminarVarios(int[] ids)
+        {
+            if (ids == null || ids.Length == 0)
+            {
+                TempData["Error"] = "No seleccionaste ningún usuario.";
+                return RedirectToAction("Index");
+            }
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            int borrados = 0;
+            var saltados = new List<string>();
+
+            foreach (var id in ids.Distinct())
+            {
+                var datos = await DatosUsuarioAsync(con, id);
+                if (datos == null) continue;   // ya no existe: nada que informar
+
+                var motivo = await MotivoNoPermitidoAsync(con, id, datos.Value.Usuario, datos.Value.Rol)
+                             ?? await MotivoNoEliminableAsync(con, id);
+                if (motivo != null) { saltados.Add($"{datos.Value.Usuario}: {motivo}"); continue; }
+
+                var cmd = new SqlCommand("DELETE FROM Usuarios WHERE IdUsuario=@id", con);
+                cmd.Parameters.AddWithValue("@id", id);
+                try
+                {
+                    await cmd.ExecuteNonQueryAsync();
+                    borrados++;
+                }
+                catch (SqlException ex) when (ex.Number == 547)
+                {
+                    saltados.Add($"{datos.Value.Usuario}: tiene información asociada que no se puede borrar");
+                }
+            }
+
+            await _audit.RegistrarAsync("ELIMINAR_USUARIOS", "Usuarios", detalle:
+                $"Eliminación múltiple: {borrados} eliminados, {saltados.Count} omitidos.");
+
+            TempData["Exito"] = borrados > 0
+                ? $"{borrados} usuario{(borrados == 1 ? "" : "s")} eliminado{(borrados == 1 ? "" : "s")}."
+                : null;
+            if (saltados.Count > 0)
+                TempData["Error"] = $"No se eliminaron {saltados.Count}: " + string.Join(" · ", saltados);
+
+            return RedirectToAction("Index");
+        }
+
+        /// <summary>
+        /// Activa o inactiva varios usuarios. Inactivar es lo que se hace con quien ya
+        /// vendió: la persona deja de entrar y sus cifras siguen en los reportes.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CambiarEstadoVarios(int[] ids, bool activar)
+        {
+            if (ids == null || ids.Length == 0)
+            {
+                TempData["Error"] = "No seleccionaste ningún usuario.";
+                return RedirectToAction("Index");
+            }
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var cmdCol = new SqlCommand("SELECT COL_LENGTH('Usuarios','Activo')", con);
+            if ((await cmdCol.ExecuteScalarAsync()) is null or DBNull)
+            {
+                TempData["Error"] = "La base todavía no tiene el estado de cuenta. " +
+                                    "Ejecuta la sección 17 de Scripts/PanelAdmin.sql.";
+                return RedirectToAction("Index");
+            }
+
+            int cambiados = 0;
+            var saltados = new List<string>();
+
+            foreach (var id in ids.Distinct())
+            {
+                var datos = await DatosUsuarioAsync(con, id);
+                if (datos == null) continue;
+
+                // Inactivar sí tiene candados de permiso; reactivar no se los pone,
+                // porque devolver el acceso nunca deja a nadie por fuera.
+                if (!activar)
+                {
+                    var motivo = await MotivoNoPermitidoAsync(con, id, datos.Value.Usuario, datos.Value.Rol);
+                    if (motivo != null) { saltados.Add($"{datos.Value.Usuario}: {motivo}"); continue; }
+                }
+
+                var cmd = new SqlCommand("UPDATE Usuarios SET Activo=@a WHERE IdUsuario=@id", con);
+                cmd.Parameters.AddWithValue("@a", activar);
+                cmd.Parameters.AddWithValue("@id", id);
+                cambiados += await cmd.ExecuteNonQueryAsync();
+            }
+
+            await _audit.RegistrarAsync(activar ? "ACTIVAR_USUARIOS" : "INACTIVAR_USUARIOS", "Usuarios",
+                detalle: $"{cambiados} cuentas, {saltados.Count} omitidas.");
+
+            TempData["Exito"] = cambiados > 0
+                ? $"{cambiados} cuenta{(cambiados == 1 ? "" : "s")} {(activar ? "activada" : "inactivada")}{(cambiados == 1 ? "" : "s")}."
+                : null;
+            if (saltados.Count > 0)
+                TempData["Error"] = $"No se cambiaron {saltados.Count}: " + string.Join(" · ", saltados);
+
             return RedirectToAction("Index");
         }
 
