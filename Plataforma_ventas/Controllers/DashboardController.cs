@@ -121,13 +121,18 @@ namespace Plataforma_ventas.Controllers
             ViewBag.ModoLista = modoLista;
 
             // Calcular cuántas listas tienen precio en este proyecto
+            // Las columnas Lista1..Lista5 son de texto. Compararlas contra 0 hacía que SQL
+            // Server las convirtiera a int por su cuenta, y un precio por encima de
+            // 2.147.483.647 desbordaba: el proyecto Mazzi tiene unidades de más de cuatro
+            // mil millones y el panel entero respondía 500. TRY_CAST a BIGINT admite esos
+            // valores y devuelve NULL en vez de reventar si alguna celda no es un número.
             var cmdTotalListas = new SqlCommand(@"
                 SELECT
-                    MAX(CASE WHEN Lista1 > 0 THEN 1 ELSE 0 END) AS TL1,
-                    MAX(CASE WHEN Lista2 > 0 THEN 1 ELSE 0 END) AS TL2,
-                    MAX(CASE WHEN Lista3 > 0 THEN 1 ELSE 0 END) AS TL3,
-                    MAX(CASE WHEN Lista4 > 0 THEN 1 ELSE 0 END) AS TL4,
-                    MAX(CASE WHEN Lista5 > 0 THEN 1 ELSE 0 END) AS TL5
+                    MAX(CASE WHEN TRY_CAST(Lista1 AS BIGINT) > 0 THEN 1 ELSE 0 END) AS TL1,
+                    MAX(CASE WHEN TRY_CAST(Lista2 AS BIGINT) > 0 THEN 1 ELSE 0 END) AS TL2,
+                    MAX(CASE WHEN TRY_CAST(Lista3 AS BIGINT) > 0 THEN 1 ELSE 0 END) AS TL3,
+                    MAX(CASE WHEN TRY_CAST(Lista4 AS BIGINT) > 0 THEN 1 ELSE 0 END) AS TL4,
+                    MAX(CASE WHEN TRY_CAST(Lista5 AS BIGINT) > 0 THEN 1 ELSE 0 END) AS TL5
                 FROM Inmuebles WHERE IdProyecto = @id", con);
             cmdTotalListas.Parameters.AddWithValue("@id", idProy);
             int totalListas = 1;
