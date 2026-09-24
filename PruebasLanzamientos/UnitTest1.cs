@@ -183,4 +183,78 @@ public class UnitTest1
         Assert.Equal("Lanzamiento de nueva etapa", Actividades.Titulo("NUEVA_ETAPA"));
         Assert.Equal("Lanzamiento de proyecto nuevo", Actividades.Titulo("otra cosa"));
     }
+
+    //LimpiarTexto: el espacio duro de los pegados deja usuarios imposibles de escribir
+    [Theory]
+    [InlineData("OscarGiraldo  ", "OscarGiraldo")]
+    [InlineData("  AnaCastano  ", "AnaCastano")]
+    [InlineData("Juan   Pablo", "Juan Pablo")]
+    [InlineData("", "")]
+    [InlineData(null, "")]
+    public void LimpiarTexto_QuitaEspaciosInvisibles(string? entrada, string esperado)
+        => Assert.Equal(esperado, ImportacionUsuarios.LimpiarTexto(entrada));
+
+    //PartirNombre: convención colombiana, dos apellidos al final
+    [Theory]
+    [InlineData("ANA MARIA CASTANO PELAEZ", "Ana Maria", "Castano Pelaez")]
+    [InlineData("JUAN SALVADOR ALVAREZ MUÑOZ", "Juan Salvador", "Alvarez Muñoz")]
+    [InlineData("JULIANA MAYA DIAZ", "Juliana", "Maya Diaz")]
+    [InlineData("SARA FARBEROFF", "Sara", "Farberoff")]
+    [InlineData("MADONNA", "Madonna", "")]
+    [InlineData("", "", "")]
+    public void PartirNombre_SeparaNombreYApellidos(string completo, string nombre, string apellido)
+    {
+        var (n, a) = ImportacionUsuarios.PartirNombre(completo);
+        Assert.Equal(nombre, n);
+        Assert.Equal(apellido, a);
+    }
+
+    //NormalizarRol: lista blanca. Un rol mal escrito crea una cuenta que no puede entrar
+    //a ninguna pantalla, que es justo lo que pasó con "superadmin" escrito a mano.
+    [Theory]
+    [InlineData("Vendedor", "Vendedor")]
+    [InlineData("vendedor", "Vendedor")]
+    [InlineData("ASESOR", "Vendedor")]
+    [InlineData("", "Vendedor")]
+    [InlineData(null, "Vendedor")]
+    [InlineData("Administrador", "Administrador")]
+    [InlineData("admin", "Administrador")]
+    [InlineData("superadmin", "")]           // no se crea desde el Excel
+    [InlineData("SuperAdministrador", "")]
+    [InlineData("jefe", "")]
+    public void NormalizarRol_SoloAceptaLosDosRoles(string? entrada, string esperado)
+        => Assert.Equal(esperado, ImportacionUsuarios.NormalizarRol(entrada));
+
+    //MotivoDeRechazo: null significa que la fila se puede crear
+    [Fact]
+    public void MotivoDeRechazo_AceptaUnaFilaCompleta()
+        => Assert.Null(ImportacionUsuarios.MotivoDeRechazo("Ana", "AnaCastano", "Vendedor",
+                                                           "ana@ejemplo.com", ""));
+
+    [Theory]
+    [InlineData("", "AnaC", "Vendedor", "", "")]                      // sin nombre
+    [InlineData("Ana", "", "Vendedor", "", "")]                       // sin usuario
+    [InlineData("Ana", "Ana Castano", "Vendedor", "", "")]            // usuario con espacio
+    [InlineData("Ana", "AnaC", "", "", "")]                           // rol no reconocido
+    [InlineData("Ana", "AnaC", "Vendedor", "correo-sin-arroba", "")]  // correo inválido
+    [InlineData("Ana", "AnaC", "Vendedor", "", "corta1")]             // contraseña muy corta
+    public void MotivoDeRechazo_RechazaLoQueNoSirve(string nombre, string usuario, string rol,
+                                                    string correo, string password)
+        => Assert.NotNull(ImportacionUsuarios.MotivoDeRechazo(nombre, usuario, rol, correo, password));
+
+    //GenerarPassword: distinta cada vez y sin caracteres que se confundan al dictarla
+    [Fact]
+    public void GenerarPassword_EsDistintaYLegible()
+    {
+        var claves = Enumerable.Range(0, 50).Select(_ => ImportacionUsuarios.GenerarPassword()).ToList();
+        Assert.Equal(50, claves.Distinct().Count());
+        foreach (var c in claves)
+        {
+            Assert.True(c.Length >= 10);
+            Assert.DoesNotContain('O', c);
+            Assert.DoesNotContain('0', c);
+            Assert.DoesNotContain('l', c);
+            Assert.DoesNotContain('1', c);
+        }
+    }
 }

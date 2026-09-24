@@ -1,0 +1,218 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Mercurio — Importar usuarios";
+    ViewBag.ActiveNav = "usuarios";
+    ViewBag.TbBread   = "Importar usuarios";
+
+    string paso = ViewBag.Paso as string ?? "subir";
+    string error = ViewBag.Error as string ?? "";
+    var filas = ViewBag.Filas as List<Plataforma_ventas.ImportacionUsuarios.Fila>
+                ?? new List<Plataforma_ventas.ImportacionUsuarios.Fila>();
+    var creadas = ViewBag.Creadas as List<Plataforma_ventas.Controllers.UsuariosController.CredencialImportada>
+                  ?? new List<Plataforma_ventas.Controllers.UsuariosController.CredencialImportada>();
+    var fallidas = ViewBag.Fallidas as List<Plataforma_ventas.Controllers.UsuariosController.FilaFallida>
+                   ?? new List<Plataforma_ventas.Controllers.UsuariosController.FilaFallida>();
+
+    int nCrear  = filas.Count(f => f.Estado == "CREAR");
+    int nExiste = filas.Count(f => f.Estado == "EXISTE");
+    int nError  = filas.Count(f => f.Estado == "ERROR");
+}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu .3s ease both;margin-bottom:14px;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.06);gap:10px;flex-wrap:wrap;}
+    .card-title{font-size:15px;font-weight:700;color:var(--label);}
+    .card-body{padding:18px;}
+    .pasos{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+    .paso{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--label3);}
+    .paso .n{width:22px;height:22px;border-radius:50%;background:var(--fill2);color:var(--label3);display:flex;align-items:center;justify-content:center;font-size:11px;}
+    .paso.on{color:var(--blue);} .paso.on .n{background:var(--blue);color:white;}
+    .paso.ok{color:#1EA851;} .paso.ok .n{background:#1EA851;color:white;}
+    .paso-sep{flex:1;height:1px;background:var(--sep2);min-width:16px;max-width:40px;}
+    .drop{border:2px dashed var(--sep);border-radius:14px;padding:26px;text-align:center;background:var(--fill3);}
+    .drop input{margin-bottom:8px;}
+    .drop-sub{font-size:12px;color:var(--label3);}
+    .btn{display:inline-flex;align-items:center;gap:6px;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;font-family:inherit;}
+    .btn-azul{background:var(--blue);color:white;} .btn-azul:hover{background:var(--mid);}
+    .btn-verde{background:#1EA851;color:white;} .btn-verde:hover{background:#167A3D;}
+    .btn-ghost{background:var(--fill3);color:var(--label);border:1px solid var(--sep);}
+    .alerta{background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:var(--rojo);margin-bottom:12px;}
+    .aviso{background:rgba(255,149,0,0.08);border:1px solid rgba(255,149,0,0.3);border-radius:12px;padding:12px 16px;font-size:12.5px;color:#8a5200;line-height:1.55;}
+    .resumen{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+    .res{flex:1;min-width:120px;background:white;border:1px solid rgba(0,0,0,0.06);border-radius:14px;padding:13px 16px;}
+    .res-num{font-size:26px;font-weight:300;letter-spacing:-1px;line-height:1;}
+    .res-lbl{font-size:11px;color:var(--label3);margin-top:3px;font-weight:600;}
+    .tbl-wrap{overflow-x:auto;}
+    .tbl{width:100%;border-collapse:collapse;}
+    .tbl th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--label3);padding:10px 14px;text-align:left;border-bottom:1px solid rgba(0,0,0,0.06);white-space:nowrap;}
+    .tbl td{padding:10px 14px;font-size:13px;color:var(--label);border-bottom:1px solid rgba(0,0,0,0.04);}
+    .tbl tr:last-child td{border-bottom:none;}
+    .bdg{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .bdg.CREAR{background:rgba(52,199,89,0.14);color:#167A3D;}
+    .bdg.EXISTE{background:rgba(255,149,0,0.14);color:#A66000;}
+    .bdg.ERROR{background:rgba(230,57,70,0.12);color:var(--rojo);}
+    .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;}
+    .clave{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;background:var(--fill2);padding:2px 8px;border-radius:6px;}
+</style>
+}
+
+<div class="pasos">
+    <div class="paso @(paso == "subir" ? "on" : "ok")"><span class="n">1</span> Subir el archivo</div>
+    <span class="paso-sep"></span>
+    <div class="paso @(paso == "previsualizar" ? "on" : paso == "resultado" ? "ok" : "")"><span class="n">2</span> Revisar</div>
+    <span class="paso-sep"></span>
+    <div class="paso @(paso == "resultado" ? "on" : "")"><span class="n">3</span> Crear</div>
+</div>
+
+@if (error.Length > 0) { <div class="alerta">@error</div> }
+
+@if (paso == "subir")
+{
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">Importar usuarios desde Excel</span>
+            <a href="/Usuarios/PlantillaUsuarios" class="btn btn-ghost">Descargar plantilla</a>
+        </div>
+        <div class="card-body">
+            <form method="post" action="/Usuarios/Importar" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div class="drop">
+                    <input type="file" name="archivo" accept=".xlsx" required/>
+                    <div class="drop-sub">Solo .xlsx, hasta 5 MB</div>
+                </div>
+                <div style="display:flex;gap:10px;margin-top:14px;">
+                    <button type="submit" class="btn btn-azul">Revisar archivo</button>
+                    <a href="/Usuarios" class="btn btn-ghost">Volver</a>
+                </div>
+            </form>
+
+            <div class="aviso" style="margin-top:16px;">
+                <strong>Las columnas se buscan por su título</strong>, así que el orden no importa.
+                Se necesitan <span class="mono">NOMBRE</span> y <span class="mono">USUARIO</span>;
+                si el archivo trae <span class="mono">NOMBRE COMPLETO</span> en una sola columna, se
+                parte en nombre y apellidos. <span class="mono">APELLIDO</span>,
+                <span class="mono">CORREO</span>, <span class="mono">TEL</span>,
+                <span class="mono">ROL</span> y <span class="mono">CONTRASEÑA</span> son opcionales.
+                <br/><br/>
+                Deja la contraseña vacía y el sistema genera una distinta por persona, que se muestra
+                una sola vez al terminar. Un archivo con las contraseñas escritas es una lista de
+                credenciales: si las escribes, bórralo apenas termines.
+                <br/><br/>
+                Nada se guarda en este paso: primero verás qué entendió el sistema.
+            </div>
+        </div>
+    </div>
+}
+else if (paso == "previsualizar")
+{
+    <div class="resumen">
+        <div class="res"><div class="res-num" style="color:#1EA851">@nCrear</div><div class="res-lbl">Se van a crear</div></div>
+        <div class="res"><div class="res-num" style="color:#CC7700">@nExiste</div><div class="res-lbl">Ya existen, se saltan</div></div>
+        <div class="res"><div class="res-num" style="color:var(--rojo)">@nError</div><div class="res-lbl">Con problemas</div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">Vista previa de @ViewBag.NombreArchivo</span>
+            <div style="display:flex;gap:8px;">
+                <a href="/Usuarios/Importar" class="btn btn-ghost">Cancelar</a>
+                @if (nCrear > 0)
+                {
+                    <form method="post" action="/Usuarios/ConfirmarImportacion" style="margin:0">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-verde">Crear @nCrear usuario@(nCrear == 1 ? "" : "s")</button>
+                    </form>
+                }
+            </div>
+        </div>
+        <div class="tbl-wrap">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Fila</th><th>Nombre</th><th>Apellido</th><th>Usuario</th>
+                        <th>Correo</th><th>Rol</th><th>Estado</th><th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var f in filas)
+                {
+                    <tr>
+                        <td style="color:var(--label3)">@f.NumeroFila</td>
+                        <td>@f.Nombre</td>
+                        <td>@f.Apellido</td>
+                        <td class="mono">@f.Usuario</td>
+                        <td style="color:var(--label2)">@f.Correo</td>
+                        <td>@f.Rol</td>
+                        <td><span class="bdg @f.Estado">@f.Estado</span></td>
+                        <td style="color:var(--label2);font-size:12px">@f.Motivo</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (nCrear == 0)
+    {
+        <div class="aviso">No hay ninguna fila que se pueda crear. Corrige el archivo y vuelve a subirlo.</div>
+    }
+}
+else if (paso == "resultado")
+{
+    <div class="card">
+        <div class="card-head">
+            <span class="card-title">@creadas.Count usuario@(creadas.Count == 1 ? "" : "s") creado@(creadas.Count == 1 ? "" : "s")</span>
+            @if (creadas.Count > 0)
+            {
+                <a href="/Usuarios/CredencialesImportadas" class="btn btn-verde">Descargar credenciales</a>
+            }
+        </div>
+        <div class="card-body" style="padding-bottom:0">
+            <div class="aviso">
+                <strong>Esta lista se muestra una sola vez.</strong> Las contraseñas están guardadas
+                cifradas y no se pueden volver a consultar; si sales de esta pantalla sin copiarlas,
+                habrá que restablecerlas una por una. Descarga el archivo o cópialas ahora.
+            </div>
+        </div>
+        <div class="tbl-wrap" style="margin-top:14px;">
+            <table class="tbl">
+                <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Contraseña</th></tr></thead>
+                <tbody>
+                @foreach (var c in creadas)
+                {
+                    <tr>
+                        <td>@c.Nombre</td>
+                        <td class="mono">@c.Usuario</td>
+                        <td>@c.Rol</td>
+                        <td><span class="clave">@c.Password</span></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (fallidas.Count > 0)
+    {
+        <div class="card">
+            <div class="card-head"><span class="card-title" style="color:var(--rojo)">@fallidas.Count no se pudieron crear</span></div>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>Usuario</th><th>Motivo</th></tr></thead>
+                    <tbody>
+                    @foreach (var f in fallidas)
+                    {
+                        <tr><td class="mono">@f.Usuario</td><td style="color:var(--label2)">@f.Motivo</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div style="display:flex;gap:10px;">
+        <a href="/Usuarios" class="btn btn-azul">Ir a usuarios</a>
+        <a href="/Usuarios/Importar" class="btn btn-ghost">Importar otro archivo</a>
+    </div>
+}

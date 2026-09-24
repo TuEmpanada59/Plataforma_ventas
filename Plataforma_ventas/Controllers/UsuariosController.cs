@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using OfficeOpenXml;
+using System.Text.Json;
 using OfficeOpenXml.Style;
 using Plataforma_ventas.Filters;
 using DColor = System.Drawing.Color;
@@ -284,6 +285,389 @@ namespace Plataforma_ventas.Controllers
             TempData["Exito"] = $"Usuario '{usuario}' ({rolFinal}) creado correctamente.";
             return RedirectToAction("Index");
         }
+
+        // ══════════════════════ IMPORTACIÓN MASIVA DESDE EXCEL ══════════════════════
+        // El área comercial llega con la lista de asesores en un Excel. Crearlos uno por
+        // uno antes de un lanzamiento es media hora de digitación y un error seguro.
+        // La importación es en dos pasos: primero se muestra qué entendió el sistema y
+        // solo después se escribe. Nada se guarda sin que alguien lo confirme viéndolo.
+
+        private const string SesionFilas = "ImportUsuariosFilas";
+        private const string SesionCreds = "ImportUsuariosCreds";
+
+        /// <summary>Pantalla de importación, en su primer paso: subir el archivo.</summary>
+        [HttpGet]
+        public IActionResult Importar()
+        {
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
+            ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+            ViewBag.Paso = "subir";
+            return View();
+        }
+
+        /// <summary>
+        /// Descarga la plantilla vacía. Que la plantilla la genere la misma aplicación
+        /// evita el archivo que circula por correo con las columnas de una versión vieja.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> PlantillaUsuarios()
+        {
+            ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
+            using var paquete = new ExcelPackage();
+            var ws = paquete.Workbook.Worksheets.Add("Usuarios");
+
+            var cabeceras = new[] { "NOMBRE", "APELLIDO", "USUARIO", "CORREO", "TEL", "ROL", "CONTRASEÑA" };
+            for (int i = 0; i < cabeceras.Length; i++)
+            {
+                var c = ws.Cells[1, i + 1];
+                c.Value = cabeceras[i];
+                c.Style.Font.Bold = true;
+                c.Style.Font.Color.SetColor(DColor.White);
+                c.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                c.Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(0, 58, 112));
+                c.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+            }
+            ws.Cells[2, 1].Value = "Ana María";
+            ws.Cells[2, 2].Value = "Castaño Peláez";
+            ws.Cells[2, 3].Value = "AnaCastano";
+            ws.Cells[2, 4].Value = "acastano@ejemplo.com";
+            ws.Cells[2, 5].Value = "3001234567";
+            ws.Cells[2, 6].Value = "Vendedor";
+            ws.Cells[2, 1, 2, 7].Style.Font.Italic = true;
+            ws.Cells[2, 1, 2, 7].Style.Font.Color.SetColor(DColor.Gray);
+            for (int c = 1; c <= cabeceras.Length; c++) ws.Column(c).Width = c == 4 ? 34 : 20;
+            ws.View.FreezePanes(2, 1);
+
+            var ins = paquete.Workbook.Worksheets.Add("Instrucciones");
+            var lineas = new[]
+            {
+                "Plantilla de importación de usuarios",
+                "",
+                "Una fila por persona. La primera fila son los títulos y no se toca.",
+                "La fila de ejemplo, en gris, se puede borrar.",
+                "",
+                "NOMBRE y APELLIDO   Separados. Los apellidos compuestos van completos en APELLIDO.",
+                "USUARIO             Con el que inicia sesión. No puede repetirse ni llevar espacios.",
+                "CORREO              Opcional. Sirve para recuperar la contraseña.",
+                "TEL                 Celular.",
+                "ROL                 Vendedor o Administrador. Vacío se entiende como Vendedor.",
+                "CONTRASEÑA          Déjala vacía: el sistema genera una distinta por persona y",
+                "                    muestra la lista una sola vez al terminar.",
+                "",
+                "Antes de guardar nada se muestra qué entendió el sistema: cuántos se crean,",
+                "cuántos ya existen y qué filas tienen problemas.",
+                "",
+                "Un archivo con las contraseñas escritas es una lista de credenciales:",
+                "si las escribes, bórralo apenas termines de importar.",
+            };
+            for (int i = 0; i < lineas.Length; i++) ins.Cells[i + 1, 1].Value = lineas[i];
+            ins.Cells[1, 1].Style.Font.Bold = true;
+            ins.Cells[1, 1].Style.Font.Size = 13;
+            ins.Column(1).Width = 95;
+
+            var bytes = await paquete.GetAsByteArrayAsync();
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "Plantilla_usuarios.xlsx");
+        }
+
+        /// <summary>
+        /// Segundo paso: lee el archivo, clasifica cada fila y muestra la vista previa.
+        /// No escribe nada en la base.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(5 * 1024 * 1024)]
+        public async Task<IActionResult> Importar(IFormFile archivo)
+        {
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
+            ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+            ViewBag.Paso = "subir";
+
+            if (archivo == null || archivo.Length == 0)
+            {
+                ViewBag.Error = "Debes seleccionar un archivo.";
+                return View();
+            }
+            if (Path.GetExtension(archivo.FileName).ToLowerInvariant() != ".xlsx")
+            {
+                ViewBag.Error = "El archivo debe ser un Excel con extensión .xlsx.";
+                return View();
+            }
+
+            var filas = new List<ImportacionUsuarios.Fila>();
+            try
+            {
+                using var stream = new MemoryStream();
+                await archivo.CopyToAsync(stream);
+                stream.Position = 0;
+                ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
+                using var paquete = new ExcelPackage(stream);
+
+                var hoja = paquete.Workbook.Worksheets.FirstOrDefault(h => h.Dimension != null && h.Dimension.Rows >= 2);
+                if (hoja == null)
+                {
+                    ViewBag.Error = "El archivo no tiene datos.";
+                    return View();
+                }
+
+                // Las columnas se buscan por título, no por posición: así el archivo se
+                // puede reordenar y sigue funcionando.
+                var mapa = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (int c = 1; c <= hoja.Dimension.Columns; c++)
+                {
+                    var t = ImportacionUsuarios.LimpiarTexto(hoja.Cells[1, c].Text).ToUpperInvariant();
+                    if (t.Length > 0 && !mapa.ContainsKey(t)) mapa[t] = c;
+                }
+                int Col(params string[] alias)
+                {
+                    foreach (var a in alias) if (mapa.TryGetValue(a, out int c)) return c;
+                    return -1;
+                }
+
+                int colNombre   = Col("NOMBRE", "NOMBRES");
+                int colApellido = Col("APELLIDO", "APELLIDOS");
+                int colCompleto = Col("NOMBRE COMPLETO", "NOMBRECOMPLETO");
+                int colUsuario  = Col("USUARIO");
+                int colCorreo   = Col("CORREO", "EMAIL", "E-MAIL");
+                int colTel      = Col("TEL", "TELEFONO", "TELÉFONO", "CELULAR");
+                int colRol      = Col("ROL", "PERFIL");
+                int colPass     = Col("CONTRASEÑA", "CONTRASENA", "PASSWORD", "CLAVE");
+
+                if (colUsuario < 0)
+                {
+                    ViewBag.Error = "No se encontró la columna USUARIO. Descarga la plantilla y vuelve a intentarlo.";
+                    return View();
+                }
+                if (colNombre < 0 && colCompleto < 0)
+                {
+                    ViewBag.Error = "No se encontró la columna NOMBRE (ni NOMBRE COMPLETO). " +
+                                    "Descarga la plantilla y vuelve a intentarlo.";
+                    return View();
+                }
+
+                // Usuarios que ya existen. La tabla es pequeña, así que se traen todos de
+                // una vez en lugar de consultar por cada fila del archivo.
+                var existentes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                using (var con = new SqlConnection(_conn))
+                {
+                    await con.OpenAsync();
+                    var cmdEx = new SqlCommand("SELECT Usuario FROM Usuarios", con);
+                    using var r = (SqlDataReader)await cmdEx.ExecuteReaderAsync();
+                    while (await r.ReadAsync()) existentes.Add(r["Usuario"]?.ToString() ?? "");
+                }
+
+                bool esSuper = (HttpContext.Session.GetString("Rol") ?? "") == "SuperAdministrador";
+                var vistosEnArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                for (int f = 2; f <= hoja.Dimension.Rows; f++)
+                {
+                    string nombre, apellido;
+                    if (colNombre > 0)
+                    {
+                        nombre   = ImportacionUsuarios.TituloNombre(hoja.Cells[f, colNombre].Text);
+                        apellido = colApellido > 0
+                            ? ImportacionUsuarios.TituloNombre(hoja.Cells[f, colApellido].Text) : "";
+                    }
+                    else
+                    {
+                        (nombre, apellido) = ImportacionUsuarios.PartirNombre(hoja.Cells[f, colCompleto].Text);
+                    }
+
+                    string usuario = ImportacionUsuarios.LimpiarTexto(colUsuario > 0 ? hoja.Cells[f, colUsuario].Text : "");
+                    string correo  = ImportacionUsuarios.LimpiarTexto(colCorreo  > 0 ? hoja.Cells[f, colCorreo].Text  : "").ToLowerInvariant();
+                    string tel     = ImportacionUsuarios.LimpiarTexto(colTel     > 0 ? hoja.Cells[f, colTel].Text     : "");
+                    string rolCrudo = colRol > 0 ? hoja.Cells[f, colRol].Text : "";
+                    string pass    = ImportacionUsuarios.LimpiarTexto(colPass    > 0 ? hoja.Cells[f, colPass].Text    : "");
+
+                    // Fila completamente vacía: es el final del archivo o un hueco.
+                    if (nombre.Length == 0 && usuario.Length == 0 && correo.Length == 0) continue;
+
+                    string rol = ImportacionUsuarios.NormalizarRol(rolCrudo);
+                    string estado = "CREAR", motivo = "";
+
+                    var problema = ImportacionUsuarios.MotivoDeRechazo(nombre, usuario, rol, correo, pass);
+                    if (problema != null) { estado = "ERROR"; motivo = problema; }
+                    else if (rol == "Administrador" && !esSuper)
+                    {
+                        estado = "ERROR";
+                        motivo = "Solo un SuperAdministrador puede crear administradores";
+                    }
+                    else if (existentes.Contains(usuario))
+                    {
+                        estado = "EXISTE"; motivo = "Ya hay un usuario con ese nombre";
+                    }
+                    else if (!vistosEnArchivo.Add(usuario))
+                    {
+                        estado = "ERROR"; motivo = "El usuario está repetido dentro del archivo";
+                    }
+
+                    filas.Add(new ImportacionUsuarios.Fila(f, nombre, apellido, usuario, correo, tel,
+                                                           rol, pass, estado, motivo));
+                }
+            }
+            catch (Exception ex)
+            {
+                ViewBag.Error = "No se pudo leer el archivo: " + ex.Message;
+                return View();
+            }
+
+            if (filas.Count == 0)
+            {
+                ViewBag.Error = "El archivo no tiene filas con datos.";
+                return View();
+            }
+
+            // Solo viajan a la sesión las filas que se van a crear: es lo único que el
+            // paso de confirmación necesita, y así no se guarda de más.
+            HttpContext.Session.SetString(SesionFilas,
+                JsonSerializer.Serialize(filas.Where(x => x.Estado == "CREAR").ToList()));
+
+            ViewBag.Paso = "previsualizar";
+            ViewBag.Filas = filas;
+            ViewBag.NombreArchivo = archivo.FileName;
+            return View();
+        }
+
+        /// <summary>
+        /// Tercer paso: crea las cuentas que quedaron marcadas para crear y muestra las
+        /// contraseñas generadas una sola vez.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmarImportacion()
+        {
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre") ?? "Admin";
+            ViewBag.Apellido = HttpContext.Session.GetString("Apellido") ?? "";
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+
+            var json = HttpContext.Session.GetString(SesionFilas);
+            var filas = string.IsNullOrEmpty(json)
+                ? new List<ImportacionUsuarios.Fila>()
+                : JsonSerializer.Deserialize<List<ImportacionUsuarios.Fila>>(json)
+                  ?? new List<ImportacionUsuarios.Fila>();
+
+            if (filas.Count == 0)
+            {
+                ViewBag.Paso = "subir";
+                ViewBag.Error = "Se perdió la vista previa (la sesión expira a los 20 minutos). Vuelve a subir el archivo.";
+                return View("Importar");
+            }
+
+            var creadas = new List<CredencialImportada>();
+            var fallidas = new List<FilaFallida>();
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            foreach (var f in filas)
+            {
+                // La contraseña del archivo manda; si venía vacía se genera una distinta
+                // por persona, que es lo que recomienda la plantilla.
+                string clara = f.Password.Length > 0 ? f.Password : ImportacionUsuarios.GenerarPassword();
+
+                var cmd = new SqlCommand(@"
+                    INSERT INTO Usuarios (Nombre,Apellido,Documento,Celular,Correo,Usuario,Contraseña,Rol,IdProyecto)
+                    VALUES (@n,@a,'',@c,@correo,@u,@p,@r,NULL)", con);
+                cmd.Parameters.AddWithValue("@n", f.Nombre);
+                cmd.Parameters.AddWithValue("@a", f.Apellido);
+                cmd.Parameters.AddWithValue("@c", f.Telefono);
+                cmd.Parameters.AddWithValue("@correo", f.Correo);
+                cmd.Parameters.AddWithValue("@u", f.Usuario);
+                cmd.Parameters.AddWithValue("@p", BCrypt.Net.BCrypt.HashPassword(clara, 12));
+                cmd.Parameters.AddWithValue("@r", f.Rol);
+
+                try
+                {
+                    await cmd.ExecuteNonQueryAsync();
+                    creadas.Add(new CredencialImportada(
+                        $"{f.Nombre} {f.Apellido}".Trim(), f.Usuario, f.Rol, clara));
+                }
+                catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+                {
+                    // Alguien creó ese usuario entre la vista previa y la confirmación, o
+                    // la base todavía exige correo único. No se detiene la importación por
+                    // una fila: se sigue y se reporta al final.
+                    fallidas.Add(new FilaFallida(f.Usuario, "Ya existe o choca con una restricción de unicidad"));
+                }
+                catch (SqlException ex)
+                {
+                    fallidas.Add(new FilaFallida(f.Usuario, ex.Message));
+                }
+            }
+
+            HttpContext.Session.Remove(SesionFilas);
+            HttpContext.Session.SetString(SesionCreds, JsonSerializer.Serialize(creadas));
+
+            await _audit.RegistrarAsync("IMPORTAR_USUARIOS", "Usuarios", detalle:
+                $"Importación masiva: {creadas.Count} creados, {fallidas.Count} con error.");
+
+            ViewBag.Paso = "resultado";
+            ViewBag.Creadas = creadas;
+            ViewBag.Fallidas = fallidas;
+            return View("Importar");
+        }
+
+        /// <summary>
+        /// Descarga las credenciales recién generadas. Se borran de la sesión al
+        /// descargarlas: la lista existe para repartirla una vez, no para quedarse.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> CredencialesImportadas()
+        {
+            var json = HttpContext.Session.GetString(SesionCreds);
+            if (string.IsNullOrEmpty(json))
+            {
+                TempData["Error"] = "Ya no hay credenciales disponibles para descargar.";
+                return RedirectToAction("Index");
+            }
+
+            var creadas = JsonSerializer.Deserialize<List<CredencialImportada>>(json) ?? new();
+
+            ExcelPackage.License.SetNonCommercialPersonal("Londoño Gómez");
+            using var paquete = new ExcelPackage();
+            var ws = paquete.Workbook.Worksheets.Add("Credenciales");
+            ws.Cells[1, 1].Value = "Credenciales generadas — repartir y borrar este archivo";
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Size = 13;
+            ws.Cells[1, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
+            ws.Cells[1, 1, 1, 4].Merge = true;
+
+            var cab = new[] { "Nombre", "Usuario", "Rol", "Contraseña" };
+            for (int i = 0; i < cab.Length; i++)
+            {
+                var c = ws.Cells[3, i + 1];
+                c.Value = cab[i];
+                c.Style.Font.Bold = true;
+                c.Style.Font.Color.SetColor(DColor.White);
+                c.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                c.Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(0, 58, 112));
+            }
+            int fila = 4;
+            foreach (var c in creadas)
+            {
+                ws.Cells[fila, 1].Value = c.Nombre;
+                ws.Cells[fila, 2].Value = c.Usuario;
+                ws.Cells[fila, 3].Value = c.Rol;
+                ws.Cells[fila, 4].Value = c.Password;
+                fila++;
+            }
+            for (int c = 1; c <= 4; c++) ws.Column(c).AutoFit();
+
+            HttpContext.Session.Remove(SesionCreds);
+
+            var bytes = await paquete.GetAsByteArrayAsync();
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        $"Credenciales_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
+        }
+
+        /// <summary>Fila del archivo de credenciales generado tras la importación.</summary>
+        public sealed record CredencialImportada(string Nombre, string Usuario, string Rol, string Password);
+
+        /// <summary>Usuario que no se pudo crear, con el motivo, para el informe final.</summary>
+        public sealed record FilaFallida(string Usuario, string Motivo);
+
 
         /// <summary>
         /// Updates an existing user's profile data (excluding password and username).
