@@ -81,7 +81,25 @@ namespace Plataforma_ventas.Controllers
             cmd.Parameters.AddWithValue("@u", model.Usuario ?? "");
 
             using var reader = await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync() && BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""))
+            // Verify lanza una excepción cuando lo guardado no tiene forma de hash: por
+            // ejemplo, una contraseña escrita a mano en texto plano desde el gestor de la
+            // base. Sin esta guarda, un solo dato mal cargado tumba el ingreso de toda la
+            // plataforma con un error 500 que no dice nada, en vez de responder que la
+            // credencial no sirve.
+            bool hayFila = await reader.ReadAsync();
+            bool claveOk = false;
+            if (hayFila)
+            {
+                try { claveOk = BCrypt.Net.BCrypt.Verify(model.Password, reader["Contraseña"]?.ToString() ?? ""); }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "La contraseña guardada de '{Usuario}' no es un hash de BCrypt. " +
+                                         "Hay que restablecerla desde el panel de usuarios.", model.Usuario);
+                    claveOk = false;
+                }
+            }
+
+            if (hayFila && claveOk)
             {
                 _bloqueo.Limpiar(model.Usuario ?? "");
 
