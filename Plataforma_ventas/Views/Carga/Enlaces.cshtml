@@ -1,0 +1,141 @@
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Mercurio — Enlaces del lanzamiento";
+    ViewBag.ActiveNav = "carga";
+    ViewBag.TbBread   = "Enlaces";
+
+    var enlaces = ViewBag.Enlaces as List<dynamic> ?? new List<dynamic>();
+    var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+    bool hayTabla = ViewBag.HayTabla != null && (bool)ViewBag.HayTabla;
+    int idProy = ViewBag.IdProyecto != null ? (int)ViewBag.IdProyecto : 0;
+}
+@section Styles {
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu .3s ease both;margin-bottom:14px;}
+    .card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.06);gap:10px;flex-wrap:wrap;}
+    .card-title{font-size:15px;font-weight:700;color:var(--label);}
+    .card-body{padding:18px;}
+    .fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+    .fg label{font-size:11px;font-weight:600;color:var(--label2);text-transform:uppercase;letter-spacing:.03em;}
+    .fg input{width:100%;padding:9px 12px;border:1px solid var(--sep);border-radius:10px;font-size:13px;color:var(--label);background:var(--fill3);outline:none;font-family:inherit;}
+    .fg input:focus{border-color:var(--blue);background:white;}
+    .fg .pista{font-size:11px;color:var(--label3);}
+    .btn{display:inline-flex;align-items:center;gap:6px;border:none;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;}
+    .btn-azul{background:var(--blue);color:white;}.btn-azul:hover{background:var(--mid);}
+    .btn-sm{border:none;padding:5px 11px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn-ocultar{background:rgba(255,149,0,0.12);color:#A66000;}
+    .btn-mostrar{background:rgba(52,199,89,0.14);color:#167A3D;}
+    .btn-del{background:rgba(230,57,70,0.1);color:var(--rojo);}
+    .enl{display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid rgba(0,0,0,0.05);}
+    .enl:last-child{border-bottom:none;}
+    .enl.oculto{opacity:.5;}
+    .enl-ico{width:36px;height:36px;border-radius:10px;background:rgba(0,118,227,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .enl-datos{flex:1;min-width:0;}
+    .enl-tit{font-size:13.5px;font-weight:600;color:var(--label);}
+    .enl-url{font-size:11.5px;color:var(--label3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .enl-desc{font-size:12px;color:var(--label2);margin-top:2px;}
+    .enl-acc{display:flex;gap:6px;flex-shrink:0;}
+    .alerta{background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:var(--rojo);margin-bottom:12px;}
+    .exito{background:rgba(52,199,89,0.1);border:1px solid rgba(52,199,89,0.3);border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;color:#167A3D;margin-bottom:12px;}
+    .aviso{background:rgba(255,149,0,0.07);border:1px solid rgba(255,149,0,0.3);border-radius:12px;padding:14px 18px;font-size:12.5px;color:#8a5200;line-height:1.55;}
+    .vacio{padding:26px 18px;text-align:center;font-size:13px;color:var(--label3);}
+</style>
+}
+
+@{ ViewBag.TabActiva = "enlaces"; }
+<partial name="_Tabs" />
+
+<div class="view-inner">
+    @if (TempData["Error"] != null) { <div class="alerta">@TempData["Error"]</div> }
+    @if (TempData["Exito"] != null) { <div class="exito">@TempData["Exito"]</div> }
+
+    @if (!hayTabla)
+    {
+        <div class="aviso">
+            Falta la tabla de enlaces en la base de datos. Ejecuta la <strong>sección 18</strong>
+            de <code>Scripts/PanelAdmin.sql</code> y recarga esta página.
+        </div>
+    }
+    else if (idProy == 0)
+    {
+        <div class="aviso">Selecciona primero un proyecto en la barra superior.</div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-head"><span class="card-title">Publicar un enlace para @proyActivo</span></div>
+            <div class="card-body">
+                <form method="post" action="/Carga/CrearEnlace">
+                    @Html.AntiForgeryToken()
+                    <div class="fg">
+                        <label>Título</label>
+                        <input type="text" name="titulo" placeholder="Ej: Presentación del proyecto" required maxlength="150"/>
+                    </div>
+                    <div class="fg">
+                        <label>Dirección</label>
+                        <input type="text" name="url" placeholder="https://..." required/>
+                        <span class="pista">Solo direcciones web. Si la escribes sin https, se agrega solo.</span>
+                    </div>
+                    <div class="fg">
+                        <label>Descripción (opcional)</label>
+                        <input type="text" name="descripcion" placeholder="Para qué sirve, o qué contiene" maxlength="400"/>
+                    </div>
+                    <button type="submit" class="btn btn-azul">Publicar enlace</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">Enlaces publicados</span>
+                <span style="font-size:11.5px;color:var(--label3)">Los visibles aparecen en el perfil de cada asesor</span>
+            </div>
+            @if (enlaces.Count > 0)
+            {
+                foreach (var e in enlaces)
+                {
+                    bool visible = (bool)e.Visible;
+                    <div class="enl @(visible ? "" : "oculto")">
+                        <div class="enl-ico">@Iconos.Documento("#0076E3", 17)</div>
+                        <div class="enl-datos">
+                            <div class="enl-tit">@e.Titulo</div>
+                            @if (!string.IsNullOrEmpty(e.Descripcion as string))
+                            {
+                                <div class="enl-desc">@e.Descripcion</div>
+                            }
+                            <div class="enl-url">@e.Dominio</div>
+                        </div>
+                        <div class="enl-acc">
+                            <form method="post" action="/Carga/CambiarVisibilidadEnlace" style="margin:0">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="idEnlace" value="@e.Id"/>
+                                <input type="hidden" name="visible" value="@((!visible).ToString().ToLower())"/>
+                                <button type="submit" class="btn-sm @(visible ? "btn-ocultar" : "btn-mostrar")">
+                                    @(visible ? "Ocultar" : "Mostrar")
+                                </button>
+                            </form>
+                            <form method="post" action="/Carga/EliminarEnlace" style="margin:0">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="idEnlace" value="@e.Id"/>
+                                <button type="submit" class="btn-sm btn-del"
+                                        onclick="return confirm('¿Eliminar el enlace @e.Titulo?')">Eliminar</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="vacio">Todavía no hay enlaces publicados para este proyecto.</div>
+            }
+        </div>
+
+        <div class="aviso">
+            Los enlaces son <strong>por proyecto</strong>: el material de este lanzamiento no
+            aparece en el siguiente. Un enlace oculto no se borra, simplemente deja de verse en
+            el perfil de los asesores, lo que sirve para el material que todavía no se puede
+            compartir o para el que ya caducó.
+        </div>
+    }
+</div>

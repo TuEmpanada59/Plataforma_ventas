@@ -637,5 +637,35 @@ BEGIN
 END
 GO
 
+-- ============================================================================
+-- 18) ENLACES DEL PROYECTO
+--     El material del lanzamiento (presentación, brochure, render, formulario)
+--     hoy se reparte por WhatsApp y cada asesor termina con una versión
+--     distinta. Aquí el administrador publica el enlace una vez y todos los
+--     asesores del proyecto ven el mismo.
+--
+--     Los enlaces son por proyecto: el material de un lanzamiento no tiene por
+--     qué aparecer en el siguiente.
+-- ============================================================================
+IF OBJECT_ID('ProyectoEnlaces', 'U') IS NULL
+BEGIN
+    CREATE TABLE ProyectoEnlaces (
+        IdEnlace      INT            IDENTITY(1,1) PRIMARY KEY,
+        IdProyecto    INT            NOT NULL,
+        Titulo        NVARCHAR(150)  NOT NULL,
+        Url           NVARCHAR(1000) NOT NULL,
+        Descripcion   NVARCHAR(400)  NOT NULL DEFAULT '',
+        Orden         INT            NOT NULL DEFAULT 0,
+        Visible       BIT            NOT NULL DEFAULT 1,
+        FechaCreacion DATETIME       NOT NULL DEFAULT GETDATE(),
+        IdUsuario     INT            NULL,
+        CONSTRAINT FK_ProyEnlaces_Proyecto FOREIGN KEY (IdProyecto)
+            REFERENCES Proyectos(IdProyectos) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_ProyEnlaces_Proy ON ProyectoEnlaces (IdProyecto, Orden);
+    PRINT 'Tabla ProyectoEnlaces creada.';
+END
+GO
+
 PRINT 'Panel de administrador: migración aplicada correctamente.';
 GO

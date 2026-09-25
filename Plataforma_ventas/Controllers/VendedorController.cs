@@ -1105,6 +1105,31 @@ namespace Plataforma_ventas.Controllers
             ViewBag.MapaPisos = Plataforma_ventas.MapaPisos.Construir(mapa);
             ViewBag.ProyectoIdMapa = idProy;
 
+            // ── Pestaña "Material": los enlaces que publicó el administrador ──
+            // Solo los marcados como visibles. La tabla es opcional: sin la sección 18
+            // de la migración, la pestaña simplemente no tiene nada que mostrar.
+            var enlaces = new List<dynamic>();
+            var cmdTablaEnl = new SqlCommand("SELECT OBJECT_ID('ProyectoEnlaces','U')", con);
+            if ((await cmdTablaEnl.ExecuteScalarAsync()) is not (null or DBNull))
+            {
+                var cmdEnl = new SqlCommand(@"
+                    SELECT Titulo, Url, Descripcion
+                    FROM ProyectoEnlaces
+                    WHERE IdProyecto=@p AND Visible=1
+                    ORDER BY Orden, IdEnlace", con);
+                cmdEnl.Parameters.AddWithValue("@p", idProy);
+                using var rE = (SqlDataReader)await cmdEnl.ExecuteReaderAsync();
+                while (await rE.ReadAsync())
+                    enlaces.Add(new
+                    {
+                        Titulo = rE["Titulo"]?.ToString() ?? "",
+                        Url = rE["Url"]?.ToString() ?? "",
+                        Dominio = Plataforma_ventas.Enlaces.Dominio(rE["Url"]?.ToString()),
+                        Descripcion = rE["Descripcion"]?.ToString() ?? "",
+                    });
+            }
+            ViewBag.Enlaces = enlaces;
+
 
             return View();
         }

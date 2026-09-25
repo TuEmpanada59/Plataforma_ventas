@@ -1031,5 +1031,155 @@ namespace Plataforma_ventas.Controllers
             var limpio = valor.Replace("$", "").Replace(".", "").Replace(",", "").Replace(" ", "").Trim();
             return long.TryParse(limpio, out long resultado) ? resultado : 0;
         }
+
+        // ══════════════════════ ENLACES DEL LANZAMIENTO ══════════════════════
+        // La presentación, el brochure, los renders y el formulario de separación se
+        // reparten hoy por WhatsApp, y a media jornada cada asesor tiene una versión
+        // distinta. Aquí el administrador publica el enlace una vez y todos ven el mismo.
+
+        /// <summary>Pantalla de enlaces del proyecto activo.</summary>
+        public async Task<IActionResult> Enlaces()
+        {
+            ViewBag.Nombre = HttpContext.Session.GetString("Nombre");
+            ViewBag.Apellido = HttpContext.Session.GetString("Apellido");
+            ViewBag.ProyectoActivo = HttpContext.Session.GetString("ProyectoNombre") ?? "Sin proyecto";
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            ViewBag.IdProyecto = idProy;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var cmdTabla = new SqlCommand("SELECT OBJECT_ID('ProyectoEnlaces','U')", con);
+            bool hayTabla = (await cmdTabla.ExecuteScalarAsync()) is not (null or DBNull);
+            ViewBag.HayTabla = hayTabla;
+
+            var enlaces = new List<dynamic>();
+            if (hayTabla && idProy > 0)
+            {
+                var cmd = new SqlCommand(@"
+                    SELECT IdEnlace, Titulo, Url, Descripcion, Visible, Orden
+                    FROM ProyectoEnlaces WHERE IdProyecto=@p
+                    ORDER BY Orden, IdEnlace", con);
+                cmd.Parameters.AddWithValue("@p", idProy);
+                using var r = (SqlDataReader)await cmd.ExecuteReaderAsync();
+                while (await r.ReadAsync())
+                    enlaces.Add(new
+                    {
+                        Id = Convert.ToInt32(r["IdEnlace"]),
+                        Titulo = r["Titulo"]?.ToString() ?? "",
+                        Url = r["Url"]?.ToString() ?? "",
+                        Dominio = Plataforma_ventas.Enlaces.Dominio(r["Url"]?.ToString()),
+                        Descripcion = r["Descripcion"]?.ToString() ?? "",
+                        Visible = r["Visible"] != DBNull.Value && (bool)r["Visible"],
+                        Orden = Convert.ToInt32(r["Orden"]),
+                    });
+            }
+            ViewBag.Enlaces = enlaces;
+            return View();
+        }
+
+        /// <summary>Publica un enlace nuevo para el proyecto activo.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CrearEnlace(string titulo, string url, string descripcion)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+            int idUsr = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int uid) ? uid : 0;
+
+            if (idProy == 0)
+            {
+                TempData["Error"] = "Primero selecciona un proyecto.";
+                return RedirectToAction("Enlaces");
+            }
+            titulo = (titulo ?? "").Trim();
+            if (titulo.Length == 0)
+            {
+                TempData["Error"] = "El enlace necesita un título.";
+                return RedirectToAction("Enlaces");
+            }
+
+            // La dirección se valida aquí y no solo en el navegador: lo que se guarda
+            // termina renderizado en la pantalla de todos los asesores.
+            var limpia = Plataforma_ventas.Enlaces.NormalizarUrl(url);
+            if (limpia == null)
+            {
+                TempData["Error"] = "La dirección no es válida. Debe empezar por http o https.";
+                return RedirectToAction("Enlaces");
+            }
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+
+            var cmdTabla = new SqlCommand("SELECT OBJECT_ID('ProyectoEnlaces','U')", con);
+            if ((await cmdTabla.ExecuteScalarAsync()) is null or DBNull)
+            {
+                TempData["Error"] = "Falta la tabla de enlaces. Ejecuta la sección 18 de Scripts/PanelAdmin.sql.";
+                return RedirectToAction("Enlaces");
+            }
+
+            var cmdOrden = new SqlCommand(
+                "SELECT ISNULL(MAX(Orden),0)+1 FROM ProyectoEnlaces WHERE IdProyecto=@p", con);
+            cmdOrden.Parameters.AddWithValue("@p", idProy);
+            int orden = Convert.ToInt32(await cmdOrden.ExecuteScalarAsync());
+
+            var cmd = new SqlCommand(@"
+                INSERT INTO ProyectoEnlaces (IdProyecto, Titulo, Url, Descripcion, Orden, Visible, IdUsuario)
+                VALUES (@p, @t, @u, @d, @o, 1, @usr)", con);
+            cmd.Parameters.AddWithValue("@p", idProy);
+            cmd.Parameters.AddWithValue("@t", titulo.Length > 150 ? titulo.Substring(0, 150) : titulo);
+            cmd.Parameters.AddWithValue("@u", limpia);
+            var desc = (descripcion ?? "").Trim();
+            cmd.Parameters.AddWithValue("@d", desc.Length > 400 ? desc.Substring(0, 400) : desc);
+            cmd.Parameters.AddWithValue("@o", orden);
+            cmd.Parameters.AddWithValue("@usr", idUsr > 0 ? (object)idUsr : DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+
+            TempData["Exito"] = $"Enlace '{titulo}' publicado. Los asesores del proyecto ya lo ven.";
+            return RedirectToAction("Enlaces");
+        }
+
+        /// <summary>
+        /// Muestra u oculta un enlace sin borrarlo. Sirve para el material que todavía
+        /// no se puede compartir, o para el que caducó y conviene guardar.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CambiarVisibilidadEnlace(int idEnlace, bool visible)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+            // El identificador viaja por el formulario: se acota al proyecto activo para
+            // que nadie pueda tocar el material de otro lanzamiento cambiando un número.
+            var cmd = new SqlCommand(
+                "UPDATE ProyectoEnlaces SET Visible=@v WHERE IdEnlace=@id AND IdProyecto=@p", con);
+            cmd.Parameters.AddWithValue("@v", visible);
+            cmd.Parameters.AddWithValue("@id", idEnlace);
+            cmd.Parameters.AddWithValue("@p", idProy);
+            await cmd.ExecuteNonQueryAsync();
+
+            TempData["Exito"] = visible ? "Enlace visible para los asesores." : "Enlace oculto.";
+            return RedirectToAction("Enlaces");
+        }
+
+        /// <summary>Elimina un enlace del proyecto activo.</summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EliminarEnlace(int idEnlace)
+        {
+            int idProy = int.TryParse(HttpContext.Session.GetString("ProyectoId"), out int pid) ? pid : 0;
+
+            using var con = new SqlConnection(_conn);
+            await con.OpenAsync();
+            var cmd = new SqlCommand(
+                "DELETE FROM ProyectoEnlaces WHERE IdEnlace=@id AND IdProyecto=@p", con);
+            cmd.Parameters.AddWithValue("@id", idEnlace);
+            cmd.Parameters.AddWithValue("@p", idProy);
+            await cmd.ExecuteNonQueryAsync();
+
+            TempData["Exito"] = "Enlace eliminado.";
+            return RedirectToAction("Enlaces");
+        }
     }
 }

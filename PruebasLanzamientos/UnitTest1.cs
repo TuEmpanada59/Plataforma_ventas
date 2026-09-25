@@ -273,4 +273,38 @@ public class UnitTest1
     [InlineData("abc", 1)]
     public void ListaNegociada_LeeLaColumnaDelExcel(string? entrada, int esperado)
         => Assert.Equal(esperado, Listas.ListaNegociada(entrada));
+
+    //NormalizarUrl: un enlace que publica el admin se renderiza en la pantalla de todos
+    //los asesores. Solo http y https; lo demás se rechaza.
+    [Theory]
+    [InlineData("https://ejemplo.com/pres.pdf")]
+    [InlineData("http://ejemplo.com")]
+    [InlineData("www.ejemplo.com")]              // sin esquema: se asume https
+    [InlineData("  https://ejemplo.com  ")]
+    public void NormalizarUrl_AceptaDireccionesWeb(string entrada)
+        => Assert.NotNull(Enlaces.NormalizarUrl(entrada));
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]          // ejecución de código en la pantalla ajena
+    [InlineData("JavaScript:alert(1)")]
+    [InlineData("data:text/html,<script>alert(1)</script>")]
+    [InlineData("file:///C:/secretos.txt")]
+    [InlineData("https://ejemplo.com\nHost: otro")]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void NormalizarUrl_RechazaLoPeligroso(string? entrada)
+        => Assert.Null(Enlaces.NormalizarUrl(entrada));
+
+    [Fact]
+    public void NormalizarUrl_AgregaElEsquemaQueFalta()
+        => Assert.StartsWith("https://", Enlaces.NormalizarUrl("ejemplo.com/brochure")!);
+
+    //Dominio: lo que ve el asesor debajo del título, sin la dirección completa
+    [Theory]
+    [InlineData("https://www.ejemplo.com/a/b?c=1", "ejemplo.com")]
+    [InlineData("https://drive.google.com/file/x", "drive.google.com")]
+    [InlineData("no-es-una-url", "")]
+    public void Dominio_MuestraADondeLleva(string url, string esperado)
+        => Assert.Equal(esperado, Enlaces.Dominio(url));
 }
