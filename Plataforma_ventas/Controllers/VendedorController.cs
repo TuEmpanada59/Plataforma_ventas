@@ -1068,9 +1068,16 @@ namespace Plataforma_ventas.Controllers
             ViewBag.ListasArea = listasArea;
 
             // ── Pestaña "Mapa de ventas": estado de cada inmueble del proyecto ──
+            // Es el mismo mapa que ve el administrador en el informe, armado con los
+            // mismos datos y la misma vista parcial. Durante el lanzamiento los dos
+            // miran la misma pantalla, así que no pueden mostrar cosas distintas.
+            var cmdColEtapaMapa = new SqlCommand("SELECT COL_LENGTH('Inmuebles','Etapa')", con);
+            bool hayEtapaMapa = (await cmdColEtapaMapa.ExecuteScalarAsync()) is not (null or DBNull);
+
             var mapa = new List<dynamic>();
-            var cmdMapa = new SqlCommand(@"
-                SELECT i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros, i.Estado,
+            var cmdMapa = new SqlCommand($@"
+                SELECT i.IdInmuebles, i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros, i.Estado,
+                       {(hayEtapaMapa ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
                        ISNULL(up.Nombre + ' ' + up.Apellido, '') AS EnProcesoPor,
                        ISNULL(ur.Nombre + ' ' + ur.Apellido, '') AS ReservadoPor
                 FROM Inmuebles i
@@ -1083,34 +1090,21 @@ namespace Plataforma_ventas.Controllers
                 while (await rm.ReadAsync())
                     mapa.Add(new
                     {
+                        Id = Convert.ToInt32(rm["IdInmuebles"]),
                         Apto = rm["Apto"]?.ToString() ?? "",
                         Torre = rm["Torre"]?.ToString() ?? "",
                         Piso = rm["Piso"]?.ToString() ?? "",
                         Tipo = rm["Tipo"]?.ToString() ?? "",
                         Metros = rm["Metros"]?.ToString() ?? "",
+                        Etapa = rm["Etapa"]?.ToString() ?? "",
                         Estado = rm["Estado"]?.ToString() ?? "",
                         EnProcesoPor = (rm["EnProcesoPor"]?.ToString() ?? "").Trim(),
                         ReservadoPor = (rm["ReservadoPor"]?.ToString() ?? "").Trim(),
                     });
             ViewBag.Mapa = mapa;
+            ViewBag.MapaPisos = Plataforma_ventas.MapaPisos.Construir(mapa);
+            ViewBag.ProyectoIdMapa = idProy;
 
-            // El mapa como lista de unidades era ilegible pasadas unas decenas de filas.
-            // Agrupado por torre responde de un vistazo la pregunta que el asesor se hace:
-            // dónde queda inventario por colocar.
-            var porTorre = mapa
-                .GroupBy(m => string.IsNullOrWhiteSpace((string)m.Torre) ? "Sin torre" : (string)m.Torre)
-                .Select(g => new
-                {
-                    Torre = g.Key,
-                    Total = g.Count(),
-                    Vendidos = g.Count(x => (string)x.Estado == "VENDIDO"),
-                    Reservados = g.Count(x => (string)x.Estado == "RESERVADO"),
-                    EnProceso = g.Count(x => (string)x.Estado == "EN PROCESO"),
-                    Disponibles = g.Count(x => (string)x.Estado == "DISPONIBLE"),
-                })
-                .OrderBy(t => t.Torre, StringComparer.OrdinalIgnoreCase)
-                .ToList<dynamic>();
-            ViewBag.MapaTorres = porTorre;
 
             return View();
         }

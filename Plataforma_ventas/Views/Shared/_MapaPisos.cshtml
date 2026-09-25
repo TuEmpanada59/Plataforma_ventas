@@ -1,0 +1,85 @@
+@*
+    Mapa de ventas por piso y línea. Es el mismo componente para el administrador y
+    para el asesor: si cada pantalla tuviera su copia, al primer ajuste una de las dos
+    se quedaría atrás y dejarían de mostrar lo mismo, que es justo lo que nadie quiere
+    discutir en plena sala de ventas.
+
+    Los estilos viven en wwwroot/css/platform.css (.mp-*) y la actualización en vivo
+    en wwwroot/js/mapa-pisos.js.
+
+    Uso:
+        @await Html.PartialAsync("_MapaPisos", mapaPisos)
+*@
+@model List<Plataforma_ventas.MapaPisos.Torre>
+
+@if (Model != null && Model.Count > 0)
+{
+    foreach (var tor in Model)
+    {
+        var titulo = (string.IsNullOrEmpty(tor.Etapa) ? "" : tor.Etapa + " · ")
+                   + (string.IsNullOrEmpty(tor.Nombre) ? "Torre única" : "Torre " + tor.Nombre);
+        int nInt = tor.Lineas.Count(l => l.Tipo != "EXT");
+        int nExt = tor.Lineas.Count - nInt;
+        <div class="mp-torre">
+            <div class="mp-titulo">@titulo</div>
+            <div class="mp-scroll">
+                <table class="mp">
+                    <thead>
+                        @if (nInt > 0 && nExt > 0)
+                        {
+                            <tr>
+                                <th class="mp-piso"></th>
+                                <th class="mp-banda int" colspan="@nInt">INTERIOR</th>
+                                <th class="mp-banda ext" colspan="@nExt">EXTERIOR</th>
+                            </tr>
+                        }
+                        <tr>
+                            <th class="mp-piso">Piso</th>
+                            @foreach (var l in tor.Lineas)
+                            {
+                                string tipoCls = l.Tipo == "EXT" ? "ext" : "int";
+                                <th class="mp-linea @tipoCls">
+                                    <span class="mp-linea-nom">@l.Nombre</span>
+                                    <span class="mp-linea-m2">@l.Metros m²</span>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var piso in tor.Pisos)
+                        {
+                            <tr>
+                                <td class="mp-piso">@piso.Nombre</td>
+                                @foreach (var c in piso.Celdas)
+                                {
+                                    if (c == null)
+                                    {
+                                        <td class="mp-vacia"></td>
+                                    }
+                                    else
+                                    {
+                                        // El mapa no distingue "en proceso": mientras no haya reserva
+                                        // ni venta, la unidad sigue sin comprometer y se muestra
+                                        // disponible, igual que en el mapa de Excel.
+                                        string estadoMapa = c.Estado == "VENDIDO" ? "VENDIDO"
+                                                          : c.Estado == "RESERVADO" ? "RESERVADO" : "DISPONIBLE";
+                                        string cls = estadoMapa == "VENDIDO" ? "V"
+                                                   : estadoMapa == "RESERVADO" ? "R" : "D";
+                                        string tip = estadoMapa == "RESERVADO" && !string.IsNullOrEmpty(c.Quien)
+                                                   ? estadoMapa + " · " + c.Quien : estadoMapa;
+                                        <td>
+                                            <div class="mp-celda e-@cls" data-id="@c.Id" title="@tip">
+                                                <span class="mp-apto">@c.Apto</span>
+                                                <span class="mp-estado">@estadoMapa</span>
+                                            </div>
+                                        </td>
+                                    }
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}

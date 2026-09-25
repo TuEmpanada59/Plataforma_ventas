@@ -107,25 +107,6 @@
     .act-num{font-size:17px;font-weight:600;color:var(--label);letter-spacing:-0.4px;white-space:nowrap;}
     .act-lbl{font-size:10.5px;color:var(--label3);font-weight:500;}
     .act-nota{font-size:12px;color:var(--label3);}
-    .mp-torre{padding:14px 16px 6px;}
-    .mp-titulo{font-size:14px;font-weight:700;color:var(--label);margin-bottom:8px;}
-    .mp-scroll{overflow-x:auto;}
-    .mp{border-collapse:separate;border-spacing:5px 4px;width:100%;}
-    .mp th.mp-piso,.mp td.mp-piso{width:44px;text-align:right;font-size:12px;font-weight:700;color:var(--label3);padding-right:6px;white-space:nowrap;}
-    .mp-banda{font-size:11px;font-weight:700;letter-spacing:0.06em;padding:5px 0;border-radius:7px;text-align:center;}
-    .mp-banda.int{background:rgba(0,118,227,0.10);color:var(--azul);}
-    .mp-banda.ext{background:rgba(90,200,250,0.18);color:#0A6FA8;}
-    .mp-linea{background:var(--azul);color:#fff;border-radius:7px;padding:5px 8px;text-align:center;white-space:nowrap;}
-    .mp-linea.ext{background:#5AC8FA;color:#08405F;}
-    .mp-linea-nom{font-size:12px;font-weight:700;display:block;}
-    .mp-linea-m2{font-size:10.5px;opacity:.85;display:block;}
-    .mp-celda{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 9px;border-radius:7px;border:1px solid;font-size:11.5px;min-width:118px;transition:background .3s;}
-    .mp-apto{font-weight:700;}
-    .mp-estado{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
-    .mp-celda.e-D{background:rgba(230,57,70,0.10);border-color:rgba(230,57,70,0.45);color:#B02030;}
-    .mp-celda.e-V{background:rgba(52,199,89,0.14);border-color:rgba(52,199,89,0.5);color:#167A3D;}
-    .mp-celda.e-R{background:rgba(255,149,0,0.14);border-color:rgba(255,149,0,0.5);color:#A66000;}
-    .mp-vacia{background:transparent;}
     .destino-list{padding:14px;display:flex;flex-direction:column;gap:8px;}
     .destino-row{display:flex;align-items:center;gap:10px;}
     .destino-bar-wrap{flex:1;height:8px;background:var(--fill3);border-radius:20px;overflow:hidden;}
@@ -357,41 +338,11 @@
         </div>
     </div>
     @if (mapaPisos.Count > 0) {
-        @foreach (var tor in mapaPisos) {
-            var titulo = (string.IsNullOrEmpty(tor.Etapa) ? "" : tor.Etapa + " · ") + (string.IsNullOrEmpty(tor.Nombre) ? "Torre única" : "Torre " + tor.Nombre);
-            int nInt = tor.Lineas.Count(l => l.Tipo != "EXT");
-            int nExt = tor.Lineas.Count - nInt;
-            <div class="mp-torre">
-                <div class="mp-titulo">@titulo</div>
-                <div class="mp-scroll">
-                <table class="mp">
-                    <thead>
-                        @if (nInt > 0 && nExt > 0) {
-                            <tr>
-                                <th class="mp-piso"></th>
-                                <th class="mp-banda int" colspan="@nInt">INTERIOR</th>
-                                <th class="mp-banda ext" colspan="@nExt">EXTERIOR</th>
-                            </tr>
-                        }
-                        <tr>
-                            <th class="mp-piso">Piso</th>
-                            @foreach (var l in tor.Lineas) {
-                                string tipoCls = l.Tipo == "EXT" ? "ext" : "int";
-                                <th class="mp-linea @tipoCls">
-                                    <span class="mp-linea-nom">@l.Nombre</span>
-                                    <span class="mp-linea-m2">@l.Metros m²</span>
-                                </th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @foreach (var piso in tor.Pisos) {
-                        <tr>
-                            <td class="mp-piso">@piso.Nombre</td>
-                            @foreach (var c in piso.Celdas) {
-                                if (c == null) {
-                                    <td class="mp-vacia"></td>
-                                } else {
+        @* El mismo componente que ve el asesor en su perfil. *@
+        <div id="mapaPisos" data-proyecto="@(ViewBag.ProyectoIdMapa ?? 0)">
+            @await Html.PartialAsync("_MapaPisos", mapaPisos)
+        </div>
+    } else {
                                     // En el mapa no se distingue "en proceso": mientras no haya reserva
                                     // ni venta, la unidad se muestra disponible, como en el Excel.
                                     string estadoMapa = c.Estado == "VENDIDO" ? "VENDIDO" : c.Estado == "RESERVADO" ? "RESERVADO" : "DISPONIBLE";
@@ -491,28 +442,8 @@
 
 @section Scripts {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script src="~/js/mapa-pisos.js" asp-append-version="true"></script>
 <script>
-    // El mapa por piso se actualiza en vivo: cuando un asesor toma, reserva o vende,
-    // la celda cambia sola. El Excel es una foto; esto es la sala en tiempo real.
-    (function(){
-        var PROY = @(ViewBag.ProyectoIdMapa ?? 0);
-        if (!PROY || typeof signalR === 'undefined') return;
-        var conn = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
-        conn.on("InmuebleActualizado", function(idProyecto, idInmueble, estado, quien){
-            if (idProyecto !== PROY) return;
-            var celda = document.querySelector('.mp-celda[data-id="' + idInmueble + '"]');
-            if (!celda) return;
-            var est = estado === 'VENDIDO' ? 'VENDIDO' : estado === 'RESERVADO' ? 'RESERVADO' : 'DISPONIBLE';
-            var cls = est === 'VENDIDO' ? 'V' : est === 'RESERVADO' ? 'R' : 'D';
-            celda.className = 'mp-celda e-' + cls;
-            celda.querySelector('.mp-estado').textContent = est;
-            celda.title = (est === 'RESERVADO' && quien) ? est + ' · ' + quien : est;
-            celda.style.boxShadow = '0 0 0 3px rgba(0,118,227,0.35)';
-            setTimeout(function(){ celda.style.boxShadow = ''; }, 1500);
-        });
-        conn.start().catch(function(){ /* sin tiempo real: la página sigue sirviendo al recargar */ });
-    })();
-
     function filtrar(){
         const q=document.getElementById('buscar').value.toLowerCase();
         document.querySelectorAll('#tablaVentas tbody tr:not(.asesor-sep)').forEach(tr=>{
