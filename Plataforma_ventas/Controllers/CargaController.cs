@@ -1103,7 +1103,7 @@ namespace Plataforma_ventas.Controllers
             var limpia = Plataforma_ventas.Enlaces.NormalizarUrl(url);
             if (limpia == null)
             {
-                TempData["Error"] = "La dirección no es válida. Debe empezar por http o https.";
+                TempData["Error"] = "La URL no es válida. Debe empezar por http o https.";
                 return RedirectToAction("Enlaces");
             }
 

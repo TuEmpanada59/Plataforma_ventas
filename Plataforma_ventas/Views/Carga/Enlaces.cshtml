@@ -31,7 +31,11 @@
     .enl:last-child{border-bottom:none;}
     .enl.oculto{opacity:.5;}
     .enl-ico{width:36px;height:36px;border-radius:10px;background:rgba(0,118,227,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-    .enl-datos{flex:1;min-width:0;}
+    .enl-abrir{flex:1;display:flex;align-items:center;gap:14px;min-width:0;text-decoration:none;border-radius:10px;padding:4px;margin:-4px;transition:background .15s;}
+    .enl-abrir:hover{background:var(--fill3);}
+    .enl-abrir:hover .enl-tit{color:var(--blue);}
+    .enl-flecha{font-size:14px;color:var(--label3);flex-shrink:0;}
+    .enl-datos{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
     .enl-tit{font-size:13.5px;font-weight:600;color:var(--label);}
     .enl-url{font-size:11.5px;color:var(--label3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .enl-desc{font-size:12px;color:var(--label2);margin-top:2px;}
@@ -73,9 +77,9 @@
                         <input type="text" name="titulo" placeholder="Ej: Presentación del proyecto" required maxlength="150"/>
                     </div>
                     <div class="fg">
-                        <label>Dirección</label>
+                        <label>URL</label>
                         <input type="text" name="url" placeholder="https://..." required/>
-                        <span class="pista">Solo direcciones web. Si la escribes sin https, se agrega solo.</span>
+                        <span class="pista">Solo URL web. Si la escribes sin https, se agrega sola.</span>
                     </div>
                     <div class="fg">
                         <label>Descripción (opcional)</label>
@@ -97,15 +101,24 @@
                 {
                     bool visible = (bool)e.Visible;
                     <div class="enl @(visible ? "" : "oculto")">
-                        <div class="enl-ico">@Iconos.Documento("#0076E3", 17)</div>
-                        <div class="enl-datos">
-                            <div class="enl-tit">@e.Titulo</div>
-                            @if (!string.IsNullOrEmpty(e.Descripcion as string))
-                            {
-                                <div class="enl-desc">@e.Descripcion</div>
-                            }
-                            <div class="enl-url">@e.Dominio</div>
-                        </div>
+                        @* El administrador también necesita abrirlo: es como comprueba que
+                           el enlace que publicó lleva a donde debe, antes de que lo abra
+                           media sala de ventas. Solo el bloque de datos es enlace; los
+                           botones van aparte porque un formulario no puede ir dentro de
+                           una etiqueta de enlace. *@
+                        <a class="enl-abrir" href="@e.Url" target="_blank" rel="noopener noreferrer"
+                           title="Abrir @e.Titulo">
+                            <span class="enl-ico">@Iconos.Documento("#0076E3", 17)</span>
+                            <span class="enl-datos">
+                                <span class="enl-tit">@e.Titulo</span>
+                                @if (!string.IsNullOrEmpty(e.Descripcion as string))
+                                {
+                                    <span class="enl-desc">@e.Descripcion</span>
+                                }
+                                <span class="enl-url">@e.Dominio</span>
+                            </span>
+                            <span class="enl-flecha">↗</span>
+                        </a>
                         <div class="enl-acc">
                             <form method="post" action="/Carga/CambiarVisibilidadEnlace" style="margin:0">
                                 @Html.AntiForgeryToken()
