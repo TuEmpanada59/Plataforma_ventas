@@ -597,3 +597,13 @@ body::before {
 .mp-celda.e-V{background:rgba(52,199,89,0.14);border-color:rgba(52,199,89,0.5);color:#167A3D;}
 .mp-celda.e-R{background:rgba(255,149,0,0.14);border-color:rgba(255,149,0,0.5);color:#A66000;}
 .mp-vacia{background:transparent;}
+
+/* ── Pestañas de la sección de carga ────────────────────────────────────────
+   Las usa la vista parcial _Tabs, compartida por las tres pantallas. Estaban
+   duplicadas dentro de dos vistas, así que la tercera salió sin estilo: como
+   enlaces subrayados en morado. Viviendo aquí, cualquier pantalla que use la
+   parcial se ve igual sin tener que acordarse de copiar nada. */
+.carga-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.carga-tab{font-size:13px;font-weight:600;padding:8px 16px;border-radius:12px;background:var(--glass);border:1px solid var(--gb);color:var(--label2);text-decoration:none;transition:all 0.2s;}
+.carga-tab:hover{border-color:var(--blue);color:var(--blue);}
+.carga-tab.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));border-color:transparent;color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
