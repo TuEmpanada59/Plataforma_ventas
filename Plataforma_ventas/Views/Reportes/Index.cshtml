@@ -343,27 +343,6 @@
             @await Html.PartialAsync("_MapaPisos", mapaPisos)
         </div>
     } else {
-                                    // En el mapa no se distingue "en proceso": mientras no haya reserva
-                                    // ni venta, la unidad se muestra disponible, como en el Excel.
-                                    string estadoMapa = c.Estado == "VENDIDO" ? "VENDIDO" : c.Estado == "RESERVADO" ? "RESERVADO" : "DISPONIBLE";
-                                    string cls = estadoMapa == "VENDIDO" ? "V" : estadoMapa == "RESERVADO" ? "R" : "D";
-                                    string tip = estadoMapa == "RESERVADO" && !string.IsNullOrEmpty(c.Quien) ? estadoMapa + " · " + c.Quien : estadoMapa;
-                                    <td>
-                                        <div class="mp-celda e-@cls" data-id="@c.Id" title="@tip">
-                                            <span class="mp-apto">@c.Apto</span>
-                                            <span class="mp-estado">@estadoMapa</span>
-                                        </div>
-                                    </td>
-                                }
-                            }
-                        </tr>
-                    }
-                    </tbody>
-                </table>
-                </div>
-            </div>
-        }
-    } else {
         <div class="empty">No hay inmuebles en este proyecto</div>
     }
 </div>
