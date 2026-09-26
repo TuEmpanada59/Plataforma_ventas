@@ -34,7 +34,29 @@ namespace Plataforma_ventas
                 cmdBusca.Parameters.AddWithValue("@d", doc);
                 var existente = await cmdBusca.ExecuteScalarAsync();
                 if (existente != null && existente != DBNull.Value)
-                    return (Convert.ToInt32(existente), true);
+                {
+                    int idExistente = Convert.ToInt32(existente);
+
+                    // Si en esta venta se eligió un medio, se guarda aunque el cliente ya
+                    // existiera. Antes se devolvía la fila tal cual, así que el asesor
+                    // elegía el medio, guardaba, y no pasaba nada: el dato se perdía en
+                    // silencio. Pasaba siempre con las ventas importadas del Excel, que
+                    // nacen apuntando a un cliente marcador que ya existe.
+                    //
+                    // Solo se sobrescribe cuando viene un medio válido: abrir una venta y
+                    // guardarla sin tocar ese campo no debe borrar lo que ya estaba.
+                    var medioValido = await MediosRepo.ValidarAsync(con, tx, medio);
+                    if (!string.IsNullOrWhiteSpace(medioValido))
+                    {
+                        var cmdMedio = new SqlCommand(
+                            "UPDATE Clientes SET MedioPublicitario=@m WHERE IdCliente=@id", con, tx);
+                        cmdMedio.Parameters.AddWithValue("@m", medioValido);
+                        cmdMedio.Parameters.AddWithValue("@id", idExistente);
+                        await cmdMedio.ExecuteNonQueryAsync();
+                    }
+
+                    return (idExistente, true);
+                }
             }
 
             var cmdCli = new SqlCommand(@"INSERT INTO Clientes

@@ -18,6 +18,7 @@
     var u = ViewBag.Unidad is Plataforma_ventas.Texto.Unidad uu ? uu : Plataforma_ventas.Texto.UnidadDe(null);
     // El catálogo de medios lo mantiene el administrador; ya no es una lista fija.
     var mediosPub = ViewBag.Medios as List<string> ?? new List<string>();
+    bool hayMedio = ViewBag.HayMedio != null && (bool)ViewBag.HayMedio;
 }
 @section Styles {
 <style>
@@ -120,7 +121,7 @@
                     <tr>
                         <th>#</th><th>Apto</th><th>Torre</th><th>Piso</th><th>Tipo</th>
                         <th>Cliente</th><th>Documento</th><th>Celular</th><th>Asesor</th>
-                        <th>Destino</th><th>Lista</th><th>Precio venta</th><th>Fecha y hora</th><th>Estado</th><th>Acción</th>
+                        <th>Destino</th>@if (hayMedio) { <th>Se enteró por</th> }<th>Lista</th><th>Precio venta</th><th>Fecha y hora</th><th>Estado</th><th>Acción</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -166,6 +167,19 @@
                                     @Html.Raw(destIco) @dest
                                 </div>
                             </td>
+                            @if (hayMedio)
+                            {
+                                <td style="font-size:12px;color:var(--label2)">
+                                    @if (!string.IsNullOrWhiteSpace(v.Medio as string))
+                                    {
+                                        <span>@v.Medio</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:var(--label3)">&#8212;</span>
+                                    }
+                                </td>
+                            }
                             <td style="text-align:center">@v.Lista</td>
                             <td style="font-weight:600;color:var(--azul)">$@string.Format("{0:N0}", long.TryParse(v.PrecioVenta?.ToString(), out long pv) ? pv : 0)</td>
                             <td style="color:var(--label2);font-size:12px">@v.FechaVenta</td>
@@ -189,6 +203,7 @@
                                             data-destino="@v.Destino"
                                             data-precio="@v.PrecioVenta"
                                             data-lista="@v.Lista"
+                                            data-medio="@v.Medio"
                                             data-obs="@v.Observaciones">@((v.Origen as string) == "EXCEL" ? "Completar" : "Editar")</button>
                                     <button type="button" class="btn-anular"
                                             onclick="abrirAnular(@v.Id, '@v.Apto', '@v.Torre')">Anular</button>
@@ -360,6 +375,8 @@
         seleccionar('editAsesor',  d.asesor);
         seleccionar('editDestino', d.destino);
         seleccionar('editLista',   d.lista);
+        // El selector salía siempre en blanco aunque el cliente ya tuviera medio.
+        seleccionar('editMedio',   d.medio || '');
         document.getElementById('editError').style.display = 'none';
         document.getElementById('modalEditar').style.display = 'flex';
         setTimeout(function(){ document.getElementById('editNombre').focus(); }, 50);

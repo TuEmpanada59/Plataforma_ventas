@@ -72,6 +72,12 @@ namespace Plataforma_ventas.Controllers
             var cmdColOrigen = new SqlCommand("SELECT COL_LENGTH('Ventas','Origen')", con);
             bool hayColumnaOrigen = (await cmdColOrigen.ExecuteScalarAsync()) is not (null or DBNull);
 
+            // El medio por el que el comprador se enteró vive en el cliente, y la columna
+            // se agregó con la migración: sin ella la pantalla funciona sin esa dato.
+            var cmdColMedio = new SqlCommand("SELECT COL_LENGTH('Clientes','MedioPublicitario')", con);
+            bool hayMedio = (await cmdColMedio.ExecuteScalarAsync()) is not (null or DBNull);
+            ViewBag.HayMedio = hayMedio;
+
             // COUNT for pagination
             var cmdCount = new SqlCommand(
                 "SELECT COUNT(*) FROM Ventas WHERE IdProyecto = @proy", con);
@@ -117,6 +123,7 @@ namespace Plataforma_ventas.Controllers
                        {(ocultaCliente ? "''" : "ISNULL(c.Direccion,'')")} AS ClienteDireccion,
                        {(ocultaCliente ? "''" : "c.Documento")} AS Documento,
                        {(ocultaCliente ? "''" : "c.Celular")} AS Celular,
+                       {(hayMedio ? "ISNULL(c.MedioPublicitario,'')" : "''")} AS Medio,
                        u.Nombre+' '+u.Apellido AS Asesor,
                        ISNULL(v.Destino,'—') AS Destino,
                        v.PrecioVenta,
@@ -146,6 +153,7 @@ namespace Plataforma_ventas.Controllers
                     Cliente = reader["Cliente"]?.ToString() ?? "",
                     Documento = reader["Documento"]?.ToString() ?? "",
                     Celular = reader["Celular"]?.ToString() ?? "",
+                    Medio = reader["Medio"]?.ToString() ?? "",
                     Asesor = reader["Asesor"]?.ToString() ?? "",
                     Destino = reader["Destino"]?.ToString() ?? "—",
                     PrecioVenta = reader["PrecioVenta"]?.ToString() ?? "0",
