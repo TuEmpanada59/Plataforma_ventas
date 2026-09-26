@@ -29,11 +29,6 @@
     string invEstado = ViewBag.InvEstado as string ?? "";
     int invTotal   = ViewBag.InventarioTotal != null ? (int)ViewBag.InventarioTotal : 0;
     int invTotalSf = ViewBag.InventarioTotalSinFiltro != null ? (int)ViewBag.InventarioTotalSinFiltro : 0;
-    // Los filtros conservan el rango de fechas consultado y vuelven a la misma sección,
-    // para no mandar al administrador de nuevo al principio de un informe largo.
-    Func<string, string, string> ligaInv = (t, e) =>
-        $"/Reportes?desde={Uri.EscapeDataString(fDesde)}&hasta={Uri.EscapeDataString(fHasta)}"
-      + $"&invTorre={Uri.EscapeDataString(t)}&invEstado={Uri.EscapeDataString(e)}#inventario";
     // Actividad comercial: el total del lanzamiento se separa del total del proyecto
     // solo cuando hay inventario que ya venía comprometido antes del evento.
     string actTitulo  = ViewBag.ActividadTitulo as string ?? "Lanzamiento de proyecto nuevo";
@@ -59,6 +54,12 @@
     bool esHoy     = ViewBag.EsHoy != null && (bool)ViewBag.EsHoy;
     string fDesde  = ViewBag.Desde as string ?? "";
     string fHasta  = ViewBag.Hasta as string ?? "";
+    // Los filtros conservan el rango de fechas consultado y vuelven a la misma sección,
+    // para no mandar al administrador de nuevo al principio de un informe largo.
+    Func<string, string, string> ligaInv = (t, e) =>
+        $"/Reportes?desde={Uri.EscapeDataString(fDesde)}&hasta={Uri.EscapeDataString(fHasta)}"
+      + $"&invTorre={Uri.EscapeDataString(t)}&invEstado={Uri.EscapeDataString(e)}#inventario";
+
     string rotulo  = esHoy ? "hoy" : "en el periodo";
     double pctV    = total > 0 ? Math.Round((double)vendidos    / total * 100, 1) : 0;
     double pctD    = total > 0 ? Math.Round((double)disponibles / total * 100, 1) : 0;
