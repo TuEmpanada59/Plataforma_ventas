@@ -265,7 +265,7 @@ namespace Plataforma_ventas.Controllers
                 while (await r.ReadAsync())
                     listaPorArea[r["Metros"]?.ToString() ?? ""] = Convert.ToInt32(r["L"]);
 
-            var inmuebles = new List<dynamic>();
+            var inmuebles = new List<Inventario.Unidad>();
             var cmd = new SqlCommand($@"
                 SELECT i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros, i.Estado,
                        {(hayEtapa ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
@@ -292,71 +292,42 @@ namespace Plataforma_ventas.Controllers
                                 : precioLista;
                     if (precio <= 0) precio = precioLista;
 
-                    inmuebles.Add(new
-                    {
-                        Apto = r["Apto"]?.ToString() ?? "",
-                        Torre = r["Torre"]?.ToString() ?? "",
-                        Piso = r["Piso"]?.ToString() ?? "",
-                        Tipo = r["Tipo"]?.ToString() ?? "",
-                        Metros = metros,
-                        Etapa = r["Etapa"]?.ToString() ?? "",
-                        Estado = est,
-                        Lista = lista,
-                        Precio = precio,
-                    });
+                    inmuebles.Add(new Inventario.Unidad(
+                        Apto: r["Apto"]?.ToString() ?? "",
+                        Torre: r["Torre"]?.ToString() ?? "",
+                        Etapa: r["Etapa"]?.ToString() ?? "",
+                        Piso: r["Piso"]?.ToString() ?? "",
+                        Tipo: r["Tipo"]?.ToString() ?? "",
+                        Metros: metros,
+                        Estado: est,
+                        Lista: lista,
+                        Precio: precio));
                 }
 
             // Los filtros se aplican en memoria: son pocas unidades y así la lista de
             // torres del filtro sale del inventario completo, no del ya filtrado.
-            var torres = inmuebles.Select(i => (string)i.Torre)
-                                  .Where(t => !string.IsNullOrWhiteSpace(t))
-                                  .Distinct().OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
-            ViewBag.Torres = torres;
+            ViewBag.Torres = inmuebles.Select(i => i.Torre)
+                                      .Where(t => !string.IsNullOrWhiteSpace(t))
+                                      .Distinct()
+                                      .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                                      .ToList();
 
             var filtrados = inmuebles.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(torre))
-                filtrados = filtrados.Where(i => string.Equals((string)i.Torre, torre, StringComparison.OrdinalIgnoreCase));
+                filtrados = filtrados.Where(i => string.Equals(i.Torre, torre, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrWhiteSpace(estado))
-                filtrados = filtrados.Where(i => EstadoVisible((string)i.Estado) == estado.ToUpperInvariant());
+                filtrados = filtrados.Where(i => Inventario.EstadoVisible(i.Estado) == estado.ToUpperInvariant());
 
             var resultado = filtrados.ToList();
-            ViewBag.Inmuebles = resultado;
+            ViewBag.TotalFiltrado = resultado.Count;
             ViewBag.TotalSinFiltro = inmuebles.Count;
             ViewBag.FiltroTorre = torre ?? "";
             ViewBag.FiltroEstado = (estado ?? "").ToUpperInvariant();
 
-            // Una columna que está vacía en todas las filas es ruido. Los proyectos de
-            // una sola torre no informan torre, y los de una sola etapa tampoco.
-            ViewBag.HayTorre = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Torre));
-            ViewBag.HayEtapa = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Etapa));
-            ViewBag.HayPiso  = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Piso));
-            ViewBag.HayTipo  = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Tipo));
-
             // El valor de lo que se está mirando: con un filtro puesto responde
             // "cuánto hay en disponible" sin sacar una calculadora.
-            ViewBag.ValorFiltrado = resultado.Sum(i => (long)i.Precio);
-
-            // Agrupado por área, que es como el área comercial piensa el inventario:
-            // no "cuántas unidades quedan" sino "cuántas de 98 metros quedan". Una lista
-            // corrida de setenta unidades obliga a contar a ojo para responder eso.
-            var porArea = resultado
-                .GroupBy(i => (string)i.Metros)
-                .Select(g => new
-                {
-                    Metros = g.Key,
-                    Tipo = g.Select(x => (string)x.Tipo).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t)) ?? "",
-                    Unidades = g.ToList(),
-                    Total = g.Count(),
-                    Vendidas = g.Count(x => (string)x.Estado == "VENDIDO"),
-                    Reservadas = g.Count(x => (string)x.Estado == "RESERVADO"),
-                    Disponibles = g.Count(x => EstadoVisible((string)x.Estado) == "DISPONIBLE"),
-                    Valor = g.Sum(x => (long)x.Precio),
-                    // La lista vigente es la misma para todas las unidades del área.
-                    Lista = g.Select(x => (int)x.Lista).FirstOrDefault(),
-                })
-                .OrderBy(a => AreaNumerica(a.Metros))
-                .ToList<dynamic>();
-            ViewBag.PorArea = porArea;
+            ViewBag.ValorFiltrado = resultado.Sum(i => i.Precio);
+            ViewBag.PorArea = Inventario.Agrupar(resultado);
             return View();
         }
 
@@ -490,22 +461,9 @@ namespace Plataforma_ventas.Controllers
         }
 
         /// <summary>
-        /// Ordena las áreas por su valor y no por texto: alfabéticamente "140.96" va
-        /// antes que "98.17", que no es como nadie lee un cuadro de áreas.
+        /// El estado tal como se muestra. Delega en la regla compartida para que el
+        /// informe del administrador y este perfil no puedan discrepar.
         /// </summary>
-        private static double AreaNumerica(string? metros)
-        {
-            double.TryParse((metros ?? "").Replace(",", "."),
-                            System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture, out double d);
-            return d;
-        }
-
-        /// <summary>
-        /// El estado tal como lo ve dirección: lo que está en proceso todavía no
-        /// compromete la unidad, así que se presenta como disponible.
-        /// </summary>
-        public static string EstadoVisible(string? estado)
-            => estado == "VENDIDO" || estado == "RESERVADO" ? estado! : "DISPONIBLE";
+        public static string EstadoVisible(string? estado) => Inventario.EstadoVisible(estado);
     }
 }

@@ -21,6 +21,9 @@
     var mapaPisos  = ViewBag.MapaPisos as List<Plataforma_ventas.MapaPisos.Torre> ?? new List<Plataforma_ventas.MapaPisos.Torre>();
     var progreso   = ViewBag.Progreso as Plataforma_ventas.ProgresoProyecto
                      ?? new Plataforma_ventas.ProgresoProyecto(0, 0, 0, 0, 0, 0, 0);
+    var invAreas   = ViewBag.InventarioAreas as List<Plataforma_ventas.Inventario.Area>
+                     ?? new List<Plataforma_ventas.Inventario.Area>();
+    long invValor  = ViewBag.InventarioValor != null ? (long)ViewBag.InventarioValor : 0;
     // Actividad comercial: el total del lanzamiento se separa del total del proyecto
     // solo cuando hay inventario que ya venía comprometido antes del evento.
     string actTitulo  = ViewBag.ActividadTitulo as string ?? "Lanzamiento de proyecto nuevo";
@@ -339,6 +342,26 @@
     } else {
         <div class="empty">No hay inmuebles en este proyecto</div>
     }
+</div>
+
+<!-- INVENTARIO POR ÁREA -->
+@* El mismo cuadro que ve dirección. Responde "cuántas de 98 metros quedan", que es lo
+   que ni el mapa ni la lista de inmuebles contestan de un vistazo. *@
+<div class="card">
+    <div class="card-head">
+        <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Etiqueta("#0076E3", 17) Inventario por área</span>
+        <span style="font-size:12px;color:var(--label3)">Valor total: $@string.Format("{0:N0}", invValor)</span>
+    </div>
+    <div class="card-body">
+        @if (invAreas.Count > 0)
+        {
+            @await Html.PartialAsync("_InventarioPorArea", invAreas)
+        }
+        else
+        {
+            <div class="empty">No hay inmuebles en este proyecto</div>
+        }
+    </div>
 </div>
 
 <!-- TABLA VENTAS POR ASESOR -->

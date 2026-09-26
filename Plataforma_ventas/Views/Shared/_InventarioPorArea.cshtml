@@ -1,0 +1,50 @@
+@*
+    Inventario agrupado por área. Mismo componente para el informe del administrador y
+    el perfil de dirección: cada área con sus cifras arriba y sus unidades en rejilla
+    debajo, coloreadas por estado.
+
+    Los estilos (.inv-*) viven en wwwroot/css/platform.css.
+*@
+@model List<Plataforma_ventas.Inventario.Area>
+
+@{
+    // Solo se escribe la ubicación que el proyecto informa: un proyecto de una sola
+    // torre no tiene torre, y ponerle un separador vacío queda sucio.
+    bool hayTorre = Model.Any(a => a.Unidades.Any(u => !string.IsNullOrWhiteSpace(u.Torre)));
+    bool hayEtapa = Model.Any(a => a.Unidades.Any(u => !string.IsNullOrWhiteSpace(u.Etapa)));
+    bool hayPiso  = Model.Any(a => a.Unidades.Any(u => !string.IsNullOrWhiteSpace(u.Piso)));
+}
+
+@foreach (var a in Model)
+{
+    <div class="inv-bloque">
+        <div class="inv-cab">
+            <span class="inv-area">@a.Metros m²</span>
+            @if (!string.IsNullOrEmpty(a.Tipo)) { <span class="inv-tag">Tipo @a.Tipo</span> }
+            <span class="inv-tag">Lista @a.Lista</span>
+            <div class="inv-cifras">
+                <span class="inv-cifra"><span class="inv-num">@a.Total</span><span class="inv-lbl">unidades</span></span>
+                <span class="inv-cifra"><span class="inv-num" style="color:#167A3D">@a.Vendidas</span><span class="inv-lbl">vendidas</span></span>
+                <span class="inv-cifra"><span class="inv-num" style="color:#A66000">@a.Reservadas</span><span class="inv-lbl">reservadas</span></span>
+                <span class="inv-cifra"><span class="inv-num" style="color:#B02030">@a.Disponibles</span><span class="inv-lbl">libres</span></span>
+                <span class="inv-valor">$@string.Format("{0:N0}", a.Valor)</span>
+            </div>
+        </div>
+        <div class="inv-rejilla">
+        @foreach (var u in a.Unidades)
+        {
+            string est = Plataforma_ventas.Inventario.EstadoVisible(u.Estado);
+            var partes = new List<string>();
+            if (hayTorre && !string.IsNullOrWhiteSpace(u.Torre)) partes.Add(u.Torre);
+            if (hayEtapa && !string.IsNullOrWhiteSpace(u.Etapa)) partes.Add(u.Etapa);
+            if (hayPiso  && !string.IsNullOrWhiteSpace(u.Piso))  partes.Add("Piso " + u.Piso);
+            string donde = string.Join(" · ", partes);
+            <div class="inv-celda @est" title="@est">
+                <span class="inv-apto">@u.Apto</span>
+                @if (donde.Length > 0) { <span class="inv-donde">@donde</span> }
+                <span class="inv-precio">$@string.Format("{0:N0}", u.Precio)</span>
+            </div>
+        }
+        </div>
+    </div>
+}

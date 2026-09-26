@@ -162,6 +162,60 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Progreso = new ProgresoProyecto(
                 totalProyecto, totalLanzamiento, vendLanz, vendPrev, resLanz, resPrev, dispProg);
 
+            // ── Inventario por área ────────────────────────────────────────────────
+            // El mismo cuadro que ve dirección. Responde "cuántas de 98 metros quedan",
+            // que es la pregunta que la lista de inmuebles no contesta de un vistazo.
+            var listaPorArea = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var cmdAreasInv = new SqlCommand(
+                "SELECT Metros, ISNULL(ListaActual,1) AS L FROM ProyectoAreaListas WHERE IdProyecto=@id", con);
+            cmdAreasInv.Parameters.AddWithValue("@id", idProy);
+            using (var rA = (SqlDataReader)await cmdAreasInv.ExecuteReaderAsync())
+                while (await rA.ReadAsync())
+                    listaPorArea[rA["Metros"]?.ToString() ?? ""] = Convert.ToInt32(rA["L"]);
+
+            var cmdColEtapaInv = new SqlCommand("SELECT COL_LENGTH('Inmuebles','Etapa')", con);
+            bool hayEtapaInv = (await cmdColEtapaInv.ExecuteScalarAsync()) is not (null or DBNull);
+
+            var unidadesInv = new List<Inventario.Unidad>();
+            var cmdInv = new SqlCommand($@"
+                SELECT i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros, i.Estado,
+                       {(hayEtapaInv ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
+                       i.Lista1, i.Lista2, i.Lista3, i.Lista4, i.Lista5,
+                       ISNULL(i.PrecioReserva,0) AS PrecioReserva,
+                       ISNULL(v.PrecioVenta,0) AS PrecioVenta
+                FROM Inmuebles i
+                LEFT JOIN Ventas v ON v.IdInmueble = i.IdInmuebles AND v.Estado='ACTIVA'
+                WHERE i.IdProyecto=@id", con);
+            cmdInv.Parameters.AddWithValue("@id", idProy);
+            using (var rI = (SqlDataReader)await cmdInv.ExecuteReaderAsync())
+                while (await rI.ReadAsync())
+                {
+                    var metrosInv = rI["Metros"]?.ToString() ?? "";
+                    int listaInv = listaPorArea.TryGetValue(metrosInv, out int li) ? li : 1;
+                    var estInv = rI["Estado"]?.ToString() ?? "";
+                    long precioListaInv = Texto.ParsearPrecio(rI[Listas.ColumnaLista(listaInv)]?.ToString());
+
+                    // Lo vendido vale lo que se pagó, lo reservado lo que se bloqueó, y
+                    // lo libre la lista vigente de su área.
+                    long precioInv = estInv == "VENDIDO" ? Convert.ToInt64(rI["PrecioVenta"])
+                                   : estInv == "RESERVADO" ? Convert.ToInt64(rI["PrecioReserva"])
+                                   : precioListaInv;
+                    if (precioInv <= 0) precioInv = precioListaInv;
+
+                    unidadesInv.Add(new Inventario.Unidad(
+                        Apto: rI["Apto"]?.ToString() ?? "",
+                        Torre: rI["Torre"]?.ToString() ?? "",
+                        Etapa: rI["Etapa"]?.ToString() ?? "",
+                        Piso: rI["Piso"]?.ToString() ?? "",
+                        Tipo: rI["Tipo"]?.ToString() ?? "",
+                        Metros: metrosInv,
+                        Estado: estInv,
+                        Lista: listaInv,
+                        Precio: precioInv));
+                }
+            ViewBag.InventarioAreas = Inventario.Agrupar(unidadesInv);
+            ViewBag.InventarioValor = unidadesInv.Sum(u => u.Precio);
+
             ViewBag.HayLanzamiento = hayEnLanzamiento;
             ViewBag.TotalLanzamiento = totalLanzamiento;
             ViewBag.VendidosLanzamiento = vendidosLanzamiento;

@@ -1,19 +1,14 @@
 @{
     Layout = "~/Views/Shared/_DireccionLayout.cshtml";
     ViewData["Title"] = "Mercurio — Inventario";
-    var porArea   = ViewBag.PorArea as List<dynamic> ?? new List<dynamic>();
-    var inmuebles = ViewBag.Inmuebles as List<dynamic> ?? new List<dynamic>();
-    var torres    = ViewBag.Torres as List<string> ?? new List<string>();
+    var porArea = ViewBag.PorArea as List<Plataforma_ventas.Inventario.Area>
+                  ?? new List<Plataforma_ventas.Inventario.Area>();
+    var torres  = ViewBag.Torres as List<string> ?? new List<string>();
     string fTorre  = ViewBag.FiltroTorre  as string ?? "";
     string fEstado = ViewBag.FiltroEstado as string ?? "";
+    int totalFiltrado  = ViewBag.TotalFiltrado  != null ? (int)ViewBag.TotalFiltrado  : 0;
     int totalSinFiltro = ViewBag.TotalSinFiltro != null ? (int)ViewBag.TotalSinFiltro : 0;
     long valorFiltrado = ViewBag.ValorFiltrado != null ? (long)ViewBag.ValorFiltrado : 0;
-
-    // Columnas vacías en todo el proyecto no se dibujan: una tabla con tres columnas en
-    // blanco se lee peor que una tabla corta.
-    bool hayTorre = ViewBag.HayTorre != null && (bool)ViewBag.HayTorre;
-    bool hayEtapa = ViewBag.HayEtapa != null && (bool)ViewBag.HayEtapa;
-    bool hayPiso  = ViewBag.HayPiso  != null && (bool)ViewBag.HayPiso;
 
     // Los filtros son enlaces, no formularios: navegar no es modificar, y así este
     // perfil no tiene un solo control que envíe datos.
@@ -23,33 +18,14 @@
 @section Styles {
 <partial name="_Estilos" />
 <style>
-    .a-bloque{border:1px solid rgba(0,0,0,0.07);border-radius:16px;overflow:hidden;margin-bottom:14px;background:white;box-shadow:0 2px 10px rgba(0,0,0,0.04);}
-    .a-cab{display:flex;align-items:center;gap:16px;padding:14px 18px;background:linear-gradient(135deg,rgba(0,118,227,0.07),rgba(0,201,255,0.05));border-bottom:1px solid rgba(0,0,0,0.06);flex-wrap:wrap;}
-    .a-area{font-size:18px;font-weight:700;color:var(--azul);letter-spacing:-0.4px;white-space:nowrap;}
-    .a-tipo{font-size:11.5px;color:var(--label2);background:white;border:1px solid var(--sep);border-radius:20px;padding:3px 10px;}
-    .a-cifras{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto;font-size:12px;}
-    .a-cifra{display:flex;align-items:baseline;gap:5px;}
-    .a-num{font-size:15px;font-weight:700;}
-    .a-lbl{color:var(--label2);}
-    .a-valor{font-size:13px;font-weight:700;color:var(--label);white-space:nowrap;}
-    /* Las unidades del área, en rejilla: en un vistazo se ve cuántas quedan libres y
-       dónde están, que es lo que una tabla corrida no deja ver. */
-    .a-rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;padding:14px 18px;}
-    .u-celda{border:1px solid;border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;}
-    .u-apto{font-size:13.5px;font-weight:700;}
-    .u-precio{font-size:11.5px;font-variant-numeric:tabular-nums;}
-    .u-donde{font-size:10.5px;opacity:.75;}
-    .u-celda.DISPONIBLE{background:rgba(230,57,70,0.07);border-color:rgba(230,57,70,0.35);color:#B02030;}
-    .u-celda.VENDIDO{background:rgba(52,199,89,0.10);border-color:rgba(52,199,89,0.45);color:#167A3D;}
-    .u-celda.RESERVADO{background:rgba(255,149,0,0.10);border-color:rgba(255,149,0,0.45);color:#A66000;}
-    .a-total{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:rgba(0,118,227,0.04);border:1px solid rgba(0,118,227,0.18);border-radius:14px;font-size:13px;flex-wrap:wrap;}
+    .inv-total{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:rgba(0,118,227,0.04);border:1px solid rgba(0,118,227,0.18);border-radius:14px;font-size:13px;flex-wrap:wrap;}
 </style>
 }
 
 <div class="d-card">
     <div class="d-head">
         <span class="d-title">Inventario por área</span>
-        <span class="d-nota">@inmuebles.Count de @totalSinFiltro unidades</span>
+        <span class="d-nota">@totalFiltrado de @totalSinFiltro unidades</span>
     </div>
     <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px">
         @if (torres.Count > 1)
@@ -73,43 +49,11 @@
 
 @if (porArea.Count > 0)
 {
-    foreach (var a in porArea)
-    {
-        <div class="a-bloque">
-            <div class="a-cab">
-                <span class="a-area">@a.Metros m²</span>
-                @if (!string.IsNullOrEmpty(a.Tipo as string)) { <span class="a-tipo">Tipo @a.Tipo</span> }
-                <span class="a-tipo">Lista @a.Lista</span>
-                <div class="a-cifras">
-                    <span class="a-cifra"><span class="a-num">@a.Total</span><span class="a-lbl">unidades</span></span>
-                    <span class="a-cifra"><span class="a-num" style="color:#167A3D">@a.Vendidas</span><span class="a-lbl">vendidas</span></span>
-                    <span class="a-cifra"><span class="a-num" style="color:#A66000">@a.Reservadas</span><span class="a-lbl">reservadas</span></span>
-                    <span class="a-cifra"><span class="a-num" style="color:#B02030">@a.Disponibles</span><span class="a-lbl">libres</span></span>
-                    <span class="a-valor">$@string.Format("{0:N0}", (long)a.Valor)</span>
-                </div>
-            </div>
-            <div class="a-rejilla">
-            @foreach (var u in (List<dynamic>)a.Unidades)
-            {
-                string est = Plataforma_ventas.Controllers.DireccionController.EstadoVisible(u.Estado as string);
-                // Dónde está la unidad: solo se escribe lo que el proyecto informa.
-                var partes = new List<string>();
-                if (hayTorre && !string.IsNullOrWhiteSpace(u.Torre as string)) partes.Add(u.Torre as string ?? "");
-                if (hayEtapa && !string.IsNullOrWhiteSpace(u.Etapa as string)) partes.Add(u.Etapa as string ?? "");
-                if (hayPiso  && !string.IsNullOrWhiteSpace(u.Piso  as string)) partes.Add("Piso " + (u.Piso as string));
-                string donde = string.Join(" · ", partes);
-                <div class="u-celda @est" title="@est">
-                    <span class="u-apto">@u.Apto</span>
-                    @if (donde.Length > 0) { <span class="u-donde">@donde</span> }
-                    <span class="u-precio">$@string.Format("{0:N0}", (long)u.Precio)</span>
-                </div>
-            }
-            </div>
-        </div>
-    }
+    @* El mismo componente que ve el administrador en su informe. *@
+    @await Html.PartialAsync("_InventarioPorArea", porArea)
 
-    <div class="a-total">
-        <span>@inmuebles.Count unidades en @porArea.Count área@(porArea.Count == 1 ? "" : "s")</span>
+    <div class="inv-total">
+        <span>@totalFiltrado unidades en @porArea.Count área@(porArea.Count == 1 ? "" : "s")</span>
         <strong style="font-size:15px">$@string.Format("{0:N0}", valorFiltrado)</strong>
     </div>
     <div class="d-nota" style="padding:10px 4px">

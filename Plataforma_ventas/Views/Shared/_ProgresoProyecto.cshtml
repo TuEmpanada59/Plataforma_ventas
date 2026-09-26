@@ -29,13 +29,13 @@
                 @p.Vendidas / @p.Total
                 @if (p.HaySeparacion)
                 {
-                    <span class="pp-detalle">@p.VendidasLanzamiento en el lanzamiento · @p.VendidasPrevias ya venían</span>
+                    <span class="pp-detalle">@p.VendidasLanzamiento en el lanzamiento · @p.VendidasPrevias del archivo</span>
                 }
             </span>
         </div>
         <div class="pp-track">
             <span class="pp-fill pp-vend" style="width:@wVendLanz%" title="@p.VendidasLanzamiento vendidas en el lanzamiento"></span>
-            <span class="pp-fill pp-vend-prev" style="width:@wVendPrev%" title="@p.VendidasPrevias ya venían vendidas"></span>
+            <span class="pp-fill pp-vend-prev" style="width:@wVendPrev%" title="@p.VendidasPrevias llegaron vendidas en el archivo"></span>
         </div>
     </div>
 
@@ -85,8 +85,8 @@
 
         <div class="pp-leyenda">
             <span><i class="pp-m pp-vend"></i>Logrado en el lanzamiento</span>
-            <span><i class="pp-m pp-vend-prev"></i>Ya venía comprometido</span>
-            <span class="pp-aparte">@p.Previas unidad@(p.Previas == 1 ? "" : "es") no cuenta@(p.Previas == 1 ? "" : "n") como resultado del evento</span>
+            <span><i class="pp-m pp-vend-prev"></i>Del archivo del proyecto</span>
+            <span class="pp-aparte">@p.Previas unidad@(p.Previas == 1 ? "" : "es") llegaron comprometidas en el archivo y no cuentan como resultado del evento</span>
         </div>
     }
 </div>
