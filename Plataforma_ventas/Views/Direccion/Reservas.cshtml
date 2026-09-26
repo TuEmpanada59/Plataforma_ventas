@@ -1,0 +1,105 @@
+@{
+    Layout = "~/Views/Shared/_DireccionLayout.cshtml";
+    ViewData["Title"] = "Mercurio — Reservas";
+    var reservas = ViewBag.Reservas as List<dynamic> ?? new List<dynamic>();
+    long valorReservado = ViewBag.ValorReservado != null ? (long)ViewBag.ValorReservado : 0;
+
+    // A dirección no le sirve la tabla operativa del administrador, que existe para
+    // reasignar y liberar. Le sirve ver cuánto valor está comprometido y cuáles llevan
+    // demasiado tiempo quietas, así que las reservas se ordenan y se marcan por edad.
+    Func<int, string> antiguedad = h =>
+        h >= 48 ? "vieja" : h >= 24 ? "media" : "nueva";
+    Func<int, string> texto = h =>
+        h < 1 ? "hace menos de una hora"
+      : h < 24 ? $"hace {h} hora{(h == 1 ? "" : "s")}"
+      : $"hace {h / 24} día{(h / 24 == 1 ? "" : "s")}";
+}
+@section Styles {
+<partial name="_Estilos" />
+<style>
+    .r-lista{display:flex;flex-direction:column;}
+    .r-item{display:flex;align-items:flex-start;gap:16px;padding:15px 18px;border-bottom:1px solid rgba(0,0,0,0.05);}
+    .r-item:last-child{border-bottom:none;}
+    .r-marca{width:4px;align-self:stretch;border-radius:4px;flex-shrink:0;}
+    .r-marca.nueva{background:#1EA851;}
+    .r-marca.media{background:#FF9500;}
+    .r-marca.vieja{background:var(--rojo);}
+    .r-unidad{min-width:104px;}
+    .r-apto{font-size:15px;font-weight:700;color:var(--label);}
+    .r-sub{font-size:11.5px;color:var(--label3);}
+    .r-medio{flex:1;min-width:0;}
+    .r-asesor{font-size:13px;color:var(--label);}
+    .r-sin{color:#A66000;font-weight:600;}
+    .r-obs{font-size:12px;color:var(--label2);background:var(--fill3);border-radius:8px;padding:6px 10px;margin-top:6px;line-height:1.45;}
+    .r-der{text-align:right;flex-shrink:0;}
+    .r-precio{font-size:14px;font-weight:700;color:var(--label);white-space:nowrap;}
+    .r-tiempo{font-size:11.5px;margin-top:3px;white-space:nowrap;}
+    .r-tiempo.nueva{color:#167A3D;}
+    .r-tiempo.media{color:#A66000;}
+    .r-tiempo.vieja{color:var(--rojo);font-weight:600;}
+</style>
+}
+
+<div class="d-kpis">
+    <div class="d-kpi">
+        <div class="d-num" style="color:#CC7700">@reservas.Count</div>
+        <div class="d-lbl">Reservas activas</div>
+    </div>
+    <div class="d-kpi">
+        <div class="d-num chico" style="color:#CC7700">$@string.Format("{0:N0}", valorReservado)</div>
+        <div class="d-lbl">Valor comprometido</div>
+    </div>
+    <div class="d-kpi">
+        <div class="d-num" style="color:var(--rojo)">@reservas.Count(r => (int)r.Horas >= 48)</div>
+        <div class="d-lbl">Con más de dos días</div>
+        <div class="d-pie">conviene revisarlas</div>
+    </div>
+</div>
+
+<div class="d-card">
+    <div class="d-head">
+        <span class="d-title">Reservas, de la más antigua a la más reciente</span>
+        <span class="d-nota">La franja de color indica cuánto llevan</span>
+    </div>
+    @if (reservas.Count > 0)
+    {
+        <div class="r-lista">
+        @foreach (var r in reservas)
+        {
+            int horas = (int)r.Horas;
+            string edad = antiguedad(horas);
+            <div class="r-item">
+                <span class="r-marca @edad"></span>
+                <div class="r-unidad">
+                    <div class="r-apto">@r.Apto</div>
+                    <div class="r-sub">@r.Torre @(string.IsNullOrEmpty(r.Etapa as string) ? "" : "· " + r.Etapa)</div>
+                    <div class="r-sub">@r.Metros m²</div>
+                </div>
+                <div class="r-medio">
+                    @if (string.IsNullOrEmpty(r.Asesor as string))
+                    {
+                        <div class="r-asesor r-sin">Sin asesor asignado</div>
+                    }
+                    else
+                    {
+                        <div class="r-asesor">@r.Asesor</div>
+                    }
+                    <div class="r-sub">Reservada el @r.Fecha</div>
+                    @if (!string.IsNullOrEmpty(r.Observacion as string))
+                    {
+                        <div class="r-obs">@r.Observacion</div>
+                    }
+                </div>
+                <div class="r-der">
+                    <div class="r-precio">$@string.Format("{0:N0}", (long)r.Precio)</div>
+                    <div class="r-tiempo @edad">@texto(horas)</div>
+                </div>
+            </div>
+        }
+        </div>
+    }
+    else
+    {
+        <div class="d-vacio">No hay reservas activas en este proyecto.</div>
+    }
+</div>

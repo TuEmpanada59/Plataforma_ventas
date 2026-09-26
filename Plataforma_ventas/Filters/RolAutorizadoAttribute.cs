@@ -32,9 +32,12 @@ namespace Plataforma_ventas.Filters
 
             if (_roles.Length > 0 && !_roles.Contains(rol) && !esSuperAdmin)
             {
-                context.Result = (rol == Roles.Administrador || rol == Roles.Direccion)
-                    ? new RedirectToActionResult("Index", "Dashboard", null)
-                    : new RedirectToActionResult("Index", "Vendedor", null);
+                context.Result = rol switch
+                {
+                    Roles.Administrador => new RedirectToActionResult("Index", "Dashboard", null),
+                    Roles.Direccion     => new RedirectToActionResult("Index", "Direccion", null),
+                    _                   => new RedirectToActionResult("Index", "Vendedor", null),
+                };
                 return;
             }
 

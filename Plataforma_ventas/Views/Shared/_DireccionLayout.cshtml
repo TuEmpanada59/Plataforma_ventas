@@ -1,0 +1,101 @@
+@*
+    Layout del rol Dirección.
+
+    Deliberadamente sin nada que no sea navegar: no hay selector de proyecto, ni
+    acciones rápidas, ni menús de gestión. Dirección consulta un lanzamiento, y una
+    pantalla llena de botones apagados se lee como una plataforma rota.
+*@
+@{
+    string proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
+    string nombre     = ViewBag.Nombre   as string ?? "";
+    string apellido   = ViewBag.Apellido as string ?? "";
+    string iniciales  = ((nombre.Length >= 1 ? nombre.Substring(0,1) : "") +
+                         (apellido.Length >= 1 ? apellido.Substring(0,1) : "")).ToUpper();
+    if (string.IsNullOrEmpty(iniciales)) iniciales = "?";
+    string activeNav = ViewBag.ActiveNav as string ?? "";
+    string tbBread   = ViewBag.TbBread   as string ?? "Resumen";
+    bool sinProyecto = proyActivo == "Sin proyecto";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>@(ViewData["Title"] as string ?? "Mercurio — Dirección")</title>
+  <link rel="icon" type="image/png" href="~/favicon.png" asp-append-version="true"/>
+  <link rel="icon" href="~/favicon.ico" sizes="any"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="~/css/platform.css" asp-append-version="true"/>
+  <style>
+    .dir-cab{background:linear-gradient(135deg,var(--azul),var(--celeste));border-radius:20px;padding:20px 24px;color:white;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,118,227,0.22);}
+    .dir-cab-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+    .dir-proy{font-size:21px;font-weight:700;letter-spacing:-0.4px;}
+    .dir-sub{font-size:12.5px;color:rgba(255,255,255,0.78);margin-top:2px;}
+    .dir-chip{background:rgba(255,255,255,0.18);border-radius:20px;padding:5px 13px;font-size:11.5px;font-weight:700;letter-spacing:.03em;white-space:nowrap;}
+    .dir-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+    .dir-tab{font-size:13px;font-weight:600;padding:9px 18px;border-radius:12px;background:var(--glass);border:1px solid var(--gb);color:var(--label2);text-decoration:none;transition:all .18s;}
+    .dir-tab:hover{border-color:var(--blue);color:var(--blue);}
+    .dir-tab.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));border-color:transparent;color:white;box-shadow:0 2px 10px rgba(0,96,187,0.25);}
+    .dir-top{display:flex;align-items:center;justify-content:space-between;padding:12px 0 6px;gap:12px;flex-wrap:wrap;}
+    .dir-usuario{display:flex;align-items:center;gap:10px;}
+    .dir-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--azul),var(--celeste));color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+    .dir-nom{font-size:13px;font-weight:600;color:var(--label);}
+    .dir-rol{font-size:11px;color:var(--label3);}
+    .dir-salir{font-size:12px;font-weight:600;color:var(--label2);text-decoration:none;border:1px solid var(--sep);border-radius:10px;padding:7px 14px;}
+    .dir-salir:hover{border-color:var(--rojo);color:var(--rojo);}
+    .dir-marco{max-width:1280px;margin:0 auto;padding:0 20px 40px;}
+    .dir-logo{height:34px;object-fit:contain;mix-blend-mode:multiply;}
+    .dir-vacio{background:rgba(255,149,0,0.07);border:1px solid rgba(255,149,0,0.3);border-radius:16px;padding:24px;font-size:13.5px;color:#8a5200;line-height:1.6;}
+  </style>
+  @RenderSection("Styles", required: false)
+</head>
+<body>
+<div class="dir-marco">
+
+  <div class="dir-top">
+    <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" class="dir-logo"/>
+    <div class="dir-usuario">
+      <div class="dir-av">@iniciales</div>
+      <div>
+        <div class="dir-nom">@nombre @apellido</div>
+        <div class="dir-rol">Dirección · solo consulta</div>
+      </div>
+      <a class="dir-salir" href="/Account/Logout">Salir</a>
+    </div>
+  </div>
+
+  <div class="dir-cab">
+    <div class="dir-cab-top">
+      <div>
+        <div class="dir-proy">@proyActivo</div>
+        <div class="dir-sub">@tbBread</div>
+      </div>
+      <div class="dir-chip">SOLO CONSULTA</div>
+    </div>
+  </div>
+
+  @if (sinProyecto)
+  {
+    <div class="dir-vacio">
+      Tu cuenta no tiene un proyecto asignado todavía. Pídele al administrador que te
+      asigne el lanzamiento que vas a seguir; hasta entonces no hay nada que mostrar.
+    </div>
+  }
+  else
+  {
+    @* Lo único con lo que se puede interactuar: moverse entre pestañas. *@
+    <div class="dir-tabs">
+      <a href="/Direccion" class="dir-tab @(activeNav=="resumen"?"activa":"")">Resumen</a>
+      <a href="/Direccion/Mapa" class="dir-tab @(activeNav=="mapa"?"activa":"")">Mapa de ventas</a>
+      <a href="/Direccion/Inventario" class="dir-tab @(activeNav=="inventario"?"activa":"")">Inventario</a>
+      <a href="/Direccion/Ventas" class="dir-tab @(activeNav=="ventas"?"activa":"")">Ventas</a>
+      <a href="/Direccion/Reservas" class="dir-tab @(activeNav=="reservas"?"activa":"")">Reservas</a>
+    </div>
+
+    @RenderBody()
+  }
+
+</div>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

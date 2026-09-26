@@ -13,7 +13,7 @@ namespace Plataforma_ventas.Controllers
     /// Administrator controller for property and project management:
     /// viewing/editing properties, reservations, sales confirmation, and list escalation.
     /// </summary>
-    [RolAutorizado("Administrador", "Direccion")]
+    [RolAutorizado("Administrador")]
     public class InmueblesController : Controller
     {
         /// <summary>

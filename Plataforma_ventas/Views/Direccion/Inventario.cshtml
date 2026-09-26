@@ -1,0 +1,76 @@
+@{
+    Layout = "~/Views/Shared/_DireccionLayout.cshtml";
+    ViewData["Title"] = "Mercurio — Inventario";
+    var inmuebles = ViewBag.Inmuebles as List<dynamic> ?? new List<dynamic>();
+    var torres    = ViewBag.Torres as List<string> ?? new List<string>();
+    string fTorre  = ViewBag.FiltroTorre  as string ?? "";
+    string fEstado = ViewBag.FiltroEstado as string ?? "";
+    int totalSinFiltro = ViewBag.TotalSinFiltro != null ? (int)ViewBag.TotalSinFiltro : 0;
+
+    // Los filtros son enlaces, no formularios: navegar no es modificar, y así este
+    // perfil no tiene un solo control que envíe datos.
+    Func<string, string, string> liga = (t, e) =>
+        "/Direccion/Inventario?torre=" + Uri.EscapeDataString(t) + "&estado=" + Uri.EscapeDataString(e);
+}
+@section Styles { <partial name="_Estilos" /> }
+
+<div class="d-card">
+    <div class="d-head">
+        <span class="d-title">Inventario</span>
+        <span class="d-nota">@inmuebles.Count de @totalSinFiltro unidades</span>
+    </div>
+    <div style="padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.05);display:flex;flex-direction:column;gap:10px">
+        @if (torres.Count > 1)
+        {
+            <div class="d-filtros">
+                <a href="@liga("", fEstado)" class="d-chip @(fTorre == "" ? "on" : "")">Todas las torres</a>
+                @foreach (var t in torres)
+                {
+                    <a href="@liga(t, fEstado)" class="d-chip @(fTorre == t ? "on" : "")">@t</a>
+                }
+            </div>
+        }
+        <div class="d-filtros">
+            <a href="@liga(fTorre, "")" class="d-chip @(fEstado == "" ? "on" : "")">Todos</a>
+            <a href="@liga(fTorre, "DISPONIBLE")" class="d-chip @(fEstado == "DISPONIBLE" ? "on" : "")">Disponibles</a>
+            <a href="@liga(fTorre, "VENDIDO")" class="d-chip @(fEstado == "VENDIDO" ? "on" : "")">Vendidas</a>
+            <a href="@liga(fTorre, "RESERVADO")" class="d-chip @(fEstado == "RESERVADO" ? "on" : "")">Reservadas</a>
+        </div>
+    </div>
+    @if (inmuebles.Count > 0)
+    {
+        <div class="d-tabla-wrap">
+            <table class="d-tabla">
+                <thead>
+                    <tr>
+                        <th>Unidad</th><th>Torre</th><th>Piso</th><th>Tipo</th><th>Área</th>
+                        <th>Estado</th><th class="d-der">Lista</th><th class="d-der">Precio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var i in inmuebles)
+                {
+                    string est = Plataforma_ventas.Controllers.DireccionController.EstadoVisible(i.Estado as string);
+                    <tr>
+                        <td style="font-weight:600">@i.Apto</td>
+                        <td>@i.Torre</td>
+                        <td>@i.Piso</td>
+                        <td>@i.Tipo</td>
+                        <td>@i.Metros m²</td>
+                        <td><span class="d-est @est">@est</span></td>
+                        <td class="d-der">@i.Lista</td>
+                        <td class="d-der" style="font-weight:600">$@string.Format("{0:N0}", (long)i.Precio)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div style="padding:12px 18px" class="d-nota">
+            En lo vendido y lo reservado el precio es el que se pactó. En lo disponible, el de la lista vigente para esa área.
+        </div>
+    }
+    else
+    {
+        <div class="d-vacio">No hay unidades con ese filtro.</div>
+    }
+</div>

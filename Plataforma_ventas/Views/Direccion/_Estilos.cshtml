@@ -1,0 +1,35 @@
+@* Estilos compartidos por las pantallas de Dirección. Una sola copia para que las
+   cinco pestañas se vean como una sola aplicación y no como cinco parecidas. *@
+<style>
+    @@keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .d-card{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:18px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.05);animation:fu .3s ease both;margin-bottom:16px;}
+    .d-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.06);gap:10px;flex-wrap:wrap;}
+    .d-title{font-size:15px;font-weight:700;color:var(--label);}
+    .d-nota{font-size:11.5px;color:var(--label3);}
+    .d-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
+    .d-kpi{background:white;border:1px solid rgba(0,0,0,0.06);border-radius:16px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.04);animation:fu .3s ease both;}
+    .d-num{font-size:30px;font-weight:200;letter-spacing:-1.4px;line-height:1;}
+    .d-num.chico{font-size:19px;font-weight:500;letter-spacing:-0.6px;}
+    .d-lbl{font-size:11.5px;color:var(--label2);margin-top:5px;}
+    .d-pie{font-size:11px;color:var(--label3);margin-top:2px;}
+    .d-tabla-wrap{overflow-x:auto;}
+    .d-tabla{width:100%;border-collapse:collapse;}
+    .d-tabla th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--label3);padding:11px 14px;text-align:left;border-bottom:1px solid rgba(0,0,0,0.06);white-space:nowrap;}
+    .d-tabla td{padding:11px 14px;font-size:13px;color:var(--label);border-bottom:1px solid rgba(0,0,0,0.04);}
+    .d-tabla tr:last-child td{border-bottom:none;}
+    .d-tabla tbody tr:hover td{background:rgba(0,118,227,0.03);}
+    .d-der{text-align:right;}
+    .d-est{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;}
+    .d-est.DISPONIBLE{background:rgba(230,57,70,0.10);color:#B02030;}
+    .d-est.VENDIDO{background:rgba(52,199,89,0.14);color:#167A3D;}
+    .d-est.RESERVADO{background:rgba(255,149,0,0.14);color:#A66000;}
+    .d-barra{height:8px;border-radius:20px;background:var(--fill3);overflow:hidden;display:flex;}
+    .d-barra span{display:block;height:100%;}
+    .d-vacio{padding:34px 18px;text-align:center;font-size:13px;color:var(--label3);}
+    .d-filtros{display:flex;gap:7px;flex-wrap:wrap;}
+    .d-chip{font-size:12px;font-weight:600;padding:5px 13px;border-radius:20px;background:var(--fill3);border:1px solid var(--sep);color:var(--label2);text-decoration:none;}
+    .d-chip:hover{border-color:var(--blue);color:var(--blue);}
+    .d-chip.on{background:var(--blue);border-color:var(--blue);color:white;}
+    .d-dos{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @@media(max-width:900px){.d-dos{grid-template-columns:1fr;}}
+</style>

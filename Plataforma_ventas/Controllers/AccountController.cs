@@ -353,9 +353,13 @@ namespace Plataforma_ventas.Controllers
         private IActionResult RedirectSegunRol()
         {
             var rol = HttpContext.Session.GetString("Rol");
-            return (rol == "Administrador" || rol == "SuperAdministrador")
-                ? RedirectToAction("Index", "Dashboard")
-                : RedirectToAction("Index", "Vendedor");
+            if (rol == Roles.Administrador || rol == Roles.SuperAdministrador)
+                return RedirectToAction("Index", "Dashboard");
+            // Dirección tiene su propia área: un espacio de consulta, no las pantallas
+            // de gestión con los botones escondidos.
+            if (rol == Roles.Direccion)
+                return RedirectToAction("Index", "Direccion");
+            return RedirectToAction("Index", "Vendedor");
         }
     }
 }

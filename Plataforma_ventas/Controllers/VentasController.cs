@@ -14,7 +14,7 @@ namespace Plataforma_ventas.Controllers
     /// Administrator controller for viewing and exporting sales records
     /// for the active project.
     /// </summary>
-    [RolAutorizado("Administrador", "Direccion")]
+    [RolAutorizado("Administrador")]
     public class VentasController : Controller
     {
         private readonly string _conn;

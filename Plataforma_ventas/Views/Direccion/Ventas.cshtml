@@ -1,0 +1,68 @@
+@{
+    Layout = "~/Views/Shared/_DireccionLayout.cshtml";
+    ViewData["Title"] = "Mercurio — Ventas";
+    var ventas = ViewBag.Ventas as List<dynamic> ?? new List<dynamic>();
+    long total = ventas.Sum(v => (long)v.Precio);
+}
+@section Styles { <partial name="_Estilos" /> }
+
+<div class="d-kpis">
+    <div class="d-kpi">
+        <div class="d-num" style="color:#1EA851">@ventas.Count</div>
+        <div class="d-lbl">Ventas registradas</div>
+    </div>
+    <div class="d-kpi">
+        <div class="d-num chico" style="color:#1EA851">$@string.Format("{0:N0}", total)</div>
+        <div class="d-lbl">Valor total</div>
+    </div>
+</div>
+
+<div class="d-card">
+    <div class="d-head">
+        <span class="d-title">Qué se vendió</span>
+        <span class="d-nota">Unidad, asesor, lista aplicada y precio</span>
+    </div>
+    @if (ventas.Count > 0)
+    {
+        <div class="d-tabla-wrap">
+            <table class="d-tabla">
+                <thead>
+                    <tr>
+                        <th>Unidad</th><th>Torre</th><th>Tipo</th><th>Área</th>
+                        <th>Asesor</th><th>Destino</th>
+                        <th class="d-der">Lista</th><th class="d-der">Precio</th><th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var v in ventas)
+                {
+                    <tr>
+                        <td style="font-weight:600">@v.Apto</td>
+                        <td>@v.Torre</td>
+                        <td>@v.Tipo</td>
+                        <td>@v.Metros m²</td>
+                        <td>
+                            @v.Asesor
+                            @if ((bool)v.DelExcel)
+                            {
+                                <span class="d-est" style="background:var(--fill2);color:var(--label3);margin-left:6px">Del Excel</span>
+                            }
+                        </td>
+                        <td style="color:var(--label2)">@v.Destino</td>
+                        <td class="d-der">@v.Lista</td>
+                        <td class="d-der" style="font-weight:700">$@string.Format("{0:N0}", (long)v.Precio)</td>
+                        <td style="color:var(--label3);white-space:nowrap">@v.Fecha</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div style="padding:12px 18px" class="d-nota">
+            Los datos del comprador no se muestran en este perfil.
+        </div>
+    }
+    else
+    {
+        <div class="d-vacio">Todavía no hay ventas en este proyecto.</div>
+    }
+</div>

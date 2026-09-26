@@ -1,0 +1,38 @@
+@{
+    Layout = "~/Views/Shared/_DireccionLayout.cshtml";
+    ViewData["Title"] = "Mercurio — Mapa de ventas";
+    var mapaPisos = ViewBag.MapaPisos as List<Plataforma_ventas.MapaPisos.Torre>
+                    ?? new List<Plataforma_ventas.MapaPisos.Torre>();
+    int totalUnidades = ViewBag.TotalUnidades != null ? (int)ViewBag.TotalUnidades : 0;
+}
+@section Styles { <partial name="_Estilos" /> }
+
+<div class="d-card">
+    <div class="d-head">
+        <span class="d-title">Mapa de ventas</span>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--label2)">
+            <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--rojo);margin-right:4px"></i>Disponible</span>
+            <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#1EA851;margin-right:4px"></i>Vendido</span>
+            <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#CC7700;margin-right:4px"></i>Reservado</span>
+        </div>
+    </div>
+    @if (mapaPisos.Count > 0)
+    {
+        @* El mismo componente que ven el administrador y el asesor. *@
+        <div id="mapaPisos" data-proyecto="@(ViewBag.ProyectoIdMapa ?? 0)">
+            @await Html.PartialAsync("_MapaPisos", mapaPisos)
+        </div>
+        <div style="padding:6px 18px 16px" class="d-nota">
+            @totalUnidades unidades. El mapa cambia solo cuando alguien reserva o vende: no hay que recargar.
+        </div>
+    }
+    else
+    {
+        <div class="d-vacio">Este proyecto aún no tiene inmuebles cargados.</div>
+    }
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script src="~/js/mapa-pisos.js" asp-append-version="true"></script>
+}

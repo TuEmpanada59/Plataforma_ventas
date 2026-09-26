@@ -1,0 +1,140 @@
+@{
+    Layout = "~/Views/Shared/_DireccionLayout.cshtml";
+    ViewData["Title"] = "Mercurio — Resumen";
+
+    int total       = ViewBag.Total            != null ? (int)ViewBag.Total            : 0;
+    int disponibles = ViewBag.Disponibles      != null ? (int)ViewBag.Disponibles      : 0;
+    int vendidos    = ViewBag.Vendidos         != null ? (int)ViewBag.Vendidos         : 0;
+    int reservados  = ViewBag.Reservados       != null ? (int)ViewBag.Reservados       : 0;
+    int totalLanz   = ViewBag.TotalLanzamiento != null ? (int)ViewBag.TotalLanzamiento : 0;
+    int historico   = ViewBag.Historico        != null ? (int)ViewBag.Historico        : 0;
+    long valorVend  = ViewBag.ValorVendido     != null ? (long)ViewBag.ValorVendido    : 0;
+    long valorRes   = ViewBag.ValorReservado   != null ? (long)ViewBag.ValorReservado  : 0;
+    int ventasHoy   = ViewBag.VentasHoy        != null ? (int)ViewBag.VentasHoy        : 0;
+    long valorHoy   = ViewBag.ValorHoy         != null ? (long)ViewBag.ValorHoy        : 0;
+    var asesores    = ViewBag.Asesores   as List<dynamic> ?? new List<dynamic>();
+    var tipologias  = ViewBag.Tipologias as List<dynamic> ?? new List<dynamic>();
+    string actividad = ViewBag.ActividadTitulo as string ?? "";
+    string etapa     = ViewBag.EtapaLanzada    as string ?? "";
+
+    // El avance se mide contra lo que salió a vender en este evento, no contra el
+    // proyecto entero: si no, un lanzamiento que arranca con la mitad comprometida
+    // muestra un avance que nadie hizo.
+    int colocado = vendidos + reservados;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    double pctAvance = totalLanz > 0 ? (double)vendidos * 100 / totalLanz : 0;
+    string wVend = totalLanz > 0 ? ((double)vendidos   * 100 / totalLanz).ToString("0.##", inv) : "0";
+    string wRes  = totalLanz > 0 ? ((double)reservados * 100 / totalLanz).ToString("0.##", inv) : "0";
+    string wDisp = totalLanz > 0 ? ((double)disponibles* 100 / totalLanz).ToString("0.##", inv) : "0";
+}
+@section Styles { <partial name="_Estilos" /> }
+
+<div class="d-kpis">
+    <div class="d-kpi">
+        <div class="d-num" style="color:var(--azul)">@total</div>
+        <div class="d-lbl">Unidades del proyecto</div>
+        @if (historico > 0) { <div class="d-pie">@totalLanz en este lanzamiento</div> }
+    </div>
+    <div class="d-kpi">
+        <div class="d-num" style="color:#1EA851">@vendidos</div>
+        <div class="d-lbl">Vendidas</div>
+        <div class="d-pie">@string.Format("{0:0.#}", pctAvance)% del lanzamiento</div>
+    </div>
+    <div class="d-kpi">
+        <div class="d-num" style="color:#CC7700">@reservados</div>
+        <div class="d-lbl">Reservadas</div>
+        <div class="d-pie">$@string.Format("{0:N0}", valorRes) comprometidos</div>
+    </div>
+    <div class="d-kpi">
+        <div class="d-num" style="color:var(--rojo)">@disponibles</div>
+        <div class="d-lbl">Disponibles</div>
+        <div class="d-pie">por colocar</div>
+    </div>
+    <div class="d-kpi">
+        <div class="d-num chico" style="color:#1EA851">$@string.Format("{0:N0}", valorVend)</div>
+        <div class="d-lbl">Valor vendido</div>
+        @if (ventasHoy > 0) { <div class="d-pie">Hoy: @ventasHoy por $@string.Format("{0:N0}", valorHoy)</div> }
+    </div>
+</div>
+
+<div class="d-card">
+    <div class="d-head">
+        <span class="d-title">Avance del lanzamiento</span>
+        @if (!string.IsNullOrEmpty(actividad))
+        {
+            <span class="d-nota">@actividad@(string.IsNullOrEmpty(etapa) ? "" : " · " + etapa)</span>
+        }
+    </div>
+    <div style="padding:18px">
+        <div class="d-barra" title="@vendidos vendidas, @reservados reservadas, @disponibles disponibles">
+            <span style="width:@wVend%;background:linear-gradient(90deg,#1EA851,#34C759)"></span>
+            <span style="width:@wRes%;background:linear-gradient(90deg,#CC7700,#FF9500)"></span>
+            <span style="width:@wDisp%;background:var(--fill2)"></span>
+        </div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--label2)">
+            <span><strong style="color:#1EA851">@vendidos</strong> vendidas</span>
+            <span><strong style="color:#CC7700">@reservados</strong> reservadas</span>
+            <span><strong style="color:var(--rojo)">@disponibles</strong> disponibles</span>
+            <span><strong>@colocado de @totalLanz</strong> colocadas en el lanzamiento</span>
+        </div>
+        @if (historico > 0)
+        {
+            <div class="d-pie" style="margin-top:10px">
+                @historico unidad@(historico == 1 ? "" : "es") ya venía@(historico == 1 ? "" : "n") comprometida@(historico == 1 ? "" : "s") de antes
+                del evento y no cuenta@(historico == 1 ? "" : "n") en el avance.
+            </div>
+        }
+    </div>
+</div>
+
+<div class="d-dos">
+    <div class="d-card">
+        <div class="d-head">
+            <span class="d-title">Ventas por asesor</span>
+            <span class="d-nota">Solo quienes vendieron aquí</span>
+        </div>
+        @if (asesores.Count > 0)
+        {
+            <div class="d-tabla-wrap">
+                <table class="d-tabla">
+                    <thead><tr><th>Asesor</th><th class="d-der">Ventas</th><th class="d-der">Valor</th></tr></thead>
+                    <tbody>
+                    @foreach (var a in asesores)
+                    {
+                        <tr>
+                            <td>@a.Nombre</td>
+                            <td class="d-der" style="font-weight:700;color:var(--blue)">@a.Ventas</td>
+                            <td class="d-der">$@string.Format("{0:N0}", (long)a.Valor)</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else { <div class="d-vacio">Todavía no hay ventas registradas.</div> }
+    </div>
+
+    <div class="d-card">
+        <div class="d-head"><span class="d-title">Por área</span></div>
+        @if (tipologias.Count > 0)
+        {
+            <div class="d-tabla-wrap">
+                <table class="d-tabla">
+                    <thead><tr><th>Área</th><th class="d-der">Total</th><th class="d-der">Vendidas</th><th class="d-der">Reservadas</th></tr></thead>
+                    <tbody>
+                    @foreach (var t in tipologias)
+                    {
+                        <tr>
+                            <td>@t.Metros m²</td>
+                            <td class="d-der">@t.Total</td>
+                            <td class="d-der" style="color:#167A3D;font-weight:600">@t.Vendidos</td>
+                            <td class="d-der" style="color:#A66000;font-weight:600">@t.Reservados</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else { <div class="d-vacio">Sin inmuebles cargados.</div> }
+    </div>
+</div>

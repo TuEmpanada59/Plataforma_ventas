@@ -13,7 +13,7 @@ using DColor = System.Drawing.Color;
 
 namespace Plataforma_ventas.Controllers
 {
-    [RolAutorizado("Administrador", "Direccion")]
+    [RolAutorizado("Administrador")]
     public class ReportesController : Controller
     {
         private readonly string _conn;

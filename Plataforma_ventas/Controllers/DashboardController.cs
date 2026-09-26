@@ -10,7 +10,7 @@ namespace Plataforma_ventas.Controllers
     /// Administrator dashboard controller: shows project KPIs and manages
     /// the global list configuration for the active project.
     /// </summary>
-    [RolAutorizado("Administrador", "Direccion")]
+    [RolAutorizado("Administrador")]
     public class DashboardController : Controller
     {
         private readonly string _conn;
