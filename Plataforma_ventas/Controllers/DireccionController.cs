@@ -409,13 +409,15 @@ namespace Plataforma_ventas.Controllers
             await con.OpenAsync();
 
             var cmdCols = new SqlCommand(@"SELECT COL_LENGTH('Inmuebles','ObservacionReserva'),
-                                                  COL_LENGTH('Inmuebles','Etapa')", con);
-            bool hayObs = false, hayEtapa = false;
+                                                  COL_LENGTH('Inmuebles','Etapa'),
+                                                  COL_LENGTH('Inmuebles','EnLanzamiento')", con);
+            bool hayObs = false, hayEtapa = false, hayLanz = false;
             using (var rc = (SqlDataReader)await cmdCols.ExecuteReaderAsync())
                 if (await rc.ReadAsync())
                 {
                     hayObs = rc[0] is not (null or DBNull);
                     hayEtapa = rc[1] is not (null or DBNull);
+                    hayLanz = rc[2] is not (null or DBNull);
                 }
 
             var reservas = new List<dynamic>();
@@ -423,6 +425,7 @@ namespace Plataforma_ventas.Controllers
                 SELECT i.Apto, i.Torre, i.Tipo, i.Metros,
                        {(hayEtapa ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
                        {(hayObs ? "ISNULL(i.ObservacionReserva,'')" : "''")} AS Observacion,
+                       {(hayLanz ? "i.EnLanzamiento" : "CAST(1 AS BIT)")} AS EnLanzamiento,
                        ISNULL(i.PrecioReserva,0) AS Precio,
                        ISNULL(us.Nombre + ' ' + us.Apellido,'') AS Asesor,
                        i.FechaReserva,
@@ -445,11 +448,26 @@ namespace Plataforma_ventas.Controllers
                         Precio = Convert.ToInt64(r["Precio"]),
                         Asesor = (r["Asesor"]?.ToString() ?? "").Trim(),
                         Horas = r["Horas"] == DBNull.Value ? 0 : Convert.ToInt32(r["Horas"]),
+                        // Una unidad que salió disponible a este evento y hoy está
+                        // reservada, se reservó durante el lanzamiento. La que llegó
+                        // reservada en el Excel ya venía comprometida de antes.
+                        DelLanzamiento = r["EnLanzamiento"] == DBNull.Value || (bool)r["EnLanzamiento"],
                         Fecha = r["FechaReserva"] == DBNull.Value
                                 ? "" : ((DateTime)r["FechaReserva"]).AddHours(-5).ToString("dd/MM/yyyy HH:mm"),
                     });
             ViewBag.Reservas = reservas;
             ViewBag.ValorReservado = reservas.Sum(x => (long)x.Precio);
+
+            // Las dos clases que importan: lo que este equipo reservó en el evento y lo
+            // que ya venía comprometido. Mezcladas, el número de reservas del lanzamiento
+            // se infla con trabajo de otra jornada.
+            var delLanzamiento = reservas.Where(x => (bool)x.DelLanzamiento).ToList();
+            var previas = reservas.Where(x => !(bool)x.DelLanzamiento).ToList();
+            ViewBag.DelLanzamiento = delLanzamiento;
+            ViewBag.Previas = previas;
+            ViewBag.ValorLanzamiento = delLanzamiento.Sum(x => (long)x.Precio);
+            ViewBag.ValorPrevias = previas.Sum(x => (long)x.Precio);
+            ViewBag.HayClasificacion = hayLanz;
             return View();
         }
 

@@ -2,13 +2,17 @@
     Layout = "~/Views/Shared/_DireccionLayout.cshtml";
     ViewData["Title"] = "Mercurio — Reservas";
     var reservas = ViewBag.Reservas as List<dynamic> ?? new List<dynamic>();
-    long valorReservado = ViewBag.ValorReservado != null ? (long)ViewBag.ValorReservado : 0;
+    var delLanz  = ViewBag.DelLanzamiento as List<dynamic> ?? new List<dynamic>();
+    var previas  = ViewBag.Previas as List<dynamic> ?? new List<dynamic>();
+    long valorTotal = ViewBag.ValorReservado    != null ? (long)ViewBag.ValorReservado    : 0;
+    long valorLanz  = ViewBag.ValorLanzamiento  != null ? (long)ViewBag.ValorLanzamiento  : 0;
+    long valorPrev  = ViewBag.ValorPrevias      != null ? (long)ViewBag.ValorPrevias      : 0;
+    bool hayClasif  = ViewBag.HayClasificacion != null && (bool)ViewBag.HayClasificacion;
 
-    // A dirección no le sirve la tabla operativa del administrador, que existe para
-    // reasignar y liberar. Le sirve ver cuánto valor está comprometido y cuáles llevan
-    // demasiado tiempo quietas, así que las reservas se ordenan y se marcan por edad.
-    Func<int, string> antiguedad = h =>
-        h >= 48 ? "vieja" : h >= 24 ? "media" : "nueva";
+    // La antigüedad solo significa algo en las reservas del lanzamiento. Las que
+    // llegaron en el Excel tomaron la fecha de la carga, no la de su reserva real, así
+    // que medirles el tiempo transcurrido diría una mentira con cara de dato.
+    Func<int, string> antiguedad = h => h >= 48 ? "vieja" : h >= 24 ? "media" : "nueva";
     Func<int, string> texto = h =>
         h < 1 ? "hace menos de una hora"
       : h < 24 ? $"hace {h} hora{(h == 1 ? "" : "s")}"
@@ -24,6 +28,7 @@
     .r-marca.nueva{background:#1EA851;}
     .r-marca.media{background:#FF9500;}
     .r-marca.vieja{background:var(--rojo);}
+    .r-marca.previa{background:var(--plata);}
     .r-unidad{min-width:104px;}
     .r-apto{font-size:15px;font-weight:700;color:var(--label);}
     .r-sub{font-size:11.5px;color:var(--label3);}
@@ -37,69 +42,135 @@
     .r-tiempo.nueva{color:#167A3D;}
     .r-tiempo.media{color:#A66000;}
     .r-tiempo.vieja{color:var(--rojo);font-weight:600;}
+    .r-tiempo.previa{color:var(--label3);}
 </style>
 }
 
+@* Los módulos separan lo que hizo este equipo en el evento de lo que ya venía
+   comprometido. Sumadas, las dos cosas inflan el resultado del lanzamiento con trabajo
+   de otra jornada. *@
 <div class="d-kpis">
     <div class="d-kpi">
         <div class="d-num" style="color:#CC7700">@reservas.Count</div>
         <div class="d-lbl">Reservas activas</div>
+        <div class="d-pie">$@string.Format("{0:N0}", valorTotal) en total</div>
     </div>
     <div class="d-kpi">
-        <div class="d-num chico" style="color:#CC7700">$@string.Format("{0:N0}", valorReservado)</div>
-        <div class="d-lbl">Valor comprometido</div>
+        <div class="d-num" style="color:var(--azul)">@delLanz.Count</div>
+        <div class="d-lbl">Hechas en el lanzamiento</div>
+        <div class="d-pie">$@string.Format("{0:N0}", valorLanz)</div>
     </div>
     <div class="d-kpi">
-        <div class="d-num" style="color:var(--rojo)">@reservas.Count(r => (int)r.Horas >= 48)</div>
+        <div class="d-num" style="color:var(--label3)">@previas.Count</div>
+        <div class="d-lbl">Ya venían comprometidas</div>
+        <div class="d-pie">$@string.Format("{0:N0}", valorPrev)</div>
+    </div>
+    <div class="d-kpi">
+        <div class="d-num" style="color:var(--rojo)">@delLanz.Count(r => (int)r.Horas >= 48)</div>
         <div class="d-lbl">Con más de dos días</div>
         <div class="d-pie">conviene revisarlas</div>
     </div>
 </div>
 
-<div class="d-card">
-    <div class="d-head">
-        <span class="d-title">Reservas, de la más antigua a la más reciente</span>
-        <span class="d-nota">La franja de color indica cuánto llevan</span>
+@if (!hayClasif)
+{
+    <div style="background:rgba(255,149,0,0.07);border:1px solid rgba(255,149,0,0.3);border-radius:14px;padding:13px 18px;font-size:12.5px;color:#8a5200;margin-bottom:16px;line-height:1.55">
+        Falta la sección 15 del script de base de datos, así que todas las reservas se
+        están contando como hechas en el lanzamiento. Con esa sección aplicada, las que
+        llegaron comprometidas en el Excel se separan solas.
     </div>
-    @if (reservas.Count > 0)
+}
+
+@if (reservas.Count == 0)
+{
+    <div class="d-card"><div class="d-vacio">No hay reservas activas en este proyecto.</div></div>
+}
+else
+{
+    @if (delLanz.Count > 0)
     {
-        <div class="r-lista">
-        @foreach (var r in reservas)
-        {
-            int horas = (int)r.Horas;
-            string edad = antiguedad(horas);
-            <div class="r-item">
-                <span class="r-marca @edad"></span>
-                <div class="r-unidad">
-                    <div class="r-apto">@r.Apto</div>
-                    <div class="r-sub">@r.Torre @(string.IsNullOrEmpty(r.Etapa as string) ? "" : "· " + r.Etapa)</div>
-                    <div class="r-sub">@r.Metros m²</div>
-                </div>
-                <div class="r-medio">
-                    @if (string.IsNullOrEmpty(r.Asesor as string))
-                    {
-                        <div class="r-asesor r-sin">Sin asesor asignado</div>
-                    }
-                    else
-                    {
-                        <div class="r-asesor">@r.Asesor</div>
-                    }
-                    <div class="r-sub">Reservada el @r.Fecha</div>
-                    @if (!string.IsNullOrEmpty(r.Observacion as string))
-                    {
-                        <div class="r-obs">@r.Observacion</div>
-                    }
-                </div>
-                <div class="r-der">
-                    <div class="r-precio">$@string.Format("{0:N0}", (long)r.Precio)</div>
-                    <div class="r-tiempo @edad">@texto(horas)</div>
-                </div>
+        <div class="d-card">
+            <div class="d-head">
+                <span class="d-title">Hechas en el lanzamiento</span>
+                <span class="d-nota">De la más antigua a la más reciente · la franja indica cuánto llevan</span>
             </div>
-        }
+            <div class="r-lista">
+            @foreach (var r in delLanz)
+            {
+                int horas = (int)r.Horas;
+                string edad = antiguedad(horas);
+                <div class="r-item">
+                    <span class="r-marca @edad"></span>
+                    <div class="r-unidad">
+                        <div class="r-apto">@r.Apto</div>
+                        <div class="r-sub">@r.Torre @(string.IsNullOrEmpty(r.Etapa as string) ? "" : "· " + r.Etapa)</div>
+                        <div class="r-sub">@r.Metros m²</div>
+                    </div>
+                    <div class="r-medio">
+                        @if (string.IsNullOrEmpty(r.Asesor as string))
+                        {
+                            <div class="r-asesor r-sin">Sin asesor asignado</div>
+                        }
+                        else
+                        {
+                            <div class="r-asesor">@r.Asesor</div>
+                        }
+                        <div class="r-sub">Reservada el @r.Fecha</div>
+                        @if (!string.IsNullOrEmpty(r.Observacion as string))
+                        {
+                            <div class="r-obs">@r.Observacion</div>
+                        }
+                    </div>
+                    <div class="r-der">
+                        <div class="r-precio">$@string.Format("{0:N0}", (long)r.Precio)</div>
+                        <div class="r-tiempo @edad">@texto(horas)</div>
+                    </div>
+                </div>
+            }
+            </div>
         </div>
     }
-    else
+
+    @if (previas.Count > 0)
     {
-        <div class="d-vacio">No hay reservas activas en este proyecto.</div>
+        <div class="d-card">
+            <div class="d-head">
+                <span class="d-title">Ya venían comprometidas</span>
+                <span class="d-nota">Llegaron reservadas en el archivo del proyecto</span>
+            </div>
+            <div class="r-lista">
+            @foreach (var r in previas)
+            {
+                <div class="r-item">
+                    <span class="r-marca previa"></span>
+                    <div class="r-unidad">
+                        <div class="r-apto">@r.Apto</div>
+                        <div class="r-sub">@r.Torre @(string.IsNullOrEmpty(r.Etapa as string) ? "" : "· " + r.Etapa)</div>
+                        <div class="r-sub">@r.Metros m²</div>
+                    </div>
+                    <div class="r-medio">
+                        @if (string.IsNullOrEmpty(r.Asesor as string))
+                        {
+                            <div class="r-asesor" style="color:var(--label3)">Sin asesor asignado</div>
+                        }
+                        else
+                        {
+                            <div class="r-asesor">@r.Asesor</div>
+                        }
+                        @if (!string.IsNullOrEmpty(r.Observacion as string))
+                        {
+                            <div class="r-obs">@r.Observacion</div>
+                        }
+                    </div>
+                    <div class="r-der">
+                        <div class="r-precio">$@string.Format("{0:N0}", (long)r.Precio)</div>
+                        @* A estas no se les mide antigüedad: su fecha es la de la carga
+                           del archivo, no la de la reserva real. *@
+                        <div class="r-tiempo previa">anterior al evento</div>
+                    </div>
+                </div>
+            }
+            </div>
+        </div>
     }
-</div>
+}
