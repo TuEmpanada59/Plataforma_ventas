@@ -13,7 +13,7 @@ using DColor = System.Drawing.Color;
 
 namespace Plataforma_ventas.Controllers
 {
-    [RolAutorizado("Administrador")]
+    [RolAutorizado("Administrador", "Direccion")]
     public class ReportesController : Controller
     {
         private readonly string _conn;
@@ -302,11 +302,17 @@ namespace Plataforma_ventas.Controllers
             }
             ViewBag.Medios = medios;
 
+            // Dirección ve qué unidad se vendió y a qué precio, no quién la compró.
+            // El nombre no se oculta en la vista: no se consulta, así que no llega al
+            // navegador ni queda en el HTML de la página.
+            bool ocultaCliente = Roles.EsSoloLectura(HttpContext.Session.GetString("Rol"));
+            ViewBag.OcultaCliente = ocultaCliente;
+
             var ventas = new List<dynamic>();
-            var cmdVentas = new SqlCommand(@"
+            var cmdVentas = new SqlCommand($@"
                 SELECT u.Nombre+' '+u.Apellido AS Asesor,
                        i.Apto, i.Torre, i.Tipo, i.Metros,
-                       c.Nombre+' '+c.Apellido AS Cliente,
+                       {(ocultaCliente ? "''" : "c.Nombre+' '+c.Apellido")} AS Cliente,
                        ISNULL(v.Destino,'—') AS Destino,
                        v.ListaAplicada, v.PrecioVenta,
                        FORMAT(v.FechaVenta,'dd/MM/yyyy HH:mm') AS FechaVenta

@@ -607,3 +607,15 @@ body::before {
 .carga-tab{font-size:13px;font-weight:600;padding:8px 16px;border-radius:12px;background:var(--glass);border:1px solid var(--gb);color:var(--label2);text-decoration:none;transition:all 0.2s;}
 .carga-tab:hover{border-color:var(--blue);color:var(--blue);}
 .carga-tab.activa{background:linear-gradient(135deg,var(--azul),var(--celeste));border-color:transparent;color:white;box-shadow:0 2px 8px rgba(0,96,187,0.25);}
+
+/* ── Modo consulta (rol Dirección) ──────────────────────────────────────────
+   Toda escritura de la plataforma se envía por un formulario POST, así que con
+   esta sola regla desaparecen los controles de acción de cualquier pantalla,
+   incluidas las que se agreguen después. No es la barrera de seguridad: esa
+   está en el servidor, en RolAutorizadoAttribute. Esto solo evita que alguien
+   de dirección vea botones que al tocarlos rebotan.
+   El cierre de sesión se marca con data-siempre para que no se lo lleve. */
+body.solo-lectura form[method="post"]:not([data-siempre]),
+body.solo-lectura form[method="POST"]:not([data-siempre]),
+body.solo-lectura .solo-admin{display:none !important;}
+.modo-consulta{margin:10px 14px 4px;padding:6px 12px;border-radius:20px;background:rgba(255,149,0,0.14);color:#A66000;font-size:11px;font-weight:700;letter-spacing:.04em;text-align:center;}

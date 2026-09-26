@@ -332,9 +332,11 @@
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#1EA851;display:inline-block;"></span>Vendido</span>
                 <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#CC7700;display:inline-block;"></span>Reservado</span>
             </div>
-            <a href="/Reportes/GenerarMapa" class="ios-btn azul">Excel</a>
-            <a href="/Reportes/ReporteAsesores" class="ios-btn verde">Asesores</a>
-            <a href="/Reportes/ReportePDF" class="ios-btn" style="background:var(--rojo)">PDF técnico</a>
+            @* Dirección no descarga: el servidor bloquea cualquier respuesta que sea
+               un archivo, y aquí se ocultan los botones para no ofrecerlo. *@
+            <a href="/Reportes/GenerarMapa" class="ios-btn azul solo-admin">Excel</a>
+            <a href="/Reportes/ReporteAsesores" class="ios-btn verde solo-admin">Asesores</a>
+            <a href="/Reportes/ReportePDF" class="ios-btn solo-admin" style="background:var(--rojo)">PDF técnico</a>
         </div>
     </div>
     @if (mapaPisos.Count > 0) {

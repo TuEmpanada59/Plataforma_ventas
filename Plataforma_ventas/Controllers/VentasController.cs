@@ -14,7 +14,7 @@ namespace Plataforma_ventas.Controllers
     /// Administrator controller for viewing and exporting sales records
     /// for the active project.
     /// </summary>
-    [RolAutorizado("Administrador")]
+    [RolAutorizado("Administrador", "Direccion")]
     public class VentasController : Controller
     {
         private readonly string _conn;
@@ -101,14 +101,22 @@ namespace Plataforma_ventas.Controllers
             ViewBag.TotalAnuladas = Convert.ToInt32(await cmdAnul.ExecuteScalarAsync());
 
             // Paginated query — sales ordered newest first
+            // Dirección ve qué se vendió y a qué precio, no a quién. Los datos del
+            // comprador no se consultan, así que no llegan al navegador.
+            bool ocultaCliente = Roles.EsSoloLectura(HttpContext.Session.GetString("Rol"));
+            ViewBag.OcultaCliente = ocultaCliente;
+
             var ventas = new List<dynamic>();
             var cmd = new SqlCommand($@"
                 SELECT v.IdVenta, v.IdUsuario,
                        i.Apto, i.Torre, i.Tipo, i.Piso,
-                       c.Nombre+' '+c.Apellido AS Cliente,
-                       c.Nombre AS ClienteNombre, c.Apellido AS ClienteApellido,
-                       ISNULL(c.Correo,'') AS ClienteCorreo, ISNULL(c.Direccion,'') AS ClienteDireccion,
-                       c.Documento, c.Celular,
+                       {(ocultaCliente ? "''" : "c.Nombre+' '+c.Apellido")} AS Cliente,
+                       {(ocultaCliente ? "''" : "c.Nombre")} AS ClienteNombre,
+                       {(ocultaCliente ? "''" : "c.Apellido")} AS ClienteApellido,
+                       {(ocultaCliente ? "''" : "ISNULL(c.Correo,'')")} AS ClienteCorreo,
+                       {(ocultaCliente ? "''" : "ISNULL(c.Direccion,'')")} AS ClienteDireccion,
+                       {(ocultaCliente ? "''" : "c.Documento")} AS Documento,
+                       {(ocultaCliente ? "''" : "c.Celular")} AS Celular,
                        u.Nombre+' '+u.Apellido AS Asesor,
                        ISNULL(v.Destino,'—') AS Destino,
                        v.PrecioVenta,

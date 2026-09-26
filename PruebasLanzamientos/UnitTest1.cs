@@ -307,4 +307,42 @@ public class UnitTest1
     [InlineData("no-es-una-url", "")]
     public void Dominio_MuestraADondeLleva(string url, string esperado)
         => Assert.Equal(esperado, Enlaces.Dominio(url));
+
+    //Solo lectura: de esta respuesta depende que el rol de dirección no pueda escribir
+    [Theory]
+    [InlineData("Direccion", true)]
+    [InlineData("Administrador", false)]
+    [InlineData("SuperAdministrador", false)]
+    [InlineData("Vendedor", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void EsSoloLectura_SoloDireccion(string? rol, bool esperado)
+        => Assert.Equal(esperado, Roles.EsSoloLectura(rol));
+
+    //PuedeCrear: nadie reparte más de lo que tiene
+    [Fact]
+    public void PuedeCrear_NadieEscalaPrivilegios()
+    {
+        // El superadministrador es el único que crea administradores.
+        Assert.Contains("Administrador", Roles.PuedeCrear("SuperAdministrador"));
+        Assert.DoesNotContain("Administrador", Roles.PuedeCrear("Administrador"));
+
+        // Un administrador sí puede crear cuentas menos capaces que la suya.
+        Assert.Contains("Direccion", Roles.PuedeCrear("Administrador"));
+        Assert.Contains("Vendedor", Roles.PuedeCrear("Administrador"));
+
+        // Nadie puede crear un superadministrador desde la plataforma.
+        Assert.DoesNotContain("SuperAdministrador", Roles.PuedeCrear("SuperAdministrador"));
+
+        // Los roles sin mando no crean a nadie.
+        Assert.Empty(Roles.PuedeCrear("Direccion"));
+        Assert.Empty(Roles.PuedeCrear("Vendedor"));
+    }
+
+    [Fact]
+    public void Titulo_NombraElRolEnPantalla()
+    {
+        Assert.Equal("Dirección", Roles.Titulo("Direccion"));
+        Assert.Equal("Super Admin", Roles.Titulo("SuperAdministrador"));
+    }
 }

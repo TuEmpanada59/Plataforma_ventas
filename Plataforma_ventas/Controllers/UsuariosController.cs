@@ -249,12 +249,41 @@ namespace Plataforma_ventas.Controllers
                 return RedirectToAction("Index");
             }
 
-            // Solo el SuperAdministrador puede crear Administradores
+            // Nadie reparte más de lo que tiene: un administrador puede crear cuentas de
+            // dirección (solo leen, y solo un proyecto) y de asesor, pero no otro
+            // administrador. Lo que no esté permitido cae en Vendedor, que es el rol con
+            // menos alcance.
             string rolSesion = HttpContext.Session.GetString("Rol") ?? "";
-            string rolFinal = (rolSesion == "SuperAdministrador" && rol == "Administrador")
-                ? "Administrador"
-                : "Vendedor";
-            object proyParam = (rolFinal == "Vendedor" && idProyecto > 0)
+            string rolFinal = Roles.PuedeCrear(rolSesion).Contains(rol) ? rol : Roles.Vendedor;
+
+            // Dirección y asesor trabajan sobre un proyecto concreto. En dirección el
+            // proyecto no es opcional: es lo único que esa cuenta puede ver, y sin él
+            // entraría a una pantalla vacía sin entender por qué.
+            bool atadoAProyecto = rolFinal == Roles.Vendedor || rolFinal == Roles.Direccion;
+            if (rolFinal == Roles.Direccion && idProyecto <= 0)
+            {
+                TempData["Error"] = "Una cuenta de Dirección necesita un proyecto asignado.";
+                return RedirectToAction("Index");
+            }
+
+            // Un administrador solo puede asignar sus propios proyectos. Sin esta
+            // comprobación podría crear una cuenta de dirección apuntando al lanzamiento
+            // de otro administrador y ver sus cifras.
+            if (atadoAProyecto && idProyecto > 0 && rolSesion != Roles.SuperAdministrador)
+            {
+                int idAdminSesion = int.TryParse(HttpContext.Session.GetString("UsuarioId"), out int ua) ? ua : 0;
+                var cmdProp = new SqlCommand(
+                    "SELECT COUNT(*) FROM Proyectos WHERE IdProyectos=@p AND IdAdminCreador=@a", con);
+                cmdProp.Parameters.AddWithValue("@p", idProyecto);
+                cmdProp.Parameters.AddWithValue("@a", idAdminSesion);
+                if (Convert.ToInt32(await cmdProp.ExecuteScalarAsync()) == 0)
+                {
+                    TempData["Error"] = "Solo puedes asignar proyectos que tú cargaste.";
+                    return RedirectToAction("Index");
+                }
+            }
+
+            object proyParam = (atadoAProyecto && idProyecto > 0)
                 ? (object)idProyecto
                 : DBNull.Value;
 
