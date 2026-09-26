@@ -24,6 +24,16 @@
     var invAreas   = ViewBag.InventarioAreas as List<Plataforma_ventas.Inventario.Area>
                      ?? new List<Plataforma_ventas.Inventario.Area>();
     long invValor  = ViewBag.InventarioValor != null ? (long)ViewBag.InventarioValor : 0;
+    var invTorres  = ViewBag.InvTorres as List<string> ?? new List<string>();
+    string invTorre  = ViewBag.InvTorre  as string ?? "";
+    string invEstado = ViewBag.InvEstado as string ?? "";
+    int invTotal   = ViewBag.InventarioTotal != null ? (int)ViewBag.InventarioTotal : 0;
+    int invTotalSf = ViewBag.InventarioTotalSinFiltro != null ? (int)ViewBag.InventarioTotalSinFiltro : 0;
+    // Los filtros conservan el rango de fechas consultado y vuelven a la misma sección,
+    // para no mandar al administrador de nuevo al principio de un informe largo.
+    Func<string, string, string> ligaInv = (t, e) =>
+        $"/Reportes?desde={Uri.EscapeDataString(fDesde)}&hasta={Uri.EscapeDataString(fHasta)}"
+      + $"&invTorre={Uri.EscapeDataString(t)}&invEstado={Uri.EscapeDataString(e)}#inventario";
     // Actividad comercial: el total del lanzamiento se separa del total del proyecto
     // solo cuando hay inventario que ya venía comprometido antes del evento.
     string actTitulo  = ViewBag.ActividadTitulo as string ?? "Lanzamiento de proyecto nuevo";
@@ -347,10 +357,28 @@
 <!-- INVENTARIO POR ÁREA -->
 @* El mismo cuadro que ve dirección. Responde "cuántas de 98 metros quedan", que es lo
    que ni el mapa ni la lista de inmuebles contestan de un vistazo. *@
-<div class="card">
+<div class="card" id="inventario">
     <div class="card-head">
         <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Etiqueta("#0076E3", 17) Inventario por área</span>
-        <span style="font-size:12px;color:var(--label3)">Valor total: $@string.Format("{0:N0}", invValor)</span>
+        <span style="font-size:12px;color:var(--label3)">@invTotal de @invTotalSf unidades · $@string.Format("{0:N0}", invValor)</span>
+    </div>
+    <div style="padding:14px 16px 0;display:flex;flex-direction:column;gap:9px">
+        @if (invTorres.Count > 1)
+        {
+            <div class="inv-filtros">
+                <a href="@ligaInv("", invEstado)" class="inv-chip @(invTorre == "" ? "on" : "")">Todas las torres</a>
+                @foreach (var t in invTorres)
+                {
+                    <a href="@ligaInv(t, invEstado)" class="inv-chip @(invTorre == t ? "on" : "")">@t</a>
+                }
+            </div>
+        }
+        <div class="inv-filtros">
+            <a href="@ligaInv(invTorre, "")" class="inv-chip @(invEstado == "" ? "on" : "")">Todos</a>
+            <a href="@ligaInv(invTorre, "DISPONIBLE")" class="inv-chip @(invEstado == "DISPONIBLE" ? "on" : "")">Disponibles</a>
+            <a href="@ligaInv(invTorre, "VENDIDO")" class="inv-chip @(invEstado == "VENDIDO" ? "on" : "")">Vendidas</a>
+            <a href="@ligaInv(invTorre, "RESERVADO")" class="inv-chip @(invEstado == "RESERVADO" ? "on" : "")">Reservadas</a>
+        </div>
     </div>
     <div class="card-body">
         @if (invAreas.Count > 0)
@@ -359,7 +387,7 @@
         }
         else
         {
-            <div class="empty">No hay inmuebles en este proyecto</div>
+            <div class="empty">No hay unidades con ese filtro</div>
         }
     </div>
 </div>

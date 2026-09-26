@@ -30,7 +30,10 @@ namespace Plataforma_ventas.Controllers
         /// destination analysis, property map, and full sale list for the active project.
         /// Performs multiple SELECT queries against Inmuebles, Ventas, Usuarios, and Clientes.
         /// </summary>
-        public async Task<IActionResult> Index(string desde = "", string hasta = "")
+        /// <param name="invTorre">Filtro del cuadro de inventario: una torre ("" = todas).</param>
+        /// <param name="invEstado">Filtro del cuadro de inventario por estado ("" = todos).</param>
+        public async Task<IActionResult> Index(string desde = "", string hasta = "",
+                                               string invTorre = "", string invEstado = "")
         {
             // Rango consultado. Vacío = el día de hoy, que es el comportamiento
             // histórico del "Informe del día".
@@ -213,8 +216,28 @@ namespace Plataforma_ventas.Controllers
                         Lista: listaInv,
                         Precio: precioInv));
                 }
-            ViewBag.InventarioAreas = Inventario.Agrupar(unidadesInv);
-            ViewBag.InventarioValor = unidadesInv.Sum(u => u.Precio);
+            // Los filtros del cuadro son los mismos que usa dirección, y se aplican en
+            // memoria: la lista de torres sale del inventario completo y no del filtrado,
+            // para que al elegir una torre no desaparezcan las demás del filtro.
+            ViewBag.InvTorres = unidadesInv.Select(u => u.Torre)
+                                           .Where(t => !string.IsNullOrWhiteSpace(t))
+                                           .Distinct()
+                                           .OrderBy(t => t, StringComparer.OrdinalIgnoreCase)
+                                           .ToList();
+
+            var invFiltrado = unidadesInv.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(invTorre))
+                invFiltrado = invFiltrado.Where(u => string.Equals(u.Torre, invTorre, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(invEstado))
+                invFiltrado = invFiltrado.Where(u => Inventario.EstadoVisible(u.Estado) == invEstado.ToUpperInvariant());
+
+            var invResultado = invFiltrado.ToList();
+            ViewBag.InventarioAreas = Inventario.Agrupar(invResultado);
+            ViewBag.InventarioValor = invResultado.Sum(u => u.Precio);
+            ViewBag.InventarioTotal = invResultado.Count;
+            ViewBag.InventarioTotalSinFiltro = unidadesInv.Count;
+            ViewBag.InvTorre = invTorre ?? "";
+            ViewBag.InvEstado = (invEstado ?? "").ToUpperInvariant();
 
             ViewBag.HayLanzamiento = hayEnLanzamiento;
             ViewBag.TotalLanzamiento = totalLanzamiento;
