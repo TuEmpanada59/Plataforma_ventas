@@ -1,6 +1,7 @@
 @{
     Layout = "~/Views/Shared/_DireccionLayout.cshtml";
     ViewData["Title"] = "Mercurio — Inventario";
+    var porArea   = ViewBag.PorArea as List<dynamic> ?? new List<dynamic>();
     var inmuebles = ViewBag.Inmuebles as List<dynamic> ?? new List<dynamic>();
     var torres    = ViewBag.Torres as List<string> ?? new List<string>();
     string fTorre  = ViewBag.FiltroTorre  as string ?? "";
@@ -8,45 +9,49 @@
     int totalSinFiltro = ViewBag.TotalSinFiltro != null ? (int)ViewBag.TotalSinFiltro : 0;
     long valorFiltrado = ViewBag.ValorFiltrado != null ? (long)ViewBag.ValorFiltrado : 0;
 
-    // Columnas que están vacías en todo el proyecto no se dibujan: una tabla con tres
-    // columnas en blanco se lee peor que una tabla corta.
+    // Columnas vacías en todo el proyecto no se dibujan: una tabla con tres columnas en
+    // blanco se lee peor que una tabla corta.
     bool hayTorre = ViewBag.HayTorre != null && (bool)ViewBag.HayTorre;
     bool hayEtapa = ViewBag.HayEtapa != null && (bool)ViewBag.HayEtapa;
     bool hayPiso  = ViewBag.HayPiso  != null && (bool)ViewBag.HayPiso;
-    bool hayTipo  = ViewBag.HayTipo  != null && (bool)ViewBag.HayTipo;
 
     // Los filtros son enlaces, no formularios: navegar no es modificar, y así este
     // perfil no tiene un solo control que envíe datos.
     Func<string, string, string> liga = (t, e) =>
         "/Direccion/Inventario?torre=" + Uri.EscapeDataString(t) + "&estado=" + Uri.EscapeDataString(e);
-
-    string rotulo = fEstado switch
-    {
-        "DISPONIBLE" => "disponibles",
-        "VENDIDO"    => "vendidas",
-        "RESERVADO"  => "reservadas",
-        _            => "unidades",
-    };
 }
 @section Styles {
 <partial name="_Estilos" />
 <style>
-    /* La primera columna se queda fija al desplazar a lo ancho: sin eso, en un
-       proyecto con muchas columnas uno pierde de vista qué unidad está leyendo. */
-    .d-tabla td.u-apto,.d-tabla th.u-apto{position:sticky;left:0;background:white;z-index:1;font-weight:700;}
-    .d-tabla tbody tr:hover td.u-apto{background:#F7FAFF;}
-    .d-tabla tfoot td{padding:12px 14px;font-size:13px;font-weight:700;background:rgba(0,118,227,0.04);border-top:1px solid rgba(0,0,0,0.08);}
-    .u-num{font-variant-numeric:tabular-nums;}
+    .a-bloque{border:1px solid rgba(0,0,0,0.07);border-radius:16px;overflow:hidden;margin-bottom:14px;background:white;box-shadow:0 2px 10px rgba(0,0,0,0.04);}
+    .a-cab{display:flex;align-items:center;gap:16px;padding:14px 18px;background:linear-gradient(135deg,rgba(0,118,227,0.07),rgba(0,201,255,0.05));border-bottom:1px solid rgba(0,0,0,0.06);flex-wrap:wrap;}
+    .a-area{font-size:18px;font-weight:700;color:var(--azul);letter-spacing:-0.4px;white-space:nowrap;}
+    .a-tipo{font-size:11.5px;color:var(--label2);background:white;border:1px solid var(--sep);border-radius:20px;padding:3px 10px;}
+    .a-cifras{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto;font-size:12px;}
+    .a-cifra{display:flex;align-items:baseline;gap:5px;}
+    .a-num{font-size:15px;font-weight:700;}
+    .a-lbl{color:var(--label2);}
+    .a-valor{font-size:13px;font-weight:700;color:var(--label);white-space:nowrap;}
+    /* Las unidades del área, en rejilla: en un vistazo se ve cuántas quedan libres y
+       dónde están, que es lo que una tabla corrida no deja ver. */
+    .a-rejilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;padding:14px 18px;}
+    .u-celda{border:1px solid;border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;}
+    .u-apto{font-size:13.5px;font-weight:700;}
+    .u-precio{font-size:11.5px;font-variant-numeric:tabular-nums;}
+    .u-donde{font-size:10.5px;opacity:.75;}
+    .u-celda.DISPONIBLE{background:rgba(230,57,70,0.07);border-color:rgba(230,57,70,0.35);color:#B02030;}
+    .u-celda.VENDIDO{background:rgba(52,199,89,0.10);border-color:rgba(52,199,89,0.45);color:#167A3D;}
+    .u-celda.RESERVADO{background:rgba(255,149,0,0.10);border-color:rgba(255,149,0,0.45);color:#A66000;}
+    .a-total{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:rgba(0,118,227,0.04);border:1px solid rgba(0,118,227,0.18);border-radius:14px;font-size:13px;flex-wrap:wrap;}
 </style>
 }
 
 <div class="d-card">
     <div class="d-head">
-        <span class="d-title">Inventario</span>
+        <span class="d-title">Inventario por área</span>
         <span class="d-nota">@inmuebles.Count de @totalSinFiltro unidades</span>
     </div>
-
-    <div style="padding:14px 18px;border-bottom:1px solid rgba(0,0,0,0.05);display:flex;flex-direction:column;gap:10px">
+    <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px">
         @if (torres.Count > 1)
         {
             <div class="d-filtros">
@@ -64,62 +69,54 @@
             <a href="@liga(fTorre, "RESERVADO")" class="d-chip @(fEstado == "RESERVADO" ? "on" : "")">Reservadas</a>
         </div>
     </div>
-
-    @if (inmuebles.Count > 0)
-    {
-        <div class="d-tabla-wrap">
-            <table class="d-tabla">
-                <thead>
-                    <tr>
-                        <th class="u-apto">Unidad</th>
-                        @if (hayTorre) { <th>Torre</th> }
-                        @if (hayEtapa) { <th>Etapa</th> }
-                        @if (hayPiso)  { <th class="d-der">Piso</th> }
-                        @if (hayTipo)  { <th>Tipo</th> }
-                        <th class="d-der">Área</th>
-                        <th>Estado</th>
-                        <th class="d-der">Lista</th>
-                        <th class="d-der">Precio</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @foreach (var i in inmuebles)
-                {
-                    string est = Plataforma_ventas.Controllers.DireccionController.EstadoVisible(i.Estado as string);
-                    <tr>
-                        <td class="u-apto">@i.Apto</td>
-                        @if (hayTorre) { <td>@i.Torre</td> }
-                        @if (hayEtapa) { <td style="color:var(--label2)">@i.Etapa</td> }
-                        @if (hayPiso)  { <td class="d-der u-num">@i.Piso</td> }
-                        @if (hayTipo)  { <td>@i.Tipo</td> }
-                        <td class="d-der u-num">@i.Metros m²</td>
-                        <td><span class="d-est @est">@est</span></td>
-                        <td class="d-der u-num" style="color:var(--label2)">@i.Lista</td>
-                        <td class="d-der u-num" style="font-weight:600">$@string.Format("{0:N0}", (long)i.Precio)</td>
-                    </tr>
-                }
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td class="u-apto">@inmuebles.Count @rotulo</td>
-                        @{
-                            // Las columnas intermedias se saltan con una sola celda: así el
-                            // total queda alineado bajo la columna de precio.
-                            int intermedias = (hayTorre ? 1 : 0) + (hayEtapa ? 1 : 0)
-                                            + (hayPiso ? 1 : 0) + (hayTipo ? 1 : 0) + 3;
-                        }
-                        <td colspan="@intermedias"></td>
-                        <td class="d-der u-num">$@string.Format("{0:N0}", valorFiltrado)</td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        <div style="padding:12px 18px" class="d-nota">
-            En lo vendido y lo reservado el precio es el que se pactó. En lo disponible, el de la lista vigente para esa área.
-        </div>
-    }
-    else
-    {
-        <div class="d-vacio">No hay unidades con ese filtro.</div>
-    }
 </div>
+
+@if (porArea.Count > 0)
+{
+    foreach (var a in porArea)
+    {
+        <div class="a-bloque">
+            <div class="a-cab">
+                <span class="a-area">@a.Metros m²</span>
+                @if (!string.IsNullOrEmpty(a.Tipo as string)) { <span class="a-tipo">Tipo @a.Tipo</span> }
+                <span class="a-tipo">Lista @a.Lista</span>
+                <div class="a-cifras">
+                    <span class="a-cifra"><span class="a-num">@a.Total</span><span class="a-lbl">unidades</span></span>
+                    <span class="a-cifra"><span class="a-num" style="color:#167A3D">@a.Vendidas</span><span class="a-lbl">vendidas</span></span>
+                    <span class="a-cifra"><span class="a-num" style="color:#A66000">@a.Reservadas</span><span class="a-lbl">reservadas</span></span>
+                    <span class="a-cifra"><span class="a-num" style="color:#B02030">@a.Disponibles</span><span class="a-lbl">libres</span></span>
+                    <span class="a-valor">$@string.Format("{0:N0}", (long)a.Valor)</span>
+                </div>
+            </div>
+            <div class="a-rejilla">
+            @foreach (var u in (List<dynamic>)a.Unidades)
+            {
+                string est = Plataforma_ventas.Controllers.DireccionController.EstadoVisible(u.Estado as string);
+                // Dónde está la unidad: solo se escribe lo que el proyecto informa.
+                var partes = new List<string>();
+                if (hayTorre && !string.IsNullOrWhiteSpace(u.Torre as string)) partes.Add(u.Torre as string ?? "");
+                if (hayEtapa && !string.IsNullOrWhiteSpace(u.Etapa as string)) partes.Add(u.Etapa as string ?? "");
+                if (hayPiso  && !string.IsNullOrWhiteSpace(u.Piso  as string)) partes.Add("Piso " + (u.Piso as string));
+                string donde = string.Join(" · ", partes);
+                <div class="u-celda @est" title="@est">
+                    <span class="u-apto">@u.Apto</span>
+                    @if (donde.Length > 0) { <span class="u-donde">@donde</span> }
+                    <span class="u-precio">$@string.Format("{0:N0}", (long)u.Precio)</span>
+                </div>
+            }
+            </div>
+        </div>
+    }
+
+    <div class="a-total">
+        <span>@inmuebles.Count unidades en @porArea.Count área@(porArea.Count == 1 ? "" : "s")</span>
+        <strong style="font-size:15px">$@string.Format("{0:N0}", valorFiltrado)</strong>
+    </div>
+    <div class="d-nota" style="padding:10px 4px">
+        En lo vendido y lo reservado el precio es el que se pactó. En lo disponible, el de la lista vigente para esa área.
+    </div>
+}
+else
+{
+    <div class="d-card"><div class="d-vacio">No hay unidades con ese filtro.</div></div>
+}

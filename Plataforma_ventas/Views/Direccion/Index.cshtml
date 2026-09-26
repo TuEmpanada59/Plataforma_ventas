@@ -17,15 +17,18 @@
     string actividad = ViewBag.ActividadTitulo as string ?? "";
     string etapa     = ViewBag.EtapaLanzada    as string ?? "";
 
-    // El avance se mide contra lo que salió a vender en este evento, no contra el
-    // proyecto entero: si no, un lanzamiento que arranca con la mitad comprometida
-    // muestra un avance que nadie hizo.
+    // Las barras replican las del informe del administrador: mismo dato, misma lectura.
+    // Los porcentajes del proyecto van sobre el total; el avance del lanzamiento, sobre
+    // lo que realmente salió a vender en este evento.
     int colocado = vendidos + reservados;
     var inv = System.Globalization.CultureInfo.InvariantCulture;
-    double pctAvance = totalLanz > 0 ? (double)vendidos * 100 / totalLanz : 0;
-    string wVend = totalLanz > 0 ? ((double)vendidos   * 100 / totalLanz).ToString("0.##", inv) : "0";
-    string wRes  = totalLanz > 0 ? ((double)reservados * 100 / totalLanz).ToString("0.##", inv) : "0";
-    string wDisp = totalLanz > 0 ? ((double)disponibles* 100 / totalLanz).ToString("0.##", inv) : "0";
+    double pctV = total > 0 ? Math.Round((double)vendidos    * 100 / total, 1) : 0;
+    double pctD = total > 0 ? Math.Round((double)disponibles * 100 / total, 1) : 0;
+    double pctR = total > 0 ? Math.Round((double)reservados  * 100 / total, 1) : 0;
+    double pctL = totalLanz > 0 ? Math.Round((double)vendidos * 100 / totalLanz, 1) : 0;
+    string wV = pctV.ToString("0.##", inv), wD = pctD.ToString("0.##", inv);
+    string wR = pctR.ToString("0.##", inv), wL = pctL.ToString("0.##", inv);
+    bool separaLanz = totalLanz > 0 && totalLanz != total;
 }
 @section Styles { <partial name="_Estilos" /> }
 
@@ -38,7 +41,7 @@
     <div class="d-kpi">
         <div class="d-num" style="color:#1EA851">@vendidos</div>
         <div class="d-lbl">Vendidas</div>
-        <div class="d-pie">@string.Format("{0:0.#}", pctAvance)% del lanzamiento</div>
+        <div class="d-pie">@string.Format("{0:0.#}", pctL)% del lanzamiento</div>
     </div>
     <div class="d-kpi">
         <div class="d-num" style="color:#CC7700">@reservados</div>
@@ -59,29 +62,41 @@
 
 <div class="d-card">
     <div class="d-head">
-        <span class="d-title">Avance del lanzamiento</span>
+        <span class="d-title">Progreso del proyecto</span>
         @if (!string.IsNullOrEmpty(actividad))
         {
             <span class="d-nota">@actividad@(string.IsNullOrEmpty(etapa) ? "" : " · " + etapa)</span>
         }
     </div>
     <div style="padding:18px">
-        <div class="d-barra" title="@vendidos vendidas, @reservados reservadas, @disponibles disponibles">
-            <span style="width:@wVend%;background:linear-gradient(90deg,#1EA851,#34C759)"></span>
-            <span style="width:@wRes%;background:linear-gradient(90deg,#CC7700,#FF9500)"></span>
-            <span style="width:@wDisp%;background:var(--fill2)"></span>
+        <div class="prog-row">
+            <div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:#1EA851">@vendidos / @total</span></div>
+            <div class="prog-track"><div class="prog-fill" style="width:@wV%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div>
         </div>
-        <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--label2)">
-            <span><strong style="color:#1EA851">@vendidos</strong> vendidas</span>
-            <span><strong style="color:#CC7700">@reservados</strong> reservadas</span>
-            <span><strong style="color:var(--rojo)">@disponibles</strong> disponibles</span>
-            <span><strong>@colocado de @totalLanz</strong> colocadas en el lanzamiento</span>
+        <div class="prog-row">
+            <div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:var(--rojo)">@disponibles / @total</span></div>
+            <div class="prog-track"><div class="prog-fill" style="width:@wD%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div>
         </div>
+        <div class="prog-row">
+            <div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div>
+            <div class="prog-track"><div class="prog-fill" style="width:@wR%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div>
+        </div>
+        @if (separaLanz)
+        {
+            <div class="prog-row">
+                <div class="prog-meta">
+                    <span class="prog-name">Avance del lanzamiento</span>
+                    <span class="prog-val" style="color:var(--blue)">@vendidos / @totalLanz</span>
+                </div>
+                <div class="prog-track"><div class="prog-fill" style="width:@wL%;background:linear-gradient(90deg,var(--azul),#5AC8FA)"></div></div>
+            </div>
+        }
         @if (historico > 0)
         {
-            <div class="d-pie" style="margin-top:10px">
-                @historico unidad@(historico == 1 ? "" : "es") ya venía@(historico == 1 ? "" : "n") comprometida@(historico == 1 ? "" : "s") de antes
-                del evento y no cuenta@(historico == 1 ? "" : "n") en el avance.
+            <div class="d-pie" style="margin-top:12px">
+                @colocado de @totalLanz colocadas en el lanzamiento.
+                @historico unidad@(historico == 1 ? "" : "es") ya venía@(historico == 1 ? "" : "n")
+                comprometida@(historico == 1 ? "" : "s") de antes del evento.
             </div>
         }
     </div>

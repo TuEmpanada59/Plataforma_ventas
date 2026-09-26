@@ -23,8 +23,15 @@
     .d-est.DISPONIBLE{background:rgba(230,57,70,0.10);color:#B02030;}
     .d-est.VENDIDO{background:rgba(52,199,89,0.14);color:#167A3D;}
     .d-est.RESERVADO{background:rgba(255,149,0,0.14);color:#A66000;}
-    .d-barra{height:8px;border-radius:20px;background:var(--fill3);overflow:hidden;display:flex;}
-    .d-barra span{display:block;height:100%;}
+    /* Barras de progreso idénticas a las del informe del administrador: el mismo
+       dato debe verse igual en las dos pantallas. */
+    .prog-row{margin-bottom:13px;}
+    .prog-row:last-child{margin-bottom:0;}
+    .prog-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+    .prog-name{font-size:13px;color:var(--label);font-weight:500;}
+    .prog-val{font-size:12px;font-weight:600;}
+    .prog-track{height:7px;background:var(--fill3);border-radius:50px;overflow:hidden;}
+    .prog-fill{height:100%;border-radius:50px;transition:width 1s ease;}
     .d-vacio{padding:34px 18px;text-align:center;font-size:13px;color:var(--label3);}
     .d-filtros{display:flex;gap:7px;flex-wrap:wrap;}
     .d-chip{font-size:12px;font-weight:600;padding:5px 13px;border-radius:20px;background:var(--fill3);border:1px solid var(--sep);color:var(--label2);text-decoration:none;}

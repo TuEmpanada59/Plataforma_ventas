@@ -317,6 +317,28 @@ namespace Plataforma_ventas.Controllers
             // El valor de lo que se está mirando: con un filtro puesto responde
             // "cuánto hay en disponible" sin sacar una calculadora.
             ViewBag.ValorFiltrado = resultado.Sum(i => (long)i.Precio);
+
+            // Agrupado por área, que es como el área comercial piensa el inventario:
+            // no "cuántas unidades quedan" sino "cuántas de 98 metros quedan". Una lista
+            // corrida de setenta unidades obliga a contar a ojo para responder eso.
+            var porArea = resultado
+                .GroupBy(i => (string)i.Metros)
+                .Select(g => new
+                {
+                    Metros = g.Key,
+                    Tipo = g.Select(x => (string)x.Tipo).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t)) ?? "",
+                    Unidades = g.ToList(),
+                    Total = g.Count(),
+                    Vendidas = g.Count(x => (string)x.Estado == "VENDIDO"),
+                    Reservadas = g.Count(x => (string)x.Estado == "RESERVADO"),
+                    Disponibles = g.Count(x => EstadoVisible((string)x.Estado) == "DISPONIBLE"),
+                    Valor = g.Sum(x => (long)x.Precio),
+                    // La lista vigente es la misma para todas las unidades del área.
+                    Lista = g.Select(x => (int)x.Lista).FirstOrDefault(),
+                })
+                .OrderBy(a => AreaNumerica(a.Metros))
+                .ToList<dynamic>();
+            ViewBag.PorArea = porArea;
             return View();
         }
 
@@ -429,6 +451,18 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Reservas = reservas;
             ViewBag.ValorReservado = reservas.Sum(x => (long)x.Precio);
             return View();
+        }
+
+        /// <summary>
+        /// Ordena las áreas por su valor y no por texto: alfabéticamente "140.96" va
+        /// antes que "98.17", que no es como nadie lee un cuadro de áreas.
+        /// </summary>
+        private static double AreaNumerica(string? metros)
+        {
+            double.TryParse((metros ?? "").Replace(",", "."),
+                            System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double d);
+            return d;
         }
 
         /// <summary>
