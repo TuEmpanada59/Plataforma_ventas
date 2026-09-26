@@ -1,0 +1,92 @@
+@*
+    Progreso del proyecto, separando lo que logró este lanzamiento de lo que ya venía
+    comprometido. Es el mismo componente para el informe del administrador y el perfil
+    de dirección: el mismo dato tiene que dar el mismo número en las dos pantallas.
+
+    Cada barra lleva dos tonos. El tono fuerte es lo de este evento; el pálido, lo que
+    ya estaba. En un proyecto que estrena no hay nada pálido y la separación no se
+    menciona, para no agregar ruido donde no hay dos cosas que distinguir.
+
+    Los estilos (.pp-*) viven en wwwroot/css/platform.css.
+*@
+@model Plataforma_ventas.ProgresoProyecto
+
+@{
+    var p = Model;
+    string wVendLanz = Plataforma_ventas.ProgresoProyecto.Ancho(p.PctDeTotal(p.VendidasLanzamiento));
+    string wVendPrev = Plataforma_ventas.ProgresoProyecto.Ancho(p.PctDeTotal(p.VendidasPrevias));
+    string wResLanz  = Plataforma_ventas.ProgresoProyecto.Ancho(p.PctDeTotal(p.ReservadasLanzamiento));
+    string wResPrev  = Plataforma_ventas.ProgresoProyecto.Ancho(p.PctDeTotal(p.ReservadasPrevias));
+    string wDisp     = Plataforma_ventas.ProgresoProyecto.Ancho(p.PctDeTotal(p.Disponibles));
+    string wAvance   = Plataforma_ventas.ProgresoProyecto.Ancho(p.PctAvanceLanzamiento);
+}
+
+<div class="pp">
+    <div class="pp-fila">
+        <div class="pp-meta">
+            <span class="pp-nom">Vendidos</span>
+            <span class="pp-val" style="color:#1EA851">
+                @p.Vendidas / @p.Total
+                @if (p.HaySeparacion)
+                {
+                    <span class="pp-detalle">@p.VendidasLanzamiento en el lanzamiento · @p.VendidasPrevias ya venían</span>
+                }
+            </span>
+        </div>
+        <div class="pp-track">
+            <span class="pp-fill pp-vend" style="width:@wVendLanz%" title="@p.VendidasLanzamiento vendidas en el lanzamiento"></span>
+            <span class="pp-fill pp-vend-prev" style="width:@wVendPrev%" title="@p.VendidasPrevias ya venían vendidas"></span>
+        </div>
+    </div>
+
+    <div class="pp-fila">
+        <div class="pp-meta">
+            <span class="pp-nom">Reservados</span>
+            <span class="pp-val" style="color:#CC7700">
+                @p.Reservadas / @p.Total
+                @if (p.HaySeparacion)
+                {
+                    <span class="pp-detalle">@p.ReservadasLanzamiento en el lanzamiento · @p.ReservadasPrevias del archivo</span>
+                }
+            </span>
+        </div>
+        <div class="pp-track">
+            <span class="pp-fill pp-res" style="width:@wResLanz%" title="@p.ReservadasLanzamiento reservadas en el lanzamiento"></span>
+            <span class="pp-fill pp-res-prev" style="width:@wResPrev%" title="@p.ReservadasPrevias llegaron reservadas en el archivo"></span>
+        </div>
+    </div>
+
+    <div class="pp-fila">
+        <div class="pp-meta">
+            <span class="pp-nom">Disponibles</span>
+            <span class="pp-val" style="color:var(--rojo)">@p.Disponibles / @p.Total</span>
+        </div>
+        <div class="pp-track">
+            <span class="pp-fill pp-disp" style="width:@wDisp%"></span>
+        </div>
+    </div>
+
+    @if (p.HaySeparacion)
+    {
+        @* El número que mide al equipo: lo colocado sobre lo que realmente salió a
+           vender esa noche. Calculado sobre el proyecto entero diría otra cosa. *@
+        <div class="pp-fila">
+            <div class="pp-meta">
+                <span class="pp-nom">Avance del lanzamiento</span>
+                <span class="pp-val" style="color:var(--blue)">
+                    @p.ColocadoLanzamiento / @p.TotalLanzamiento
+                    <span class="pp-detalle">vendidas y reservadas de este evento</span>
+                </span>
+            </div>
+            <div class="pp-track">
+                <span class="pp-fill pp-avance" style="width:@wAvance%"></span>
+            </div>
+        </div>
+
+        <div class="pp-leyenda">
+            <span><i class="pp-m pp-vend"></i>Logrado en el lanzamiento</span>
+            <span><i class="pp-m pp-vend-prev"></i>Ya venía comprometido</span>
+            <span class="pp-aparte">@p.Previas unidad@(p.Previas == 1 ? "" : "es") no cuenta@(p.Previas == 1 ? "" : "n") como resultado del evento</span>
+        </div>
+    }
+</div>

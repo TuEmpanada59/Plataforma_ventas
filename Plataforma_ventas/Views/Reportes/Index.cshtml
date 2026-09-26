@@ -19,6 +19,8 @@
     var medios     = ViewBag.Medios      as List<dynamic> ?? new List<dynamic>();
     var mapa       = ViewBag.Mapa        as List<dynamic> ?? new List<dynamic>();
     var mapaPisos  = ViewBag.MapaPisos as List<Plataforma_ventas.MapaPisos.Torre> ?? new List<Plataforma_ventas.MapaPisos.Torre>();
+    var progreso   = ViewBag.Progreso as Plataforma_ventas.ProgresoProyecto
+                     ?? new Plataforma_ventas.ProgresoProyecto(0, 0, 0, 0, 0, 0, 0);
     // Actividad comercial: el total del lanzamiento se separa del total del proyecto
     // solo cuando hay inventario que ya venía comprometido antes del evento.
     string actTitulo  = ViewBag.ActividadTitulo as string ?? "Lanzamiento de proyecto nuevo";
@@ -216,18 +218,8 @@
     <div class="card">
         <div class="card-head"><span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Grafico("#0076E3", 17) Progreso del proyecto</span></div>
         <div class="card-body">
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:#1EA851">@vendidos / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctV)%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div></div>
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:var(--rojo)">@disponibles / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctD)%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div></div>
-            <div class="prog-row"><div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div><div class="prog-track"><div class="prog-fill" style="width:@(pctR)%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div></div>
-            @if (separaLanz) {
-                <div class="prog-row">
-                    <div class="prog-meta">
-                        <span class="prog-name">Avance del lanzamiento</span>
-                        <span class="prog-val" style="color:var(--blue)">@vendidosLanz / @totalLanz</span>
-                    </div>
-                    <div class="prog-track"><div class="prog-fill" style="width:@anchoLanz%;background:linear-gradient(90deg,var(--azul),#5AC8FA)"></div></div>
-                </div>
-            }
+            @* El mismo componente que ve dirección en su resumen. *@
+            @await Html.PartialAsync("_ProgresoProyecto", progreso)
         </div>
     </div>
 

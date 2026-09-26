@@ -64,15 +64,22 @@ namespace Plataforma_ventas.Controllers
 
             // Un inmueble "en proceso" no está comprometido: cuenta como disponible,
             // igual que en el mapa y en el informe del administrador.
+            // Se cuenta todo de una vez, separando lo del evento de lo que ya venía:
+            // es el desglose que necesitan tanto los módulos de arriba como las barras.
             var cmdKpi = new SqlCommand($@"
                 SELECT COUNT(*) AS Total,
                     SUM(CASE WHEN Estado IN ('DISPONIBLE','EN PROCESO') THEN 1 ELSE 0 END) AS Disponibles,
                     SUM(CASE WHEN Estado='VENDIDO'   THEN 1 ELSE 0 END) AS Vendidos,
                     SUM(CASE WHEN Estado='RESERVADO' THEN 1 ELSE 0 END) AS Reservados,
-                    {(hayLanz ? "SUM(CASE WHEN EnLanzamiento=1 THEN 1 ELSE 0 END)" : "COUNT(*)")} AS TotalLanzamiento
+                    {(hayLanz ? "SUM(CASE WHEN EnLanzamiento=1 THEN 1 ELSE 0 END)" : "COUNT(*)")} AS TotalLanzamiento,
+                    SUM(CASE WHEN Estado='VENDIDO'   AND {(hayLanz ? "EnLanzamiento=1" : "1=1")} THEN 1 ELSE 0 END) AS VendLanz,
+                    SUM(CASE WHEN Estado='VENDIDO'   AND {(hayLanz ? "EnLanzamiento=0" : "1=0")} THEN 1 ELSE 0 END) AS VendPrev,
+                    SUM(CASE WHEN Estado='RESERVADO' AND {(hayLanz ? "EnLanzamiento=1" : "1=1")} THEN 1 ELSE 0 END) AS ResLanz,
+                    SUM(CASE WHEN Estado='RESERVADO' AND {(hayLanz ? "EnLanzamiento=0" : "1=0")} THEN 1 ELSE 0 END) AS ResPrev
                 FROM Inmuebles WHERE IdProyecto=@id", con);
             cmdKpi.Parameters.AddWithValue("@id", idProy);
             int total = 0, disponibles = 0, vendidos = 0, reservados = 0, totalLanz = 0;
+            int vendLanz = 0, vendPrev = 0, resLanz = 0, resPrev = 0;
             using (var rk = (SqlDataReader)await cmdKpi.ExecuteReaderAsync())
                 if (await rk.ReadAsync())
                 {
@@ -81,6 +88,10 @@ namespace Plataforma_ventas.Controllers
                     vendidos = rk["Vendidos"] == DBNull.Value ? 0 : Convert.ToInt32(rk["Vendidos"]);
                     reservados = rk["Reservados"] == DBNull.Value ? 0 : Convert.ToInt32(rk["Reservados"]);
                     totalLanz = rk["TotalLanzamiento"] == DBNull.Value ? total : Convert.ToInt32(rk["TotalLanzamiento"]);
+                    vendLanz = rk["VendLanz"] == DBNull.Value ? 0 : Convert.ToInt32(rk["VendLanz"]);
+                    vendPrev = rk["VendPrev"] == DBNull.Value ? 0 : Convert.ToInt32(rk["VendPrev"]);
+                    resLanz  = rk["ResLanz"]  == DBNull.Value ? 0 : Convert.ToInt32(rk["ResLanz"]);
+                    resPrev  = rk["ResPrev"]  == DBNull.Value ? 0 : Convert.ToInt32(rk["ResPrev"]);
                 }
             ViewBag.Total = total;
             ViewBag.Disponibles = disponibles;
@@ -88,6 +99,13 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Reservados = reservados;
             ViewBag.TotalLanzamiento = totalLanz;
             ViewBag.Historico = Math.Max(0, total - totalLanz);
+            ViewBag.VendidasLanzamiento = vendLanz;
+            ViewBag.VendidasPrevias = vendPrev;
+            ViewBag.ReservadasLanzamiento = resLanz;
+            ViewBag.ReservadasPrevias = resPrev;
+            // El mismo componente que usa el informe del administrador.
+            ViewBag.Progreso = new ProgresoProyecto(
+                total, totalLanz, vendLanz, vendPrev, resLanz, resPrev, disponibles);
 
             var cmdValor = new SqlCommand(
                 "SELECT ISNULL(SUM(PrecioVenta),0) FROM Ventas WHERE IdProyecto=@id AND Estado='ACTIVA'", con);

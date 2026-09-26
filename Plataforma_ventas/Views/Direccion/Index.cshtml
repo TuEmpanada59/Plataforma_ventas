@@ -12,6 +12,8 @@
     long valorRes   = ViewBag.ValorReservado   != null ? (long)ViewBag.ValorReservado  : 0;
     int ventasHoy   = ViewBag.VentasHoy        != null ? (int)ViewBag.VentasHoy        : 0;
     long valorHoy   = ViewBag.ValorHoy         != null ? (long)ViewBag.ValorHoy        : 0;
+    var progreso    = ViewBag.Progreso as Plataforma_ventas.ProgresoProyecto
+                      ?? new Plataforma_ventas.ProgresoProyecto(0, 0, 0, 0, 0, 0, 0);
     var asesores    = ViewBag.Asesores   as List<dynamic> ?? new List<dynamic>();
     var tipologias  = ViewBag.Tipologias as List<dynamic> ?? new List<dynamic>();
     string actividad = ViewBag.ActividadTitulo as string ?? "";
@@ -20,15 +22,7 @@
     // Las barras replican las del informe del administrador: mismo dato, misma lectura.
     // Los porcentajes del proyecto van sobre el total; el avance del lanzamiento, sobre
     // lo que realmente salió a vender en este evento.
-    int colocado = vendidos + reservados;
-    var inv = System.Globalization.CultureInfo.InvariantCulture;
-    double pctV = total > 0 ? Math.Round((double)vendidos    * 100 / total, 1) : 0;
-    double pctD = total > 0 ? Math.Round((double)disponibles * 100 / total, 1) : 0;
-    double pctR = total > 0 ? Math.Round((double)reservados  * 100 / total, 1) : 0;
     double pctL = totalLanz > 0 ? Math.Round((double)vendidos * 100 / totalLanz, 1) : 0;
-    string wV = pctV.ToString("0.##", inv), wD = pctD.ToString("0.##", inv);
-    string wR = pctR.ToString("0.##", inv), wL = pctL.ToString("0.##", inv);
-    bool separaLanz = totalLanz > 0 && totalLanz != total;
 }
 @section Styles { <partial name="_Estilos" /> }
 
@@ -41,12 +35,26 @@
     <div class="d-kpi">
         <div class="d-num" style="color:#1EA851">@vendidos</div>
         <div class="d-lbl">Vendidas</div>
-        <div class="d-pie">@string.Format("{0:0.#}", pctL)% del lanzamiento</div>
+        @if (progreso.HaySeparacion)
+        {
+            <div class="d-pie">@progreso.VendidasLanzamiento en el lanzamiento · @progreso.VendidasPrevias ya venían</div>
+        }
+        else
+        {
+            <div class="d-pie">@string.Format("{0:0.#}", pctL)% del lanzamiento</div>
+        }
     </div>
     <div class="d-kpi">
         <div class="d-num" style="color:#CC7700">@reservados</div>
         <div class="d-lbl">Reservadas</div>
-        <div class="d-pie">$@string.Format("{0:N0}", valorRes) comprometidos</div>
+        @if (progreso.HaySeparacion)
+        {
+            <div class="d-pie">@progreso.ReservadasLanzamiento en el lanzamiento · @progreso.ReservadasPrevias del archivo</div>
+        }
+        else
+        {
+            <div class="d-pie">$@string.Format("{0:N0}", valorRes) comprometidos</div>
+        }
     </div>
     <div class="d-kpi">
         <div class="d-num" style="color:var(--rojo)">@disponibles</div>
@@ -69,36 +77,8 @@
         }
     </div>
     <div style="padding:18px">
-        <div class="prog-row">
-            <div class="prog-meta"><span class="prog-name">Vendidos</span><span class="prog-val" style="color:#1EA851">@vendidos / @total</span></div>
-            <div class="prog-track"><div class="prog-fill" style="width:@wV%;background:linear-gradient(90deg,#1EA851,#34C759)"></div></div>
-        </div>
-        <div class="prog-row">
-            <div class="prog-meta"><span class="prog-name">Disponibles</span><span class="prog-val" style="color:var(--rojo)">@disponibles / @total</span></div>
-            <div class="prog-track"><div class="prog-fill" style="width:@wD%;background:linear-gradient(90deg,var(--rojo),#FF6370)"></div></div>
-        </div>
-        <div class="prog-row">
-            <div class="prog-meta"><span class="prog-name">Reservados</span><span class="prog-val" style="color:#CC7700">@reservados / @total</span></div>
-            <div class="prog-track"><div class="prog-fill" style="width:@wR%;background:linear-gradient(90deg,#CC7700,#FF9500)"></div></div>
-        </div>
-        @if (separaLanz)
-        {
-            <div class="prog-row">
-                <div class="prog-meta">
-                    <span class="prog-name">Avance del lanzamiento</span>
-                    <span class="prog-val" style="color:var(--blue)">@vendidos / @totalLanz</span>
-                </div>
-                <div class="prog-track"><div class="prog-fill" style="width:@wL%;background:linear-gradient(90deg,var(--azul),#5AC8FA)"></div></div>
-            </div>
-        }
-        @if (historico > 0)
-        {
-            <div class="d-pie" style="margin-top:12px">
-                @colocado de @totalLanz colocadas en el lanzamiento.
-                @historico unidad@(historico == 1 ? "" : "es") ya venía@(historico == 1 ? "" : "n")
-                comprometida@(historico == 1 ? "" : "s") de antes del evento.
-            </div>
-        }
+        @* El mismo componente que ve el administrador en su informe. *@
+        @await Html.PartialAsync("_ProgresoProyecto", progreso)
     </div>
 </div>
 

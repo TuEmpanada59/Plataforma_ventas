@@ -619,3 +619,25 @@ body.solo-lectura form[method="post"]:not([data-siempre]),
 body.solo-lectura form[method="POST"]:not([data-siempre]),
 body.solo-lectura .solo-admin{display:none !important;}
 .modo-consulta{margin:10px 14px 4px;padding:6px 12px;border-radius:20px;background:rgba(255,149,0,0.14);color:#A66000;font-size:11px;font-weight:700;letter-spacing:.04em;text-align:center;}
+
+/* ── Progreso del proyecto con separación de lanzamiento ────────────────────
+   Compartido por el informe del administrador y el perfil de dirección, a
+   través de la vista parcial _ProgresoProyecto. El tono fuerte es lo logrado
+   en el evento; el pálido, lo que ya venía comprometido. */
+.pp{display:flex;flex-direction:column;gap:14px;}
+.pp-fila{display:flex;flex-direction:column;gap:5px;}
+.pp-meta{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.pp-nom{font-size:13px;color:var(--label);font-weight:500;}
+.pp-val{font-size:12px;font-weight:600;text-align:right;}
+.pp-detalle{display:block;font-size:10.5px;font-weight:500;color:var(--label3);margin-top:1px;}
+.pp-track{display:flex;height:9px;background:var(--fill3);border-radius:50px;overflow:hidden;}
+.pp-fill{display:block;height:100%;transition:width 1s ease;}
+.pp-vend{background:linear-gradient(90deg,#1EA851,#34C759);}
+.pp-vend-prev{background:repeating-linear-gradient(135deg,rgba(30,168,81,0.38) 0 5px,rgba(30,168,81,0.20) 5px 10px);}
+.pp-res{background:linear-gradient(90deg,#CC7700,#FF9500);}
+.pp-res-prev{background:repeating-linear-gradient(135deg,rgba(204,119,0,0.38) 0 5px,rgba(204,119,0,0.20) 5px 10px);}
+.pp-disp{background:linear-gradient(90deg,var(--rojo),#FF6370);}
+.pp-avance{background:linear-gradient(90deg,var(--azul),#5AC8FA);}
+.pp-leyenda{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--label2);padding-top:2px;}
+.pp-m{display:inline-block;width:22px;height:8px;border-radius:4px;margin-right:5px;vertical-align:middle;}
+.pp-aparte{color:var(--label3);}

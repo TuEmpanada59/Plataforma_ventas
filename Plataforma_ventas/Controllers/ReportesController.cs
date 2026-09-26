@@ -137,6 +137,31 @@ namespace Plataforma_ventas.Controllers
                 cmdValLanz.Parameters.AddWithValue("@id", idProy);
                 valorLanzamiento = Convert.ToInt64((await cmdValLanz.ExecuteScalarAsync())!);
             }
+            // Progreso separando lo del evento de lo que ya venía. El mismo desglose
+            // que ve dirección: un dato con dos números distintos según la pantalla es
+            // peor que no tenerlo.
+            int vendLanz = 0, vendPrev = 0, resLanz = 0, resPrev = 0, dispProg = 0;
+            var cmdProg = new SqlCommand($@"
+                SELECT
+                    SUM(CASE WHEN Estado='VENDIDO'   AND {(hayEnLanzamiento ? "EnLanzamiento=1" : "1=1")} THEN 1 ELSE 0 END) AS VendLanz,
+                    SUM(CASE WHEN Estado='VENDIDO'   AND {(hayEnLanzamiento ? "EnLanzamiento=0" : "1=0")} THEN 1 ELSE 0 END) AS VendPrev,
+                    SUM(CASE WHEN Estado='RESERVADO' AND {(hayEnLanzamiento ? "EnLanzamiento=1" : "1=1")} THEN 1 ELSE 0 END) AS ResLanz,
+                    SUM(CASE WHEN Estado='RESERVADO' AND {(hayEnLanzamiento ? "EnLanzamiento=0" : "1=0")} THEN 1 ELSE 0 END) AS ResPrev,
+                    SUM(CASE WHEN Estado IN ('DISPONIBLE','EN PROCESO') THEN 1 ELSE 0 END) AS Disp
+                FROM Inmuebles WHERE IdProyecto=@id", con);
+            cmdProg.Parameters.AddWithValue("@id", idProy);
+            using (var rp = (SqlDataReader)await cmdProg.ExecuteReaderAsync())
+                if (await rp.ReadAsync())
+                {
+                    vendLanz = rp["VendLanz"] == DBNull.Value ? 0 : Convert.ToInt32(rp["VendLanz"]);
+                    vendPrev = rp["VendPrev"] == DBNull.Value ? 0 : Convert.ToInt32(rp["VendPrev"]);
+                    resLanz  = rp["ResLanz"]  == DBNull.Value ? 0 : Convert.ToInt32(rp["ResLanz"]);
+                    resPrev  = rp["ResPrev"]  == DBNull.Value ? 0 : Convert.ToInt32(rp["ResPrev"]);
+                    dispProg = rp["Disp"]     == DBNull.Value ? 0 : Convert.ToInt32(rp["Disp"]);
+                }
+            ViewBag.Progreso = new ProgresoProyecto(
+                totalProyecto, totalLanzamiento, vendLanz, vendPrev, resLanz, resPrev, dispProg);
+
             ViewBag.HayLanzamiento = hayEnLanzamiento;
             ViewBag.TotalLanzamiento = totalLanzamiento;
             ViewBag.VendidosLanzamiento = vendidosLanzamiento;

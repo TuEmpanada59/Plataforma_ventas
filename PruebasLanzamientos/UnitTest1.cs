@@ -345,4 +345,51 @@ public class UnitTest1
         Assert.Equal("Dirección", Roles.Titulo("Direccion"));
         Assert.Equal("Super Admin", Roles.Titulo("SuperAdministrador"));
     }
+
+    //ProgresoProyecto: separar lo del evento de lo que ya venía comprometido.
+    //De este cálculo sale el número con el que se mide al equipo.
+    [Fact]
+    public void Progreso_SeparaElEventoDeLoQueYaVenia()
+    {
+        // Proyecto de 72 unidades: 42 salieron al lanzamiento, 30 ya estaban
+        // comprometidas (2 vendidas y 28 reservadas en el Excel). En el evento se
+        // vendieron 5 y se reservaron 3.
+        var p = new ProgresoProyecto(
+            Total: 72, TotalLanzamiento: 42,
+            VendidasLanzamiento: 5, VendidasPrevias: 2,
+            ReservadasLanzamiento: 3, ReservadasPrevias: 28,
+            Disponibles: 34);
+
+        Assert.Equal(7, p.Vendidas);
+        Assert.Equal(31, p.Reservadas);
+        Assert.Equal(30, p.Previas);
+        Assert.Equal(8, p.ColocadoLanzamiento);
+        Assert.True(p.HaySeparacion);
+
+        // El avance se mide sobre lo que salió a vender, no sobre el proyecto entero.
+        Assert.Equal(8d * 100 / 42, p.PctAvanceLanzamiento, 3);
+    }
+
+    [Fact]
+    public void Progreso_SinHistoriaNoSeparaNada()
+    {
+        // Un estreno: todo es del lanzamiento y no hay dos cosas que distinguir.
+        var p = new ProgresoProyecto(50, 50, 6, 0, 4, 0, 40);
+        Assert.False(p.HaySeparacion);
+        Assert.Equal(0, p.Previas);
+        Assert.Equal(20d, p.PctAvanceLanzamiento, 3);
+    }
+
+    [Fact]
+    public void Progreso_ProyectoVacioNoDivideEntreCero()
+    {
+        var p = new ProgresoProyecto(0, 0, 0, 0, 0, 0, 0);
+        Assert.Equal(0, p.PctAvanceLanzamiento);
+        Assert.Equal(0, p.PctDeTotal(5));
+    }
+
+    //El ancho de las barras lleva punto decimal: con la coma de es-CO el CSS lo ignora
+    [Fact]
+    public void Progreso_AnchoUsaPuntoDecimal()
+        => Assert.Equal("33.33", ProgresoProyecto.Ancho(33.333));
 }
