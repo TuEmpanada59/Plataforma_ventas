@@ -265,7 +265,7 @@ namespace Plataforma_ventas.Controllers
                 while (await r.ReadAsync())
                     listaPorArea[r["Metros"]?.ToString() ?? ""] = Convert.ToInt32(r["L"]);
 
-            var inmuebles = new List<Inventario.Unidad>();
+            var inmuebles = new List<Plataforma_ventas.Inventario.Unidad>();
             var cmd = new SqlCommand($@"
                 SELECT i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros, i.Estado,
                        {(hayEtapa ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
@@ -292,7 +292,7 @@ namespace Plataforma_ventas.Controllers
                                 : precioLista;
                     if (precio <= 0) precio = precioLista;
 
-                    inmuebles.Add(new Inventario.Unidad(
+                    inmuebles.Add(new Plataforma_ventas.Inventario.Unidad(
                         Apto: r["Apto"]?.ToString() ?? "",
                         Torre: r["Torre"]?.ToString() ?? "",
                         Etapa: r["Etapa"]?.ToString() ?? "",
@@ -316,7 +316,7 @@ namespace Plataforma_ventas.Controllers
             if (!string.IsNullOrWhiteSpace(torre))
                 filtrados = filtrados.Where(i => string.Equals(i.Torre, torre, StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrWhiteSpace(estado))
-                filtrados = filtrados.Where(i => Inventario.EstadoVisible(i.Estado) == estado.ToUpperInvariant());
+                filtrados = filtrados.Where(i => Plataforma_ventas.Inventario.EstadoVisible(i.Estado) == estado.ToUpperInvariant());
 
             var resultado = filtrados.ToList();
             ViewBag.TotalFiltrado = resultado.Count;
@@ -327,7 +327,7 @@ namespace Plataforma_ventas.Controllers
             // El valor de lo que se está mirando: con un filtro puesto responde
             // "cuánto hay en disponible" sin sacar una calculadora.
             ViewBag.ValorFiltrado = resultado.Sum(i => i.Precio);
-            ViewBag.PorArea = Inventario.Agrupar(resultado);
+            ViewBag.PorArea = Plataforma_ventas.Inventario.Agrupar(resultado);
             return View();
         }
 
@@ -464,6 +464,6 @@ namespace Plataforma_ventas.Controllers
         /// El estado tal como se muestra. Delega en la regla compartida para que el
         /// informe del administrador y este perfil no puedan discrepar.
         /// </summary>
-        public static string EstadoVisible(string? estado) => Inventario.EstadoVisible(estado);
+        public static string EstadoVisible(string? estado) => Plataforma_ventas.Inventario.EstadoVisible(estado);
     }
 }
