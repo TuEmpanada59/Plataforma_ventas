@@ -43,7 +43,12 @@
     .dir-rol{font-size:11px;color:var(--label3);}
     .dir-salir{font-size:12px;font-weight:600;color:var(--label2);text-decoration:none;border:1px solid var(--sep);border-radius:10px;padding:7px 14px;}
     .dir-salir:hover{border-color:var(--rojo);color:var(--rojo);}
-    .dir-marco{max-width:1280px;margin:0 auto;padding:0 20px 40px;}
+    /* platform.css pinta un velo de fondo con body::before, fijo y en z-index 0. El
+       contenido sin posicionar queda POR DEBAJO de ese velo: por eso la cabecera y las
+       pestañas se veían en blanco sobre blanco mientras las tarjetas sí aparecían (una
+       animación con transform las saca a su propia capa). El armazón del administrador
+       resuelve lo mismo con position:relative y z-index:1; aquí faltaba. */
+    .dir-marco{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:18px 20px 48px;}
     .dir-logo{height:34px;object-fit:contain;mix-blend-mode:multiply;}
     .dir-vacio{background:rgba(255,149,0,0.07);border:1px solid rgba(255,149,0,0.3);border-radius:16px;padding:24px;font-size:13.5px;color:#8a5200;line-height:1.6;}
   </style>

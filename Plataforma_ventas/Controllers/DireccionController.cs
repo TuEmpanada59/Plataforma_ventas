@@ -301,10 +301,22 @@ namespace Plataforma_ventas.Controllers
             if (!string.IsNullOrWhiteSpace(estado))
                 filtrados = filtrados.Where(i => EstadoVisible((string)i.Estado) == estado.ToUpperInvariant());
 
-            ViewBag.Inmuebles = filtrados.ToList();
+            var lista = filtrados.ToList();
+            ViewBag.Inmuebles = lista;
             ViewBag.TotalSinFiltro = inmuebles.Count;
             ViewBag.FiltroTorre = torre ?? "";
             ViewBag.FiltroEstado = (estado ?? "").ToUpperInvariant();
+
+            // Una columna que está vacía en todas las filas es ruido. Los proyectos de
+            // una sola torre no informan torre, y los de una sola etapa tampoco.
+            ViewBag.HayTorre = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Torre));
+            ViewBag.HayEtapa = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Etapa));
+            ViewBag.HayPiso  = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Piso));
+            ViewBag.HayTipo  = inmuebles.Any(i => !string.IsNullOrWhiteSpace((string)i.Tipo));
+
+            // El valor de lo que se está mirando: con un filtro puesto responde
+            // "cuánto hay en disponible" sin sacar una calculadora.
+            ViewBag.ValorFiltrado = lista.Sum(i => (long)i.Precio);
             return View();
         }
 
