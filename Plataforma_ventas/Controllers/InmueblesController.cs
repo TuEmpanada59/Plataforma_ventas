@@ -433,6 +433,7 @@ namespace Plataforma_ventas.Controllers
             var cmd = new SqlCommand($@"
                 SELECT i.IdInmuebles, i.Apto, i.Metros, i.Tipo, i.Torre, i.Piso,
                        i.PrecioReserva, i.FechaReserva, i.IdVendedorReserva,
+                       i.Lista1, i.Lista2, i.Lista3, i.Lista4, i.Lista5,
                        {(hayColumnaObs ? "ISNULL(i.ObservacionReserva,'')" : "''")} AS Observacion,
                        u.Nombre + ' ' + u.Apellido AS NombreVendedor
                 FROM Inmuebles i
@@ -453,6 +454,12 @@ namespace Plataforma_ventas.Controllers
                     Torre = rr["Torre"]?.ToString() ?? "",
                     Piso = rr["Piso"]?.ToString() ?? "",
                     PrecioReserva = rr["PrecioReserva"] == DBNull.Value ? 0L : (long)rr["PrecioReserva"],
+                    // Con qué lista se bloqueó el precio. No hay columna que lo guarde:
+                    // se deduce comparando contra las cinco listas de esa unidad.
+                    ListaReserva = Listas.ListaDePrecio(
+                        rr["PrecioReserva"] == DBNull.Value ? 0L : (long)rr["PrecioReserva"],
+                        rr["Lista1"]?.ToString(), rr["Lista2"]?.ToString(), rr["Lista3"]?.ToString(),
+                        rr["Lista4"]?.ToString(), rr["Lista5"]?.ToString()),
                     FechaReserva = rr["FechaReserva"] == DBNull.Value ? "" :
                                      ((DateTime)rr["FechaReserva"]).ToString("dd/MM/yyyy HH:mm"),
                     NombreVendedor = rr["NombreVendedor"]?.ToString() ?? "",
@@ -741,12 +748,14 @@ namespace Plataforma_ventas.Controllers
                 }
 
             var reservas = new List<(string Apto, string Torre, string Etapa, string Piso, string Tipo,
-                                     string Metros, long Precio, string Asesor, string Obs, string Fecha)>();
+                                     string Metros, long Precio, int Lista, string Asesor,
+                                     string Obs, string Fecha)>();
             var cmd = new SqlCommand($@"
                 SELECT i.Apto, i.Torre, i.Piso, i.Tipo, i.Metros,
                        {(hayEtapa ? "ISNULL(i.Etapa,'')" : "''")} AS Etapa,
                        {(hayObs ? "ISNULL(i.ObservacionReserva,'')" : "''")} AS Observacion,
                        ISNULL(i.PrecioReserva,0) AS PrecioReserva, i.FechaReserva,
+                       i.Lista1, i.Lista2, i.Lista3, i.Lista4, i.Lista5,
                        ISNULL(us.Nombre + ' ' + us.Apellido, '') AS Asesor
                 FROM Inmuebles i
                 LEFT JOIN Usuarios us ON us.IdUsuario = i.IdVendedorReserva
@@ -763,6 +772,9 @@ namespace Plataforma_ventas.Controllers
                         r["Tipo"]?.ToString() ?? "",
                         r["Metros"]?.ToString() ?? "",
                         Convert.ToInt64(r["PrecioReserva"]),
+                        Listas.ListaDePrecio(Convert.ToInt64(r["PrecioReserva"]),
+                            r["Lista1"]?.ToString(), r["Lista2"]?.ToString(), r["Lista3"]?.ToString(),
+                            r["Lista4"]?.ToString(), r["Lista5"]?.ToString()),
                         r["Asesor"]?.ToString() ?? "",
                         r["Observacion"]?.ToString() ?? "",
                         r["FechaReserva"] == DBNull.Value ? "" : ((DateTime)r["FechaReserva"]).ToString("dd/MM/yyyy HH:mm")));
@@ -775,14 +787,14 @@ namespace Plataforma_ventas.Controllers
             ws.Cells[1, 1].Style.Font.Bold = true;
             ws.Cells[1, 1].Style.Font.Size = 14;
             ws.Cells[1, 1].Style.Font.Color.SetColor(DColor.FromArgb(0, 58, 112));
-            ws.Cells[1, 1, 1, 9].Merge = true;
+            ws.Cells[1, 1, 1, 11].Merge = true;
 
             ws.Cells[2, 1].Value = $"Generado: {DateTime.Now:dd/MM/yyyy HH:mm}  ·  {reservas.Count} reservas activas";
             ws.Cells[2, 1].Style.Font.Color.SetColor(DColor.Gray);
-            ws.Cells[2, 1, 2, 9].Merge = true;
+            ws.Cells[2, 1, 2, 11].Merge = true;
 
             var headers = new[] { u.Titulo, "Torre", "Etapa", "Piso", "Tipo", "Área m²",
-                                  "Precio bloqueado", "Asesor", "Observación", "Fecha de reserva" };
+                                  "Precio bloqueado", "Lista", "Asesor", "Observación", "Fecha de reserva" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var c = ws.Cells[4, i + 1];
@@ -805,18 +817,22 @@ namespace Plataforma_ventas.Controllers
                 ws.Cells[row, 6].Value = r.Metros;
                 ws.Cells[row, 7].Value = r.Precio;
                 ws.Cells[row, 7].Style.Numberformat.Format = "$#,##0";
+                // Con qué lista se bloqueó. Vacío cuando el precio ya no coincide con
+                // ninguna, que pasa si se ajustaron los precios después de reservar.
+                ws.Cells[row, 8].Value = r.Lista > 0 ? r.Lista : (object)"";
+                ws.Cells[row, 8].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                 // Sin asesor se resalta: es una reserva que nadie tiene asignada y que hay
                 // que repartir antes de que se cierre.
                 if (string.IsNullOrWhiteSpace(r.Asesor))
                 {
-                    ws.Cells[row, 8].Value = "SIN ASIGNAR";
-                    ws.Cells[row, 8].Style.Font.Color.SetColor(DColor.FromArgb(204, 119, 0));
-                    ws.Cells[row, 8].Style.Font.Bold = true;
+                    ws.Cells[row, 9].Value = "SIN ASIGNAR";
+                    ws.Cells[row, 9].Style.Font.Color.SetColor(DColor.FromArgb(204, 119, 0));
+                    ws.Cells[row, 9].Style.Font.Bold = true;
                 }
-                else ws.Cells[row, 8].Value = r.Asesor;
-                ws.Cells[row, 9].Value = r.Obs;
-                ws.Cells[row, 9].Style.WrapText = true;
-                ws.Cells[row, 10].Value = r.Fecha;
+                else ws.Cells[row, 9].Value = r.Asesor;
+                ws.Cells[row, 10].Value = r.Obs;
+                ws.Cells[row, 10].Style.WrapText = true;
+                ws.Cells[row, 11].Value = r.Fecha;
                 row++;
             }
 
@@ -827,19 +843,19 @@ namespace Plataforma_ventas.Controllers
                 ws.Cells[row, 7].Formula = $"SUM(G5:G{row - 1})";
                 ws.Cells[row, 7].Style.Font.Bold = true;
                 ws.Cells[row, 7].Style.Numberformat.Format = "$#,##0";
-                ws.Cells[row, 1, row, 10].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                ws.Cells[row, 1, row, 10].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(235, 241, 248));
+                ws.Cells[row, 1, row, 11].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                ws.Cells[row, 1, row, 11].Style.Fill.BackgroundColor.SetColor(DColor.FromArgb(235, 241, 248));
             }
             else
             {
                 ws.Cells[5, 1].Value = "No hay reservas activas en este proyecto.";
-                ws.Cells[5, 1, 5, 10].Merge = true;
+                ws.Cells[5, 1, 5, 11].Merge = true;
                 ws.Cells[5, 1].Style.Font.Color.SetColor(DColor.Gray);
             }
 
-            ws.Cells[4, 1, Math.Max(row, 5), 10].AutoFitColumns();
+            ws.Cells[4, 1, Math.Max(row, 5), 11].AutoFitColumns();
             // La observación se deja ancha y con ajuste de texto: es lo que se lee.
-            ws.Column(9).Width = 45;
+            ws.Column(10).Width = 45;
 
             var bytes = package.GetAsByteArray();
             var nombre = $"Reservas_{proyNombre.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";

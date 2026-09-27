@@ -392,4 +392,33 @@ public class UnitTest1
     [Fact]
     public void Progreso_AnchoUsaPuntoDecimal()
         => Assert.Equal("33.33", ProgresoProyecto.Ancho(33.333));
+
+    //ListaDePrecio: con qué lista se reservó, deducido del precio bloqueado
+    [Fact]
+    public void ListaDePrecio_EncuentraLaListaQueCoincide()
+    {
+        // Las cinco listas de una unidad, como vienen de la base (texto).
+        string[] l = { "1542600000", "1573452000", "1604921040", "1637019461", "1669759850" };
+
+        Assert.Equal(1, Listas.ListaDePrecio(1542600000, l));
+        Assert.Equal(3, Listas.ListaDePrecio(1604921040, l));
+        Assert.Equal(5, Listas.ListaDePrecio(1669759850, l));
+    }
+
+    [Fact]
+    public void ListaDePrecio_CeroCuandoNoSePuedeDeterminar()
+    {
+        string[] l = { "1542600000", "1573452000", "", "", "" };
+
+        // Un precio que no coincide con ninguna: alguien ajustó las listas después de
+        // reservar. Mejor no decir nada que decir una lista equivocada.
+        Assert.Equal(0, Listas.ListaDePrecio(999, l));
+        Assert.Equal(0, Listas.ListaDePrecio(0, l));
+        Assert.Equal(0, Listas.ListaDePrecio(1542600000));
+    }
+
+    //El precio de la base puede venir con formato; se compara por valor y no por texto
+    [Fact]
+    public void ListaDePrecio_ToleraElFormatoDelPrecio()
+        => Assert.Equal(2, Listas.ListaDePrecio(1573452000, "$1.542.600.000", "$ 1.573.452.000"));
 }

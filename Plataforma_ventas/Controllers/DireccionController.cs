@@ -416,6 +416,7 @@ namespace Plataforma_ventas.Controllers
                        {(hayObs ? "ISNULL(i.ObservacionReserva,'')" : "''")} AS Observacion,
                        {(hayLanz ? "i.EnLanzamiento" : "CAST(1 AS BIT)")} AS EnLanzamiento,
                        ISNULL(i.PrecioReserva,0) AS Precio,
+                       i.Lista1, i.Lista2, i.Lista3, i.Lista4, i.Lista5,
                        ISNULL(us.Nombre + ' ' + us.Apellido,'') AS Asesor,
                        i.FechaReserva,
                        DATEDIFF(HOUR, i.FechaReserva, GETDATE()) AS Horas
@@ -435,6 +436,11 @@ namespace Plataforma_ventas.Controllers
                         Etapa = r["Etapa"]?.ToString() ?? "",
                         Observacion = r["Observacion"]?.ToString() ?? "",
                         Precio = Convert.ToInt64(r["Precio"]),
+                        // Con qué lista se bloqueó el precio, deducido: no hay columna
+                        // que lo guarde, la reserva toma el precio de la lista vigente.
+                        Lista = Listas.ListaDePrecio(Convert.ToInt64(r["Precio"]),
+                            r["Lista1"]?.ToString(), r["Lista2"]?.ToString(), r["Lista3"]?.ToString(),
+                            r["Lista4"]?.ToString(), r["Lista5"]?.ToString()),
                         Asesor = (r["Asesor"]?.ToString() ?? "").Trim(),
                         Horas = r["Horas"] == DBNull.Value ? 0 : Convert.ToInt32(r["Horas"]),
                         // Una unidad que salió disponible a este evento y hoy está

@@ -50,6 +50,25 @@ public static class Listas
     }
 
     /// <summary>
+    /// Con qué lista se reservó un inmueble. No se guarda en ninguna columna: la
+    /// reserva toma el precio de la lista vigente para su área, así que se deduce
+    /// comparando el precio bloqueado contra las cinco listas de esa unidad.
+    ///
+    /// Devuelve 0 cuando el precio no coincide con ninguna, que pasa si alguien ajustó
+    /// las listas después de reservar. Antes que mostrar una lista equivocada, se
+    /// muestra que no se puede determinar.
+    /// </summary>
+    /// <param name="precio">El precio bloqueado en la reserva.</param>
+    /// <param name="listas">Los precios de Lista1 a Lista5, en orden y como vienen de la base.</param>
+    public static int ListaDePrecio(long precio, params string?[] listas)
+    {
+        if (precio <= 0 || listas == null) return 0;
+        for (int i = 0; i < listas.Length && i < 5; i++)
+            if (Texto.ParsearPrecio(listas[i]) == precio) return i + 1;
+        return 0;
+    }
+
+    /// <summary>
     /// Lee la columna "VENDIDO EN LISTA" del Excel: con qué lista de precios se cerró
     /// una unidad que llega vendida o reservada. Se conserva el precio con el que se
     /// negoció y no el de la lista vigente, porque al escriturar se le cobraría al
