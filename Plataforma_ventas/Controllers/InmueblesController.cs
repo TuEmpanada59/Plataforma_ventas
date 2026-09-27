@@ -511,6 +511,7 @@ namespace Plataforma_ventas.Controllers
             var cmd = new SqlCommand(@"
                 SELECT i.IdInmuebles, i.Apto, i.Metros, i.Tipo, i.Torre, i.Piso,
                        i.PrecioReserva,
+                       i.Lista1, i.Lista2, i.Lista3, i.Lista4, i.Lista5,
                        u.Nombre + ' ' + u.Apellido AS NombreVendedor
                 FROM Inmuebles i
                 LEFT JOIN Usuarios u ON u.IdUsuario = i.IdVendedorReserva
@@ -528,6 +529,12 @@ namespace Plataforma_ventas.Controllers
             ViewBag.Tipo = r["Tipo"]?.ToString() ?? "";
             ViewBag.Torre = r["Torre"]?.ToString() ?? "";
             ViewBag.PrecioReserva = r["PrecioReserva"] == DBNull.Value ? 0L : (long)r["PrecioReserva"];
+            // Con qué lista se bloqueó ese precio. Se deduce: la reserva toma el precio
+            // de la lista vigente, así que se compara contra las cinco de la unidad.
+            ViewBag.ListaReserva = Listas.ListaDePrecio(
+                r["PrecioReserva"] == DBNull.Value ? 0L : (long)r["PrecioReserva"],
+                r["Lista1"]?.ToString(), r["Lista2"]?.ToString(), r["Lista3"]?.ToString(),
+                r["Lista4"]?.ToString(), r["Lista5"]?.ToString());
             ViewBag.Vendedor = r["NombreVendedor"]?.ToString() ?? "";
             r.Close();
 
