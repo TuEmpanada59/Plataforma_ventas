@@ -3,6 +3,7 @@
     ViewData["Title"] = "Mercurio — Reportes";
     ViewBag.ActiveNav = "reportes";
     ViewBag.TbBread   = "Reportes";
+    ViewBag.Vivo      = true;   // el informe se refresca solo (vivo.js)
 
     var proyActivo = ViewBag.ProyectoActivo as string ?? "Sin proyecto";
     int total      = ViewBag.Total       != null ? (int)ViewBag.Total       : 0;
@@ -295,9 +296,9 @@
     <div class="card-head">
         <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Etiqueta("#0076E3", 17) Ventas por tipología</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap;" id="tipoFiltros">
-            <span class="tipo-chip active" onclick="filtrarTipo('todos',this)">Todas</span>
+            <span class="tipo-chip active" data-tipo="todos" onclick="filtrarTipo('todos',this)">Todas</span>
             @foreach (var t in tipologias) {
-                <span class="tipo-chip" onclick="filtrarTipo('@t.Tipo',this)">@t.Tipo <strong style="margin-left:4px">@t.Vendidos</strong></span>
+                <span class="tipo-chip" data-tipo="@t.Tipo" onclick="filtrarTipo('@t.Tipo',this)">@t.Tipo <strong style="margin-left:4px">@t.Vendidos</strong></span>
             }
         </div>
     </div>
@@ -399,7 +400,7 @@
         <span class="card-title" style="display:inline-flex;align-items:center;gap:8px">@Iconos.Lista("#0076E3", 17) Detalle de ventas</span>
         <div style="display:flex;align-items:center;gap:8px;">
             <span style="background:rgba(0,118,227,0.1);color:var(--blue);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px">@ventas.Count ventas</span>
-            <div class="search-wrap"><span class="search-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span><input type="text" id="buscar" placeholder="Buscar..." oninput="filtrar()"/></div>
+            <div class="search-wrap"><span class="search-ico"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span><input type="text" id="buscar" data-vivo-valor placeholder="Buscar..." oninput="filtrar()"/></div>
         </div>
     </div>
     @if (ventas.Count > 0) {
@@ -466,9 +467,11 @@
 </div>
 
 @section Scripts {
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
-<script src="~/js/mapa-pisos.js" asp-append-version="true"></script>
+@* Sin mapa-pisos.js: vivo.js, que ya carga el armazón, refresca el informe entero
+   —mapa incluido— y destella las unidades que cambiaron. *@
 <script>
+    var tipoActivo = 'todos';
+
     function filtrar(){
         const q=document.getElementById('buscar').value.toLowerCase();
         document.querySelectorAll('#tablaVentas tbody tr:not(.asesor-sep)').forEach(tr=>{
@@ -476,11 +479,26 @@
         });
     }
     function filtrarTipo(tipo, btn){
+        tipoActivo = tipo;
         document.querySelectorAll('.tipo-chip').forEach(x=>x.classList.remove('active'));
         btn.classList.add('active');
         document.querySelectorAll('#tblTipo tbody tr').forEach(tr=>{
             tr.style.display=(tipo==='todos'||tr.dataset.tipo===tipo)?'':'none';
         });
     }
+
+    /* Un refresco trae las tablas completas desde el servidor. Lo que la persona había
+       filtrado no está en esa respuesta —vive solo aquí—, así que se vuelve a aplicar
+       enseguida: nadie debería perder su búsqueda porque alguien vendió un apartamento. */
+    document.addEventListener('vivo:actualizado', function(){
+        filtrar();
+        // Comparando en JavaScript y no con un selector: el nombre de la tipología lo
+        // pone el Excel del proyecto y puede traer comillas.
+        var chip = null;
+        document.querySelectorAll('.tipo-chip').forEach(function(x){
+            if (x.dataset.tipo === tipoActivo) chip = x;
+        });
+        if (chip) filtrarTipo(tipoActivo, chip);
+    });
 </script>
 }

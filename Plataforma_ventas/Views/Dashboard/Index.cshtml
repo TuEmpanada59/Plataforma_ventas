@@ -3,6 +3,7 @@
     ViewData["Title"] = "Mercurio — Inicio";
     ViewBag.ActiveNav = "dashboard";
     ViewBag.TbBread   = "Inicio";
+    ViewBag.Vivo      = true;   // el panel se refresca solo (vivo.js)
 
     var nombre      = ViewBag.Nombre      as string ?? "Admin";
     var apellido    = ViewBag.Apellido    as string ?? "";
@@ -240,7 +241,9 @@
     </div>
 
     <!-- ACTIVIDAD EN VIVO -->
-    <div class="card">
+    @* Esta tarjeta se llena con lo que va pasando mientras la página está abierta: el
+       servidor no la puede rehacer, así que sobrevive intacta a los refrescos. *@
+    <div class="card" id="cardActividad" data-vivo-conservar>
         <div class="card-head">
             <span class="card-title">Actividad en vivo</span>
             <span class="vivo-badge" id="vivoBadge"><span class="vivo-dot"></span>Conectando…</span>
@@ -436,8 +439,11 @@
 }
 
 @section Scripts {
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+@* El armazón ya cargó signalr y vivo.js: aquí solo se suman los avisos del feed. *@
 <script>
+/* Todo dentro de una función: así se puede salir temprano cuando no hay nada que
+   escuchar, y estos nombres no quedan sueltos en la página. */
+(function(){
 var PROY = @(ViewBag.ProyectoId != null ? (int)ViewBag.ProyectoId : 0);
 var feed = document.getElementById('feed');
 var badge = document.getElementById('vivoBadge');
@@ -465,7 +471,18 @@ function horaAhora(){
     return new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', hour12:false});
 }
 
-var connection = new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
+/* La conexión es la que abrió vivo.js. Una sola por página: dos serían el doble de
+   trabajo para el servidor y nadie vería nada distinto.
+
+   Sin proyecto activo el armazón no carga ni signalr ni vivo.js, y aquí no hay nada
+   que escuchar: el panel se queda como una página normal en vez de romperse. */
+var compartida = !!(window.vivo && window.vivo.conexion);
+if (!compartida && typeof signalR === 'undefined') {
+    marcarConexion(false, 'Sin proyecto activo');
+    return;
+}
+var connection = compartida ? window.vivo.conexion
+    : new signalR.HubConnectionBuilder().withUrl("/ventasHub").withAutomaticReconnect().build();
 
 connection.on("InmuebleActualizado", function(idProyecto, idInmueble, estado, quien){
     if(idProyecto !== PROY) return;
@@ -489,12 +506,20 @@ connection.on("ListaAreaActualizada", function(idProyecto, metros, nuevaLista){
         '<span class="feed-bdg" style="background:rgba(0,118,227,0.1);color:var(--blue)">LISTA ' + nuevaLista + '</span>');
 });
 
-connection.onreconnecting(function(){ marcarConexion(false, 'Reconectando…'); });
-connection.onreconnected(function(){ marcarConexion(true, 'En vivo'); });
-connection.onclose(function(){ marcarConexion(false, 'Desconectado'); });
+if (compartida) {
+    /* El estado de la conexión lo lleva vivo.js, que es quien la arrancó. */
+    document.addEventListener('vivo:conexion', function(e){ marcarConexion(e.detail.ok, e.detail.texto); });
+    /* Y si ya estaba conectada antes de llegar aquí, no hay aviso que esperar. */
+    if (connection.state === 'Connected') marcarConexion(true, 'En vivo');
+} else {
+    connection.onreconnecting(function(){ marcarConexion(false, 'Reconectando…'); });
+    connection.onreconnected(function(){ marcarConexion(true, 'En vivo'); });
+    connection.onclose(function(){ marcarConexion(false, 'Desconectado'); });
 
-connection.start()
-    .then(function(){ marcarConexion(true, 'En vivo'); })
-    .catch(function(err){ marcarConexion(false, 'Sin conexión'); console.error("SignalR error:", err); });
+    connection.start()
+        .then(function(){ marcarConexion(true, 'En vivo'); })
+        .catch(function(err){ marcarConexion(false, 'Sin conexión'); console.error("SignalR error:", err); });
+}
+})();
 </script>
 }

@@ -14,6 +14,17 @@
 // está mirando:
 //     <div id="vivo" data-proyecto="12"> ... </div>
 // Opcional, un indicador en la barra superior con id="vivoChip".
+//
+// Dos salvedades para lo que el servidor no puede rehacer:
+//   · data-vivo-conservar en un elemento con id lo deja intacto entre refrescos. Es
+//     para lo que vive en el navegador y el servidor no sabe, como el feed de
+//     actividad del panel, que se llena con lo que va pasando.
+//   · data-vivo-valor en un campo conserva lo que la persona escribió, como el
+//     buscador de un informe.
+//
+// Y dos avisos para quien quiera engancharse: el evento vivo:actualizado después de
+// cada refresco, y vivo:conexion cuando el hub se cae o vuelve. window.vivo expone la
+// conexión para no abrir una segunda.
 
 (function () {
     var cont = document.getElementById('vivo');
@@ -75,6 +86,39 @@
         if (clase) chip.classList.add(clase);
     }
 
+    // El estado del hub también le sirve a quien tenga su propio indicador —el panel
+    // del administrador tiene uno dentro de su tarjeta de actividad—.
+    function estadoConexion(ok, texto) {
+        marcarChip(ok ? null : 'vivo-caido');
+        document.dispatchEvent(new CustomEvent('vivo:conexion', { detail: { ok: ok, texto: texto } }));
+    }
+
+    // ── Lo que el refresco no puede tocar ──────────────────────────────────────
+    // El servidor no sabe lo que solo existe en este navegador. Esas regiones se
+    // sacan antes del cambio y se vuelven a poner en su lugar después.
+    function apartarConservados() {
+        var guardados = {};
+        var nodos = cont.querySelectorAll('[data-vivo-conservar][id]');
+        for (var i = 0; i < nodos.length; i++) guardados[nodos[i].id] = nodos[i];
+
+        var valores = {};
+        var campos = cont.querySelectorAll('[data-vivo-valor][id]');
+        for (var j = 0; j < campos.length; j++) valores[campos[j].id] = campos[j].value;
+
+        return { nodos: guardados, valores: valores };
+    }
+
+    function devolverConservados(g) {
+        for (var id in g.nodos) {
+            var nuevo = cont.querySelector('#' + CSS.escape(id));
+            if (nuevo && nuevo.parentNode) nuevo.parentNode.replaceChild(g.nodos[id], nuevo);
+        }
+        for (var idc in g.valores) {
+            var campo = cont.querySelector('#' + CSS.escape(idc));
+            if (campo) campo.value = g.valores[idc];
+        }
+    }
+
     function latido() {
         marcarChip('vivo-late');
         setTimeout(function () { if (chip) chip.classList.remove('vivo-late'); }, 900);
@@ -102,8 +146,10 @@
             // quieta: se deja como está y el indicador avisa.
             if (!nuevo) { marcarChip('vivo-caido'); return; }
 
-            var antes = estados();
+            var antes     = estados();
+            var guardados = apartarConservados();
             cont.innerHTML = nuevo.innerHTML;
+            devolverConservados(guardados);
             destellar(antes);
             latido();
             // Para que lo que se enganche a esta página pueda volver a montarse.
@@ -144,12 +190,17 @@
         if (paraEsteProyecto(idProyecto)) programar();
     });
 
-    conexion.onreconnecting(function () { marcarChip('vivo-caido'); });
-    conexion.onreconnected(function () { marcarChip(null); programar(200); });
+    conexion.onreconnecting(function () { estadoConexion(false, 'Reconectando…'); });
+    conexion.onreconnected(function () { estadoConexion(true, 'En vivo'); programar(200); });
+    conexion.onclose(function () { estadoConexion(false, 'Desconectado'); });
+
+    // Antes de arrancar, para que quien cargue después pueda sumar sus propios avisos
+    // a esta conexión en vez de abrir otra.
+    window.vivo = { conexion: conexion, proyecto: proyecto, refrescar: programar };
 
     conexion.start()
-        .then(function () { marcarChip(null); })
-        .catch(function () { marcarChip('vivo-caido'); });
+        .then(function () { estadoConexion(true, 'En vivo'); })
+        .catch(function () { estadoConexion(false, 'Sin conexión'); });
 
     // ── Dos redes de seguridad ─────────────────────────────────────────────────
     // Un aviso se puede perder: el navegador estaba suspendido, el hub se cayó y

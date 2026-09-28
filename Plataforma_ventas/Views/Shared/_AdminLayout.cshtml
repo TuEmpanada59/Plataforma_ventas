@@ -16,6 +16,14 @@
     // de proyecto, porque solo tiene asignado el suyo.
     bool soloLectura  = Plataforma_ventas.Roles.EsSoloLectura(rolSesion);
     if (soloLectura) selectorProyecto = false;
+
+    // Pantallas en vivo: la vista lo pide con ViewBag.Vivo = true y su contenido queda
+    // envuelto en el bloque que vivo.js refresca. Es opcional a propósito: en una
+    // pantalla llena de formularios, cambiar el contenido debajo de quien está
+    // trabajando le borra lo que llevaba escrito.
+    bool vivo = ViewBag.Vivo is bool v && v
+                && int.TryParse(Context.Session.GetString("ProyectoId"), out int pidVivo) && pidVivo > 0;
+    int vivoProy = vivo ? int.Parse(Context.Session.GetString("ProyectoId")!) : 0;
 }
 <!DOCTYPE html>
 <html lang="es">
@@ -131,6 +139,12 @@
           </div>
           }
         </div>
+        @if (vivo)
+        {
+          <span class="tb-vivo" id="vivoChip" title="Las cifras se actualizan solas: no hay que recargar">
+            <i></i>EN VIVO
+          </span>
+        }
         <a class="tb-ibtn" href="/Account/Logout" title="Cerrar sesión">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
@@ -140,7 +154,16 @@
     </div>
 
     <div class="view">
-      @RenderBody()
+      @if (vivo)
+      {
+        <div id="vivo" data-proyecto="@vivoProy">
+          @RenderBody()
+        </div>
+      }
+      else
+      {
+        @RenderBody()
+      }
     </div>
   </div>
 </div>
@@ -152,6 +175,13 @@
 </div>
 
 <script src="~/js/app.js" asp-append-version="true"></script>
+@* Antes de la sección de la vista: así la vista puede sumar sus propios avisos a la
+   conexión que abre vivo.js en vez de abrir otra. *@
+@if (vivo)
+{
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <script src="~/js/vivo.js" asp-append-version="true"></script>
+}
 @RenderSection("Scripts", required: false)
 <script>
 // Session expiry countdown (session = 20 min = 1200s; warn at 2 min = 120s left)
