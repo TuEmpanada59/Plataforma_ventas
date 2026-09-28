@@ -38,7 +38,7 @@
     .r-obs{font-size:12px;color:var(--label2);background:var(--fill3);border-radius:8px;padding:6px 10px;margin-top:6px;line-height:1.45;}
     .r-der{text-align:right;flex-shrink:0;}
     .r-precio{font-size:14px;font-weight:700;color:var(--label);white-space:nowrap;}
-    .r-lista{font-size:11px;font-weight:700;color:var(--blue);background:rgba(0,118,227,0.1);border-radius:6px;padding:2px 8px;display:inline-block;margin-top:4px;}
+    .r-num-lista{font-size:11px;font-weight:700;color:var(--blue);background:rgba(0,118,227,0.1);border-radius:6px;padding:2px 8px;display:inline-block;margin-top:4px;}
     .r-tiempo{font-size:11.5px;margin-top:3px;white-space:nowrap;}
     .r-tiempo.nueva{color:#167A3D;}
     .r-tiempo.media{color:#A66000;}
@@ -125,7 +125,7 @@ else
                     <div class="r-der">
                         <div class="r-precio">$@string.Format("{0:N0}", (long)r.Precio)</div>
                         @{ int listaR = (int)r.Lista; }
-                        @if (listaR > 0) { <div class="r-lista">Lista @listaR</div> }
+                        @if (listaR > 0) { <div class="r-num-lista">Lista @listaR</div> }
                         <div class="r-tiempo @edad">@texto(horas)</div>
                     </div>
                 </div>
@@ -168,7 +168,7 @@ else
                     <div class="r-der">
                         <div class="r-precio">$@string.Format("{0:N0}", (long)r.Precio)</div>
                         @{ int listaP = (int)r.Lista; }
-                        @if (listaP > 0) { <div class="r-lista">Lista @listaP</div> }
+                        @if (listaP > 0) { <div class="r-num-lista">Lista @listaP</div> }
                         @* A estas no se les mide antigüedad: su fecha es la de la carga
                            del archivo, no la de la reserva real. *@
                         <div class="r-tiempo previa">anterior al evento</div>

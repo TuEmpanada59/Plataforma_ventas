@@ -104,6 +104,12 @@
         <div class="tb-chip" style="cursor:default;">
           <span class="pulse"></span>@proyActivo
         </div>
+        @if (!sinProyecto)
+        {
+          <span class="tb-vivo" id="vivoChip" title="Las cifras se actualizan solas: no hay que recargar">
+            <i></i>EN VIVO
+          </span>
+        }
         <a class="tb-ibtn" href="/Account/Logout" title="Cerrar sesión">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
@@ -122,13 +128,23 @@
       }
       else
       {
-        @RenderBody()
+        @* Todo lo que cambia durante el lanzamiento vive aquí dentro. vivo.js vuelve a
+           pedir esta misma página cuando el hub avisa y cambia el bloque completo, así
+           que cada pestaña queda en vivo sin escribir una línea de más. *@
+        <div id="vivo" data-proyecto="@pidLay">
+          @RenderBody()
+        </div>
       }
     </div>
   </div>
 </div>
 
 <script src="~/js/app.js" asp-append-version="true"></script>
+@if (!sinProyecto)
+{
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+  <script src="~/js/vivo.js" asp-append-version="true"></script>
+}
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

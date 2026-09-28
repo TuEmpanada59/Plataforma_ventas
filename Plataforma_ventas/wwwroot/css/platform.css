@@ -667,3 +667,19 @@ body.solo-lectura .solo-admin{display:none !important;}
 .inv-chip{font-size:12px;font-weight:600;padding:5px 13px;border-radius:20px;background:var(--fill3);border:1px solid var(--sep);color:var(--label2);text-decoration:none;}
 .inv-chip:hover{border-color:var(--blue);color:var(--blue);}
 .inv-chip.on{background:var(--blue);border-color:var(--blue);color:white;}
+
+/* ── Indicador de pantalla en vivo (vivo.js) ── */
+.tb-vivo{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;
+    letter-spacing:.06em;color:#167A3D;background:rgba(52,199,89,.1);
+    border:1px solid rgba(52,199,89,.3);border-radius:20px;padding:4px 9px;
+    white-space:nowrap;transition:background .3s,border-color .3s,color .3s;}
+.tb-vivo i{width:5px;height:5px;border-radius:50%;background:#34C759;flex-shrink:0;
+    animation:pring 2.5s ease infinite;}
+/* Un parpadeo corto en cada actualización: confirma que el número que acaba de
+   cambiar no es un error de lectura. */
+.tb-vivo.vivo-late{background:rgba(52,199,89,.28);border-color:rgba(52,199,89,.6);}
+/* Sin hub la página se queda quieta; decirlo es mejor que mostrar datos viejos
+   con cara de recientes. */
+.tb-vivo.vivo-caido{color:var(--label3);background:var(--fill3);border-color:var(--sep);}
+.tb-vivo.vivo-caido i{background:var(--plata);animation:none;}
+@media (max-width:768px){ .tb-vivo{display:none;} }
