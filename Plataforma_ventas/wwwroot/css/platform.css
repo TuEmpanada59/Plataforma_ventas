@@ -683,3 +683,12 @@ body.solo-lectura .solo-admin{display:none !important;}
 .tb-vivo.vivo-caido{color:var(--label3);background:var(--fill3);border-color:var(--sep);}
 .tb-vivo.vivo-caido i{background:var(--plata);animation:none;}
 @media (max-width:768px){ .tb-vivo{display:none;} }
+
+/* ── El bloque que refresca vivo.js no debe pesar en el diseño ──
+   .view coloca sus hijos en columna con 14px de separación. Al envolver el
+   contenido en #vivo, ese div quedó como único hijo: la separación entre
+   tarjetas desapareció y, al poder comprimirse como todo elemento flex, el
+   contenido terminó montado uno sobre otro.
+   display:contents lo saca del cálculo y sus hijos vuelven a ser los hijos de
+   .view, exactamente como antes de que existiera el tiempo real. */
+#vivo { display: contents; }
