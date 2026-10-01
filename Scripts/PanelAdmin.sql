@@ -15,6 +15,7 @@
 --  12) Inmuebles.Etapa (una hoja del Excel por etapa)
 --  13) Quitar la unicidad de Documento y Correo en Usuarios
 --  14) Tabla MediosPublicitarios con su carga inicial
+--  19) Unificar las áreas duplicadas por su forma de escribirse
 --
 -- Es IDEMPOTENTE: se puede ejecutar varias veces sin romper nada ni perder datos.
 -- Ejecutar en la base de datos Lanzamientos.
@@ -665,6 +666,101 @@ BEGIN
     CREATE INDEX IX_ProyEnlaces_Proy ON ProyectoEnlaces (IdProyecto, Orden);
     PRINT 'Tabla ProyectoEnlaces creada.';
 END
+GO
+
+-- ============================================================================
+-- 19) ÁREAS DUPLICADAS POR LA FORMA DE ESCRIBIRLAS
+--     El área es la llave con la que se agrupan las unidades y con la que vive
+--     la lista de precios vigente, pero llega como texto desde el Excel, tal
+--     como Excel la muestre. La misma área escrita "70,4" en una hoja y "70,40"
+--     en otra quedaba como dos áreas distintas: el panel las listaba por
+--     separado, cada una con su propia lista activa, y subir de lista a una no
+--     movía la otra.
+--
+--     Aquí se unifican a la forma canónica —coma decimal, sin ceros a la
+--     derecha— y se consolidan las filas partidas de ProyectoAreaListas. Las
+--     cargas nuevas ya guardan el área normalizada.
+--
+--     En la consolidación se conserva la lista MÁS ALTA de las dos: si una
+--     mitad del área ya iba en Lista 3, bajar a todo el grupo a Lista 1
+--     revendería por debajo del precio que ya se estaba cobrando.
+--
+--     HistorialListas y AjustesPrecio NO se tocan: son el registro de lo que
+--     pasó, y reescribirlo haría que el historial dejara de coincidir con lo
+--     que se vio en pantalla ese día.
+-- ============================================================================
+
+-- Forma canónica del área, como expresión reutilizable:
+--   1) el punto decimal pasa a coma
+--   2) si hay coma, se quitan los ceros a la derecha  ("70,40" -> "70,4")
+--   3) si quedó la coma suelta, se quita             ("70,00" -> "70")
+IF OBJECT_ID('dbo.fn_AreaCanonica', 'FN') IS NOT NULL
+    DROP FUNCTION dbo.fn_AreaCanonica;
+GO
+
+CREATE FUNCTION dbo.fn_AreaCanonica (@metros VARCHAR(50))
+RETURNS VARCHAR(50)
+AS
+BEGIN
+    DECLARE @s VARCHAR(50) = REPLACE(LTRIM(RTRIM(ISNULL(@metros, ''))), '.', ',');
+    IF @s = '' OR CHARINDEX(',', @s) = 0 RETURN @s;
+
+    -- Quitar ceros a la derecha: se invierte, se salta lo que sea '0' y se vuelve.
+    SET @s = REVERSE(SUBSTRING(REVERSE(@s), PATINDEX('%[^0]%', REVERSE(@s)), 50));
+
+    IF RIGHT(@s, 1) = ',' SET @s = LEFT(@s, LEN(@s) - 1);
+    RETURN @s;
+END
+GO
+
+-- a) Las unidades
+UPDATE Inmuebles
+   SET Metros = dbo.fn_AreaCanonica(Metros)
+ WHERE Metros IS NOT NULL
+   AND Metros <> dbo.fn_AreaCanonica(Metros);
+PRINT CONCAT('Áreas normalizadas en Inmuebles: ', @@ROWCOUNT);
+GO
+
+-- b) Las listas por área. La tabla es pequeña y de configuración, así que se
+--    reconstruye entera en una transacción en vez de parchear fila por fila.
+BEGIN TRANSACTION;
+
+    SELECT IdProyecto,
+           Metros       = dbo.fn_AreaCanonica(Metros),
+           ListaActual  = MAX(ListaActual),
+           AptsPorLista = MAX(AptsPorLista)
+      INTO #PAL
+      FROM ProyectoAreaListas
+     GROUP BY IdProyecto, dbo.fn_AreaCanonica(Metros);
+
+    DECLARE @antes INT = (SELECT COUNT(*) FROM ProyectoAreaListas);
+    DECLARE @despues INT = (SELECT COUNT(*) FROM #PAL);
+
+    DELETE FROM ProyectoAreaListas;
+
+    INSERT INTO ProyectoAreaListas (IdProyecto, Metros, ListaActual, AptsPorLista)
+    SELECT IdProyecto, Metros, ListaActual, AptsPorLista FROM #PAL;
+
+    PRINT CONCAT('Listas por área: ', @antes, ' filas -> ', @despues,
+                 ' (', @antes - @despues, ' duplicadas por formato)');
+
+    DROP TABLE #PAL;
+
+COMMIT;
+GO
+
+-- c) Por si algún área quedó sin su fila de listas (unidades cargadas antes de
+--    que existiera la tabla, o un área que solo aparecía en la forma duplicada).
+INSERT INTO ProyectoAreaListas (IdProyecto, Metros, ListaActual)
+SELECT DISTINCT i.IdProyecto, i.Metros, 1
+  FROM Inmuebles i
+ WHERE i.Metros IS NOT NULL AND i.Metros <> ''
+   AND NOT EXISTS (SELECT 1 FROM ProyectoAreaListas p
+                    WHERE p.IdProyecto = i.IdProyecto AND p.Metros = i.Metros);
+PRINT CONCAT('Áreas sin lista a las que se les creó una: ', @@ROWCOUNT);
+GO
+
+DROP FUNCTION dbo.fn_AreaCanonica;
 GO
 
 PRINT 'Panel de administrador: migración aplicada correctamente.';

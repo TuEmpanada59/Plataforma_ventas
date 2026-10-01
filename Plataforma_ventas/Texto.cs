@@ -31,6 +31,38 @@ public static class Texto
     }
 
     /// <summary>
+    /// Forma canónica del área de una unidad.
+    ///
+    /// El área es la llave con la que se agrupan los inmuebles y con la que se guarda
+    /// la lista de precios vigente (ProyectoAreaListas), pero llega como texto desde el
+    /// Excel, tal como Excel la muestre. La misma área escrita "70,4" en una hoja y
+    /// "70,40" en otra son dos llaves distintas: el panel las lista por separado, cada
+    /// una con su propia lista activa, y subir de lista a una no afecta a la otra.
+    ///
+    /// Canónico es: coma decimal, sin ceros a la derecha y sin coma suelta. Así
+    /// "70,40", "70.4" y "70,4" terminan todas en "70,4". Lo que no se puede leer como
+    /// número se devuelve tal cual, recortado: perder el dato sería peor que repetirlo.
+    /// </summary>
+    public static string AreaNormalizada(string? metros)
+    {
+        var bruto = (metros ?? "").Trim();
+        if (bruto.Length == 0) return "";
+
+        // Se acepta coma o punto como separador decimal; el Excel usa el del equipo
+        // donde se guardó el archivo, que no tiene por qué ser el de este servidor.
+        if (!double.TryParse(bruto.Replace(",", "."),
+                             System.Globalization.NumberStyles.Any,
+                             System.Globalization.CultureInfo.InvariantCulture,
+                             out double valor))
+            return bruto;
+
+        // Dos decimales: es la precisión con la que vienen las áreas en los archivos.
+        // "0.##" quita los ceros que no aportan y, con ellos, la coma si sobra.
+        return valor.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)
+                    .Replace('.', ',');
+    }
+
+    /// <summary>
     /// Destinos válidos de una venta. Es pública porque los formularios que editan una
     /// venta ofrecen exactamente estas opciones: si la vista tuviera su propia lista,
     /// una opción nueva aquí no llegaría a la pantalla.

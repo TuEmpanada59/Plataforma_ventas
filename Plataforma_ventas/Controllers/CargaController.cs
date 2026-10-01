@@ -381,7 +381,11 @@ namespace Plataforma_ventas.Controllers
                     cmdInm.Parameters.AddWithValue("@apto", apto);
                     cmdInm.Parameters.AddWithValue("@tipo", h.ColTipo > 0 ? h.Ws.Cells[row, h.ColTipo].Text?.Trim() ?? "" : "");
                     cmdInm.Parameters.AddWithValue("@piso", h.ColPiso > 0 ? h.Ws.Cells[row, h.ColPiso].Text?.Trim() ?? "" : "");
-                    cmdInm.Parameters.AddWithValue("@metros", h.Ws.Cells[row, h.ColMetros].Text?.Trim() ?? "");
+                    // El área se guarda en forma canónica: es la llave con la que se
+                    // agrupan las unidades y con la que vive la lista de precios. Dos
+                    // hojas que escriban "70,4" y "70,40" se refieren a la misma área.
+                    cmdInm.Parameters.AddWithValue("@metros",
+                        Texto.AreaNormalizada(h.Ws.Cells[row, h.ColMetros].Text));
                     cmdInm.Parameters.AddWithValue("@l1", GetLista(0));
                     cmdInm.Parameters.AddWithValue("@l2", GetLista(1));
                     cmdInm.Parameters.AddWithValue("@l3", GetLista(2));
