@@ -26,6 +26,9 @@ jobs:
       - name: Build with dotnet
         run: dotnet build Plataforma_ventas/Plataforma_ventas.csproj --configuration Release
 
+      - name: Ejecutar pruebas
+        run: dotnet test PruebasLanzamientos/PruebasLanzamientos.csproj --configuration Release --verbosity normal
+
       - name: dotnet publish
         run: dotnet publish Plataforma_ventas/Plataforma_ventas.csproj -c Release -p:RecortarRuntimesNoWindows=true -o "${{env.DOTNET_ROOT}}/myapp"
 
