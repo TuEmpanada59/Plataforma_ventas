@@ -1,0 +1,30 @@
+{
+  "_NOTA": "Plantilla. Copia este archivo como appsettings.Development.json (sin .ejemplo) y llena los valores. Ese nombre está en .gitignore, así que no se sube. ESTE archivo sí está en git: no escribas credenciales reales aquí.",
+
+  "_NOTA_BaseDeDatos": "Para desarrollo contra tu LocalDB no hace falta tocar nada: el appsettings.json ya trae esa cadena. Esta clave es para apuntar a OTRA base — la de pruebas en Azure, por ejemplo. La cadena real de pruebas está en el portal: App Service PruebasLanzamientos > Configuration > Connection strings. Cópiala de ahí; no la guardes en el repositorio.",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=tcp:SERVIDOR.database.windows.net,1433;Initial Catalog=BASE;User ID=USUARIO;Password=CONTRASEÑA;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=True;"
+  },
+
+  "_NOTA_Smtp": "Opcional. Sin configurar, la aplicación funciona igual: los enlaces de recuperación de contraseña se escriben en el log en vez de enviarse por correo, que para desarrollo suele ser más cómodo. Si tu proveedor exige una contraseña de aplicación, va en Password.",
+  "Smtp": {
+    "Host": "",
+    "Port": "587",
+    "User": "",
+    "Password": "",
+    "From": ""
+  },
+
+  "_NOTA_Operacion": "Minutos que un inmueble puede estar EN PROCESO antes de que el panel lo señale como estancado. El valor por defecto es 45. Bajarlo a 2 o 3 sirve para probar esa alerta sin esperar tres cuartos de hora.",
+  "Operacion": {
+    "MinutosProcesoEstancado": 45
+  },
+
+  "_NOTA_Logs": "Subir Default a Debug muestra las consultas y el detalle de cada petición. Útil para desarrollo, ruidoso para cualquier otra cosa.",
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
