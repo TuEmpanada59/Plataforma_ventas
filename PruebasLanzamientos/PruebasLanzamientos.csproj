@@ -23,13 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--
-      Las pruebas de convención leen los atributos de los controladores, así que
-      necesitan los tipos de ASP.NET (Controller, IActionResult, HttpPost). Se
-      declara aquí y no se deja a la referencia del proyecto: así, si mañana estas
-      pruebas se separan a otro proyecto, siguen compilando.
-    -->
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\Plataforma_ventas\Plataforma_ventas.csproj" />
   </ItemGroup>
 

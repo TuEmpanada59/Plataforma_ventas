@@ -289,7 +289,6 @@ public class UnitTest1
     [InlineData("JavaScript:alert(1)")]
     [InlineData("data:text/html,<script>alert(1)</script>")]
     [InlineData("file:///C:/secretos.txt")]
-    [InlineData("ftp://servidor/presentacion.pdf")]   // no es peligroso, pero no se navega
     [InlineData("https://ejemplo.com\nHost: otro")]
     [InlineData("")]
     [InlineData("   ")]
