@@ -31,6 +31,33 @@ public static class Texto
     }
 
     /// <summary>
+    /// El correo, listo para guardar: sin espacios alrededor y en minúsculas.
+    ///
+    /// En minúsculas porque es la llave con la que se busca la cuenta al recuperar la
+    /// contraseña, y quien la escribe ahí no va a acordarse de cómo la capitalizó el
+    /// administrador el día que creó el usuario.
+    /// </summary>
+    public static string CorreoNormalizado(string? correo)
+        => (correo ?? "").Trim().ToLowerInvariant();
+
+    /// <summary>
+    /// Validación deliberadamente mínima: que tenga arroba y no tenga espacios.
+    ///
+    /// Vacío es válido: el correo es opcional —las cuentas se crean y se restablecen
+    /// desde el panel— y exigirlo dejaría sin poder editar a los usuarios que ya
+    /// existen sin él. Lo que cuesta es equivocarse al escribirlo, y de eso no protege
+    /// ninguna expresión regular: el aviso de "si el correo está registrado recibirás
+    /// un enlace" es el mismo exista o no, así que un correo mal escrito se descubre
+    /// esperando un mensaje que nunca llega.
+    /// </summary>
+    public static bool CorreoValido(string? correo)
+    {
+        var c = CorreoNormalizado(correo);
+        if (c.Length == 0) return true;
+        return c.Contains('@') && !c.Contains(' ') && c.Length <= 150;
+    }
+
+    /// <summary>
     /// Forma canónica del área de una unidad.
     ///
     /// El área es la llave con la que se agrupan los inmuebles y con la que se guarda

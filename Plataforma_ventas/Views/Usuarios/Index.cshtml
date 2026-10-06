@@ -242,10 +242,14 @@
                         } else {
                             <span style="font-size:12px;color:var(--label3)">—</span>
                         }
-                        @* El correo solo se muestra si quedó de un usuario creado antes:
-                           ya no se pide al crear ni al editar. *@
+                        @* Quién puede recuperar su contraseña solo y quién no. Las
+                           cuentas creadas antes de que se volviera a pedir el correo
+                           salen marcadas: es lo que hay que completar, editándolas,
+                           para que el enlace de recuperación les sirva. *@
                         @if (!string.IsNullOrEmpty(u.Correo as string)) {
                             <div style="font-size:11px;color:var(--label3)">@u.Correo</div>
+                        } else {
+                            <div style="font-size:11px;color:#A66000" title="Sin correo no puede usar «olvidé mi contraseña»">Sin correo</div>
                         }
                     </td>
                     <td>
@@ -275,7 +279,7 @@
                     <td>
                         <div class="actions-cell">
                             <button class="btn-sm btn-edit"
-                                onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Celular','@u.Rol',@u.IdProyecto)">
+                                onclick="abrirEditar(@u.Id,'@u.Nombre','@u.Apellido','@u.Celular','@u.Correo','@u.Rol',@u.IdProyecto)">
                                 Editar
                             </button>
                             <button class="btn-sm btn-pwd" onclick="abrirPassword(@u.Id)">Clave</button>
@@ -310,6 +314,15 @@
                 <div class="field"><label>Nombre</label><input type="text" name="nombre" placeholder="Nombre" required/></div>
                 <div class="field"><label>Apellido</label><input type="text" name="apellido" placeholder="Apellido" required/></div>
                 <div class="field" style="grid-column:1/-1"><label>Celular</label><input type="text" name="celular" placeholder="Celular"/></div>
+                @* Sin correo, esta cuenta no puede usar "olvidé mi contraseña": el
+                   enlace de recuperación busca al usuario justamente por aquí. *@
+                <div class="field" style="grid-column:1/-1">
+                    <label>Correo</label>
+                    <input type="email" name="correo" placeholder="nombre@@dominio.com"/>
+                    <div style="font-size:11px;color:var(--label3);margin-top:4px">
+                        Opcional, pero sin él no podrá recuperar su contraseña por su cuenta.
+                    </div>
+                </div>
             </div>
             <hr class="form-divider"/>
             <div class="modal-section">Acceso al sistema</div>
@@ -356,6 +369,10 @@
                 <div class="field"><label>Nombre</label><input type="text" name="nombre" id="editNombre"/></div>
                 <div class="field"><label>Apellido</label><input type="text" name="apellido" id="editApellido"/></div>
                 <div class="field" style="grid-column:1/-1"><label>Celular</label><input type="text" name="celular" id="editCelular"/></div>
+                <div class="field" style="grid-column:1/-1">
+                    <label>Correo</label>
+                    <input type="email" name="correo" id="editCorreo" placeholder="nombre@@dominio.com"/>
+                </div>
             </div>
             <div class="modal-section">Permisos y asignación</div>
             <div class="modal-grid">
@@ -441,11 +458,12 @@
         document.getElementById('crearCampoProyecto').style.opacity = rol === 'Administrador' ? '0.4' : '1';
     }
 
-    function abrirEditar(id,nombre,apellido,celular,rol,idProy){
+    function abrirEditar(id,nombre,apellido,celular,correo,rol,idProy){
         document.getElementById('editId').value        = id;
         document.getElementById('editNombre').value    = nombre;
         document.getElementById('editApellido').value  = apellido;
         document.getElementById('editCelular').value   = celular;
+        document.getElementById('editCorreo').value    = correo || '';
         document.getElementById('editProyecto').value  = idProy || 0;
 
         var selectRol  = document.getElementById('editRol');

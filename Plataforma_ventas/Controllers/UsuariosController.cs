@@ -232,9 +232,20 @@ namespace Plataforma_ventas.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Crear(string nombre, string apellido,
-            string celular, string usuario, string contrasena,
+            string celular, string correo, string usuario, string contrasena,
             string rol, int idProyecto)
         {
+            // El correo es la única forma de recuperar una contraseña sin pasar por el
+            // administrador: el enlace de "olvidé mi contraseña" busca la cuenta por
+            // aquí. Sigue siendo opcional —hay usuarios creados antes que no lo
+            // tienen— pero sin él esa puerta queda cerrada para esa cuenta.
+            var correoLimpio = Texto.CorreoNormalizado(correo);
+            if (!Texto.CorreoValido(correoLimpio))
+            {
+                TempData["Error"] = "El correo no tiene un formato válido.";
+                return RedirectToAction("Index");
+            }
+
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
 
@@ -247,6 +258,21 @@ namespace Plataforma_ventas.Controllers
             {
                 TempData["Error"] = "El nombre de usuario ya está en uso.";
                 return RedirectToAction("Index");
+            }
+
+            // El correo sí se compara, pero solo cuando viene informado: si se
+            // repitiera, la recuperación encontraría dos cuentas y le mandaría el
+            // enlace a una de las dos sin decir cuál. Los vacíos no se comparan entre
+            // sí, que es lo que rompía antes de dejar de pedirlo.
+            if (correoLimpio.Length > 0)
+            {
+                var cmdCorreo = new SqlCommand("SELECT COUNT(*) FROM Usuarios WHERE Correo=@c", con);
+                cmdCorreo.Parameters.AddWithValue("@c", correoLimpio);
+                if (Convert.ToInt32(await cmdCorreo.ExecuteScalarAsync()) > 0)
+                {
+                    TempData["Error"] = "Ese correo ya está registrado en otra cuenta.";
+                    return RedirectToAction("Index");
+                }
             }
 
             // Nadie reparte más de lo que tiene: un administrador puede crear cuentas de
@@ -287,11 +313,12 @@ namespace Plataforma_ventas.Controllers
                 ? (object)idProyecto
                 : DBNull.Value;
 
-            // Documento y Correo siguen existiendo en la tabla por los usuarios ya
-            // creados; los nuevos se insertan vacíos porque ya no se piden.
+            // Documento sigue existiendo en la tabla por los usuarios ya creados; los
+            // nuevos se insertan con el documento vacío porque ya no se pide.
             var cmd = new SqlCommand(@"
                 INSERT INTO Usuarios (Nombre,Apellido,Documento,Celular,Correo,Usuario,Contraseña,Rol,IdProyecto)
-                VALUES (@n,@a,'',@c,'',@u,@p,@r,@proy)", con);
+                VALUES (@n,@a,'',@c,@correo,@u,@p,@r,@proy)", con);
+            cmd.Parameters.AddWithValue("@correo", correoLimpio);
             cmd.Parameters.AddWithValue("@n",    nombre   ?? "");
             cmd.Parameters.AddWithValue("@a",    apellido ?? "");
             cmd.Parameters.AddWithValue("@c",    celular  ?? "");
@@ -714,10 +741,35 @@ namespace Plataforma_ventas.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar(int idUsuario, string nombre, string apellido,
-            string celular, string rol, int idProyecto)
+            string celular, string correo, string rol, int idProyecto)
         {
+            // Editar es la vía para los usuarios que ya existen sin correo: sin esto
+            // habría que borrarlos y volverlos a crear solo para que puedan recuperar
+            // su contraseña.
+            var correoLimpio = Texto.CorreoNormalizado(correo);
+            if (!Texto.CorreoValido(correoLimpio))
+            {
+                TempData["Error"] = "El correo no tiene un formato válido.";
+                return RedirectToAction("Index");
+            }
+
             using var con = new SqlConnection(_conn);
             await con.OpenAsync();
+
+            // Mismo motivo que al crear, descontando la propia cuenta: guardar sin
+            // tocar el correo no puede fallar por chocar consigo mismo.
+            if (correoLimpio.Length > 0)
+            {
+                var cmdCorreo = new SqlCommand(
+                    "SELECT COUNT(*) FROM Usuarios WHERE Correo=@c AND IdUsuario<>@id", con);
+                cmdCorreo.Parameters.AddWithValue("@c",  correoLimpio);
+                cmdCorreo.Parameters.AddWithValue("@id", idUsuario);
+                if (Convert.ToInt32(await cmdCorreo.ExecuteScalarAsync()) > 0)
+                {
+                    TempData["Error"] = "Ese correo ya está registrado en otra cuenta.";
+                    return RedirectToAction("Index");
+                }
+            }
 
             // Verificar que el Admin no intente editar a un SuperAdministrador
             string rolSesion = HttpContext.Session.GetString("Rol") ?? "";
@@ -748,9 +800,10 @@ namespace Plataforma_ventas.Controllers
 
             var cmd = new SqlCommand(@"
                 UPDATE Usuarios
-                SET Nombre=@n, Apellido=@a, Celular=@c,
+                SET Nombre=@n, Apellido=@a, Celular=@c, Correo=@correo,
                     Rol=@r, IdProyecto=@proy
                 WHERE IdUsuario=@id", con);
+            cmd.Parameters.AddWithValue("@correo", correoLimpio);
             cmd.Parameters.AddWithValue("@n",    nombre   ?? "");
             cmd.Parameters.AddWithValue("@a",    apellido ?? "");
             cmd.Parameters.AddWithValue("@c",    celular  ?? "");
