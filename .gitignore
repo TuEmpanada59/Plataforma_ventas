@@ -365,16 +365,6 @@ FodyWeavers.xsd
 Keys/
 
 # Secretos / configuración con credenciales (no versionar)
-# Configuración local con credenciales reales. El .env.example sí se versiona.
-.env
-.env.local
-# Certificado de Microsoft Graph: la clave privada NUNCA entra al repositorio,
-# y el certificado público tampoco hace falta aquí.
-private.key
-public_cert.pem
-public_cert.cer
-*.pfx
-
 appsettings.Development.json
 appsettings.Production.json
 appsettings.*.Local.json
