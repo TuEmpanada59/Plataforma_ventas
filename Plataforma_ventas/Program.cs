@@ -4,6 +4,14 @@ using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// El .env, si existe. Se registra después de appsettings.json y antes de las
+// variables de entorno reales: manda sobre el archivo versionado —que es su razón de
+// ser— pero no sobre lo que define el App Service, para que en Azure no pueda haber
+// un .env olvidado en el paquete pisando la configuración del entorno.
+builder.Configuration.AddInMemoryCollection(
+    Plataforma_ventas.ArchivoEnv.Leer(Path.Combine(builder.Environment.ContentRootPath, ".env")));
+builder.Configuration.AddEnvironmentVariables();
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<Plataforma_ventas.Services.IEmailService, Plataforma_ventas.Services.SmtpEmailService>();
