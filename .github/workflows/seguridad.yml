@@ -1,0 +1,84 @@
+# Análisis de seguridad.
+#
+# Separado de los workflows de despliegue a propósito: esto no publica nada, y
+# un fallo aquí no debe impedir que se pueda desplegar una corrección urgente.
+#
+# Dos cosas distintas:
+#   · dependencias — paquetes con vulnerabilidades conocidas. Es la revisión
+#     que más barato sale y la que más envejece sola: una dependencia segura
+#     hoy puede tener un CVE el mes que viene sin que nadie toque el código.
+#     Por eso corre también una vez por semana, no solo con cada cambio.
+#   · codeql — sigue el dato desde el formulario hasta la consulta. Con ADO.NET
+#     crudo en toda la plataforma, la inyección SQL es la superficie principal
+#     y es justo lo que una expresión regular no puede ver.
+
+name: Seguridad
+
+on:
+  push:
+    branches: [ DEVELOP, 'claude/**' ]
+  pull_request:
+    branches: [ DEVELOP, master ]
+  schedule:
+    # Lunes a las 6:30 UTC — antes de que empiece la semana.
+    - cron: '30 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+
+  dependencias:
+    name: Dependencias vulnerables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar
+        run: dotnet restore Plataforma_ventas/Plataforma_ventas.csproj
+
+      - name: Buscar paquetes con vulnerabilidades conocidas
+        run: |
+          # --include-transitive importa: lo que arrastra una dependencia es tan
+          # explotable como lo que se declaró a mano, y no se ve en el .csproj.
+          salida=$(dotnet list Plataforma_ventas/Plataforma_ventas.csproj package \
+                   --vulnerable --include-transitive)
+          echo "$salida"
+          # El comando devuelve 0 aunque encuentre algo, así que hay que mirar
+          # el texto para que el trabajo falle de verdad.
+          if echo "$salida" | grep -q "has the following vulnerable packages"; then
+            echo "::error::Hay dependencias con vulnerabilidades conocidas. Revisa la salida."
+            exit 1
+          fi
+          echo "Sin vulnerabilidades conocidas."
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # para publicar los hallazgos en la pestaña Security
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          # security-and-quality añade, sobre las de seguridad, las reglas de
+          # corrección que suelen señalar el mismo tipo de descuido.
+          queries: security-and-quality
+
+      # Compilación explícita y no autobuild: el autobuild resuelve la solución
+      # completa, y aquí solo interesa la aplicación.
+      - name: Compilar
+        run: dotnet build Plataforma_ventas/Plataforma_ventas.csproj -c Release
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"
