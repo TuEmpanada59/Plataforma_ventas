@@ -47,6 +47,11 @@
     }
     .ml-logo img { display: block; height: 30px; width: auto; }
 
+    /* El aire entre el título y el primer campo lo daba el subtítulo que se
+       quitó ("Bienvenido de vuelta…"). Sin él, "Iniciar sesión" quedaba pegado
+       a la etiqueta "Usuario". */
+    .ml-card h2 { margin-bottom: 22px; }
+
     /* Al quitar el texto de la izquierda, la tarjeta quedaba sola en un
        contenedor repartido a los extremos y se iba al borde izquierdo. Se
        ancla a la derecha, que es donde estaba, y Mercurio se queda con el
@@ -161,7 +166,7 @@
 <script src="~/mercurio-login/espacio.js" asp-append-version="true"></script>
 <script src="~/mercurio-login/login.js" asp-append-version="true"></script>
 <script>
-  MercurioLogin.init(document.getElementById('mercurio-login'), {
+  var login = MercurioLogin.init(document.getElementById('mercurio-login'), {
     base: '/mercurio-login/',
     // Sin viaje de apertura: la pantalla abre ya en Mercurio y el formulario
     // está disponible desde el primer segundo. El fondo se puede seguir girando
@@ -170,6 +175,26 @@
     // Sin onSubmit ni onForgot a propósito: el formulario se envía al servidor
     // como siempre y el enlace de recuperación navega solo.
   });
+
+  // El rótulo "MERCURIO · 0,39 UA · Ø 4.879 km" no está en este archivo: lo
+  // dibuja el motor 3D dentro del lienzo, así que no se puede quitar del
+  // marcado. Se retira su sprite de la escena y se suelta la referencia, que es
+  // lo que hace que el bucle de dibujo deje de ocuparse de él.
+  //
+  // Esto entra en las tripas del motor, y el motor llega hecho desde el paquete
+  // de diseño: si algún día cambia de nombres, esto deja de encontrar nada y
+  // el rótulo vuelve a aparecer. No se rompe, pero habría que revisarlo. Lo
+  // correcto a futuro es pedirle al paquete una opción para apagar los rótulos.
+  try {
+    var motor = login && login.engine;
+    if (motor && motor.scene && motor.planets) {
+      motor.planets.forEach(function (planeta) {
+        if (!planeta.label) return;
+        motor.scene.remove(planeta.label);
+        planeta.label = null;
+      });
+    }
+  } catch (err) { /* el fondo es decorativo: nunca debe impedir ingresar */ }
 </script>
 
 </body>
