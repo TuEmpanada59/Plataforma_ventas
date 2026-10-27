@@ -52,6 +52,14 @@
        a la etiqueta "Usuario". */
     .ml-card h2 { margin-bottom: 22px; }
 
+    /* La tarjeta nace visible y no espera al final del viaje.
+       De origen, .ml-ui empieza invisible y solo aparece cuando el motor avisa
+       que la cámara llegó a Mercurio; durante el viaje, además, el motor quita
+       la clase .ml-landed, así que ponerla en el marcado no bastaba. Aquí se
+       fija el estado visible para siempre: el viaje queda de fondo y quien
+       llegue con prisa escribe y entra sin esperar a que termine. */
+    .ml-ui { opacity: 1; transform: none; pointer-events: auto; }
+
     /* Al quitar el texto de la izquierda, la tarjeta quedaba sola en un
        contenedor repartido a los extremos y se iba al borde izquierdo. Se
        ancla a la derecha, que es donde estaba, y Mercurio se queda con el
@@ -168,10 +176,10 @@
 <script>
   var login = MercurioLogin.init(document.getElementById('mercurio-login'), {
     base: '/mercurio-login/',
-    // Sin viaje de apertura: la pantalla abre ya en Mercurio y el formulario
-    // está disponible desde el primer segundo. El fondo se puede seguir girando
-    // y acercando, pero nadie tiene que esperar a que termine nada.
-    intro: false
+    // El viaje de apertura, desde Neptuno hasta Mercurio. Corre siempre: el
+    // motivo para verlo una sola vez era que tapaba el formulario, y eso ya no
+    // pasa —se puede escribir y entrar mientras la cámara viaja—.
+    intro: true
     // Sin onSubmit ni onForgot a propósito: el formulario se envía al servidor
     // como siempre y el enlace de recuperación navega solo.
   });
