@@ -39,9 +39,7 @@
 
     /* El logotipo es blanco sobre fondo transparente, así que va directo sobre
        el espacio: ya no necesita la pastilla clara que llevaba la versión azul. */
-    .ml-logo img { display: block; height: 40px; width: auto; }
-    /* La marca pasa a columna para que el nombre quede debajo del logotipo. */
-    .ml-brand { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .ml-logo img { display: block; height: 54px; width: auto; }
 
     /* El aire entre el título y el primer campo lo daba el subtítulo que se
        quitó ("Bienvenido de vuelta…"). Sin él, "Iniciar sesión" quedaba pegado
@@ -56,15 +54,11 @@
        llegue con prisa escribe y entra sin esperar a que termine. */
     .ml-ui { opacity: 1; transform: none; pointer-events: auto; }
 
-    /* Al quitar el texto de la izquierda, la tarjeta quedaba sola en un
-       contenedor repartido a los extremos y se iba al borde izquierdo. Se
-       ancla a la derecha, que es donde estaba, y Mercurio se queda con el
-       espacio libre. Solo en escritorio: en celular la tarjeta ocupa el ancho
-       completo y login.css ya lo resuelve. */
+    /* Los botones de zoom se corren al margen que dejaron libre los botones de
+       la intro. El anclaje de la tarjeta a la derecha ya no hace falta: con el
+       texto de vuelta, el reparto a los extremos tiene otra vez dos cosas que
+       repartir. */
     @@media (min-width: 721px) {
-      .ml-main { justify-content: flex-end; }
-      /* Los botones de zoom se corren al margen que dejaron libres los de la
-         intro, para alinearse con el resto de la pantalla. */
       .ml-controls { right: 56px; }
     }
   </style>
@@ -90,14 +84,16 @@
       <span class="ml-logo">
         <img src="~/Images/logo-blanco.webp" alt="Londoño Gómez" asp-append-version="true"/>
       </span>
-      <div class="ml-brand-text">
-        <span class="ml-brand-name">Mercurio</span>
-        <span class="ml-brand-sub">por Londoño Gómez</span>
-      </div>
     </div>
   </header>
 
   <main class="ml-main">
+    <section class="ml-hero ml-ui">
+      <span class="ml-badge"><span class="ml-dot"></span>Lanzamientos en tiempo real</span>
+      <h1>Cada metro,<br>bajo control.</h1>
+      <p>El inventario de todos tus proyectos, vivo, en una sola plataforma.</p>
+    </section>
+
     <div class="ml-card ml-ui" data-no-orbit>
       <div class="ml-accent"></div>
       <h2>Iniciar sesión</h2>
