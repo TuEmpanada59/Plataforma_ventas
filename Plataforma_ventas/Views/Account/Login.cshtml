@@ -41,6 +41,32 @@
        el espacio: ya no necesita la pastilla clara que llevaba la versión azul. */
     .ml-logo img { display: block; height: 54px; width: auto; }
 
+    /* Autorrelleno del navegador.
+       Cuando Chrome rellena el usuario guardado, pinta el campo de blanco con
+       un color propio que no se puede cambiar con background-color: el campo
+       quedaba blanco al lado de la contraseña, que seguía oscura.
+       La forma de taparlo es una sombra interior gruesa, que sí se dibuja
+       encima, con el color que tiene el campo. La transición de cien horas es
+       el otro recurso conocido: retrasa indefinidamente el repintado del
+       navegador en los que ignoran la sombra. */
+    .ml-field input:-webkit-autofill,
+    .ml-field input:-webkit-autofill:hover,
+    .ml-field input:-webkit-autofill:focus,
+    .ml-field input:-webkit-autofill:active {
+      -webkit-box-shadow: inset 0 0 0 1000px #15181f;
+              box-shadow: inset 0 0 0 1000px #15181f;
+      -webkit-text-fill-color: #fff;
+      caret-color: #fff;
+      border-radius: 10px;
+      transition: background-color 360000s ease-in-out 0s;
+    }
+    /* Firefox y los que ya implementan el selector estándar. */
+    .ml-field input:autofill {
+      background: transparent;
+      color: #fff;
+      filter: none;
+    }
+
     /* El aire entre el título y el primer campo lo daba el subtítulo que se
        quitó ("Bienvenido de vuelta…"). Sin él, "Iniciar sesión" quedaba pegado
        a la etiqueta "Usuario". */
