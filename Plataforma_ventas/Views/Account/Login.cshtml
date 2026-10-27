@@ -37,15 +37,11 @@
       border: 1px solid rgba(0, 212, 161, 0.35);
     }
 
-    /* El logotipo es azul sobre blanco. Sobre el fondo oscuro necesita su
-       propia pastilla clara; si no, el blanco del archivo se ve como un
-       recuadro recortado alrededor de las letras. */
-    .ml-logo {
-      display: inline-flex; align-items: center;
-      padding: 7px 12px; border-radius: 12px; background: #fff;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-    }
-    .ml-logo img { display: block; height: 30px; width: auto; }
+    /* El logotipo es blanco sobre fondo transparente, así que va directo sobre
+       el espacio: ya no necesita la pastilla clara que llevaba la versión azul. */
+    .ml-logo img { display: block; height: 40px; width: auto; }
+    /* La marca pasa a columna para que el nombre quede debajo del logotipo. */
+    .ml-brand { flex-direction: column; align-items: flex-start; gap: 10px; }
 
     /* El aire entre el título y el primer campo lo daba el subtítulo que se
        quitó ("Bienvenido de vuelta…"). Sin él, "Iniciar sesión" quedaba pegado
@@ -92,11 +88,13 @@
          clara: sobre el fondo oscuro, sin ella, se vería un recuadro blanco
          recortado alrededor del azul. *@
       <span class="ml-logo">
-        <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" asp-append-version="true"/>
+        <img src="~/Images/logo-blanco.webp" alt="Londoño Gómez" asp-append-version="true"/>
       </span>
+      <div class="ml-brand-text">
+        <span class="ml-brand-name">Mercurio</span>
+        <span class="ml-brand-sub">por Londoño Gómez</span>
+      </div>
     </div>
-    @* El crédito de las texturas es obligatorio por su licencia (CC BY 4.0). *@
-    <span class="ml-credit">Texturas planetarias: Solar System Scope · CC BY 4.0 · datos NASA</span>
   </header>
 
   <main class="ml-main">
@@ -165,7 +163,6 @@
       <button type="button" data-ml="zoom-in" aria-label="Acercar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
     </div>
   </div>
-  <p class="ml-credit-m">Texturas: Solar System Scope · CC BY 4.0 · datos NASA</p>
 </div>
 
 @* Este orden no es negociable: three.js define THREE, espacio.js lo usa para
