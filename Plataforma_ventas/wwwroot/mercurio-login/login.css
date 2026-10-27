@@ -1,0 +1,134 @@
+/* Mercurio · Login "Gran Tour galáctico" — estilos (escritorio y celular) */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --ml-azul: #0076e3;
+  --ml-azul-hover: #0a84f5;
+  --ml-celeste: #00c9ff;
+  --ml-menta: #00d4a1;
+  --ml-negro: #1e222b;
+  --ml-plata: #c3cfdb;
+  --ml-tenue: #8e9aa8;
+  --ml-tenue-2: #9aa6b4;
+}
+
+.ml-root, .ml-root * { box-sizing: border-box; }
+.ml-root {
+  position: relative; min-height: 100vh; min-height: 100dvh; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: var(--ml-negro); color: #fff;
+  font-family: 'Inter Tight', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.ml-canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+.ml-lift { position: absolute; inset: 0; pointer-events: none; background: var(--ml-negro); mix-blend-mode: lighten; opacity: 0.55; }
+.ml-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 55% 50%, rgba(30,34,43,0) 55%, rgba(20,23,30,0.55) 100%); }
+
+/* Encabezado */
+.ml-header { position: relative; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 34px 56px; }
+.ml-brand { display: flex; align-items: center; gap: 12px; }
+.ml-brand-text { display: flex; flex-direction: column; gap: 2px; }
+.ml-brand-name { font-size: 19px; font-weight: 600; letter-spacing: 0.01em; }
+.ml-brand-sub { font-size: 12px; color: var(--ml-plata); }
+.ml-credit, .ml-credit-m { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: var(--ml-tenue); }
+.ml-credit-m { display: none; }
+
+/* Contenido */
+.ml-main { position: relative; z-index: 3; flex: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 40px; padding: 0 56px 88px; }
+.ml-hero { align-self: flex-end; flex: 1 1 420px; max-width: 540px; display: flex; flex-direction: column; gap: 20px; text-shadow: 0 2px 24px rgba(0,0,0,0.6); }
+.ml-badge { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(195,207,219,0.22); background: rgba(30,34,43,0.6); font-size: 13px; font-weight: 500; text-shadow: none; }
+.ml-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ml-menta); animation: ml-blink 2.2s ease-in-out infinite; }
+.ml-hero h1 { margin: 0; font-size: 56px; line-height: 1.04; font-weight: 600; letter-spacing: -0.03em; }
+.ml-hero p { margin: 0; max-width: 440px; font-size: 17px; font-weight: 300; line-height: 1.6; color: var(--ml-plata); }
+
+/* Tarjeta del login */
+.ml-card {
+  flex: 0 1 400px; width: 100%; max-width: 400px; padding: 38px 34px 30px; border-radius: 20px;
+  background: rgba(30,34,43,0.78); border: 1px solid rgba(195,207,219,0.16);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+  cursor: auto; touch-action: auto; user-select: text; -webkit-user-select: text;
+}
+.ml-accent { width: 36px; height: 3px; border-radius: 2px; background: var(--ml-celeste); margin-bottom: 22px; }
+.ml-card h2 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+.ml-card-sub { margin: 8px 0 26px; font-size: 14px; color: var(--ml-plata); }
+.ml-form { display: flex; flex-direction: column; gap: 18px; margin: 0; }
+.ml-group { display: flex; flex-direction: column; gap: 8px; }
+.ml-label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ml-plata); }
+.ml-field { display: flex; align-items: center; gap: 10px; height: 50px; padding: 0 14px; border-radius: 12px; background: rgba(16,19,25,0.72); border: 1px solid rgba(195,207,219,0.22); color: var(--ml-tenue); }
+.ml-field--pass { padding-right: 4px; }
+.ml-field:focus-within { border-color: var(--ml-celeste); box-shadow: 0 0 0 3px rgba(0,201,255,0.18); }
+.ml-field input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: #fff; font: inherit; font-size: 16px; outline: none; }
+.ml-field input::placeholder { color: var(--ml-tenue); }
+.ml-icon-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 10px; background: transparent; color: var(--ml-plata); cursor: pointer; }
+.ml-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ml-check { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; color: var(--ml-plata); cursor: pointer; }
+.ml-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ml-azul); }
+.ml-link { font-size: 14px; font-weight: 500; text-decoration: none; color: var(--ml-celeste); }
+.ml-link:hover { color: #7fe3ff; }
+.ml-submit { height: 52px; border: 0; border-radius: 12px; background: var(--ml-azul); color: #fff; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.ml-submit:hover { background: var(--ml-azul-hover); }
+.ml-submit .ml-when-loading { display: none; }
+.ml-submit.is-loading .ml-when-idle { display: none; }
+.ml-submit.is-loading .ml-when-loading { display: inline-flex; align-items: center; gap: 10px; }
+.ml-when-idle { display: inline-flex; align-items: center; gap: 10px; }
+.ml-spinner { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: ml-spin 0.9s linear infinite; }
+.ml-foot { margin: 24px 0 0; padding-top: 18px; border-top: 1px solid rgba(195,207,219,0.14); font-size: 12px; line-height: 1.5; color: var(--ml-tenue-2); }
+.ml-error { display: none; margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px; color: #ffd7d7; background: rgba(255,90,90,0.12); border: 1px solid rgba(255,120,120,0.35); }
+.ml-error.is-visible { display: block; }
+
+/* Aparición del login al aterrizar */
+.ml-ui { opacity: 0; transform: translateY(14px); transition: opacity 0.9s cubic-bezier(.2,.7,.2,1), transform 0.9s cubic-bezier(.2,.7,.2,1); pointer-events: none; }
+.ml-landed .ml-ui { opacity: 1; transform: none; pointer-events: auto; }
+.ml-landed .ml-card { transition-delay: 0.15s; }
+
+/* Textos del viaje */
+.ml-caption { position: absolute; left: 56px; bottom: 40px; z-index: 3; pointer-events: none; font-family: 'JetBrains Mono', monospace; display: flex; flex-direction: column; gap: 6px; }
+.ml-caption.is-anim { animation: ml-cap 0.6s cubic-bezier(.2,.7,.2,1) both; }
+.ml-caption-title { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; }
+.ml-caption-title::before { content: ''; width: 24px; height: 1px; background: var(--ml-celeste); }
+.ml-caption.is-final .ml-caption-title::before { background: var(--ml-menta); }
+.ml-caption-sub { padding-left: 34px; font-size: 12px; letter-spacing: 0.06em; color: var(--ml-plata); }
+.ml-landed .ml-caption { display: none; }
+
+/* Controles: zoom, giro e intro */
+.ml-controls { position: absolute; right: 214px; bottom: 28px; z-index: 4; display: flex; align-items: center; gap: 8px; }
+.ml-hint { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: var(--ml-tenue); margin-right: 6px; }
+.ml-zoom { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border-radius: 999px; border: 1px solid rgba(195,207,219,0.25); background: rgba(30,34,43,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.ml-zoom button { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--ml-plata); cursor: pointer; }
+.ml-introbtn { position: absolute; right: 56px; bottom: 28px; z-index: 4; min-width: 150px; display: flex; justify-content: flex-end; }
+.ml-ghost { height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(195,207,219,0.3); background: rgba(30,34,43,0.5); color: var(--ml-plata); font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+.ml-ghost:hover, .ml-zoom button:hover { border-color: rgba(195,207,219,0.6); color: #fff; }
+.ml-replay { display: none; }
+.ml-landed .ml-skip { display: none; }
+.ml-landed .ml-replay { display: inline-block; }
+.ml-root button:focus-visible, .ml-link:focus-visible { outline: 2px solid var(--ml-celeste); outline-offset: 2px; }
+
+@keyframes ml-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes ml-spin { to { transform: rotate(360deg); } }
+@keyframes ml-cap { from { opacity: 0; transform: translateY(8px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* ---------- Celular ---------- */
+@media (max-width: 720px) {
+  .ml-header { padding: 18px 20px; }
+  .ml-brand-name { font-size: 17px; }
+  .ml-credit { display: none; }
+  .ml-credit-m { display: block; position: absolute; left: 0; right: 0; bottom: 8px; z-index: 3; text-align: center; font-size: 9px; }
+  .ml-main { flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 0; padding: 0 16px 30px; }
+  .ml-hero { display: none; }
+  .ml-card { flex: 0 0 auto; max-width: none; padding: 26px 22px 20px; border-radius: 18px; }
+  .ml-accent { margin-bottom: 16px; }
+  .ml-card h2 { font-size: 22px; }
+  .ml-card-sub { margin: 6px 0 18px; }
+  .ml-form { gap: 14px; }
+  .ml-foot { margin-top: 16px; padding-top: 12px; }
+  .ml-caption { left: 20px; bottom: 96px; }
+  .ml-controls { top: 14px; right: 12px; bottom: auto; }
+  .ml-hint { display: none; }
+  .ml-zoom button { width: 40px; height: 40px; }
+  .ml-introbtn { right: auto; left: 50%; transform: translateX(-50%); bottom: 32px; min-width: 0; }
+  .ml-landed .ml-introbtn { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ml-ui, .ml-caption.is-anim { transition: none; animation: none; }
+}
