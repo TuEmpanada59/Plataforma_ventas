@@ -36,6 +36,28 @@
       background: rgba(0, 212, 161, 0.12);
       border: 1px solid rgba(0, 212, 161, 0.35);
     }
+
+    /* El logotipo es azul sobre blanco. Sobre el fondo oscuro necesita su
+       propia pastilla clara; si no, el blanco del archivo se ve como un
+       recuadro recortado alrededor de las letras. */
+    .ml-logo {
+      display: inline-flex; align-items: center;
+      padding: 7px 12px; border-radius: 12px; background: #fff;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+    .ml-logo img { display: block; height: 30px; width: auto; }
+
+    /* Al quitar el texto de la izquierda, la tarjeta quedaba sola en un
+       contenedor repartido a los extremos y se iba al borde izquierdo. Se
+       ancla a la derecha, que es donde estaba, y Mercurio se queda con el
+       espacio libre. Solo en escritorio: en celular la tarjeta ocupa el ancho
+       completo y login.css ya lo resuelve. */
+    @@media (min-width: 721px) {
+      .ml-main { justify-content: flex-end; }
+      /* Los botones de zoom se corren al margen que dejaron libres los de la
+         intro, para alinearse con el resto de la pantalla. */
+      .ml-controls { right: 56px; }
+    }
   </style>
 </head>
 <body style="margin:0;background:#1e222b">
@@ -43,37 +65,31 @@
 @* data-base apunta a la carpeta pública donde están texturas/. Sin data-autoinit:
    se inicializa abajo a mano para poder pedir que la intro se vea una sola vez
    por sesión. *@
-<div class="ml-root" id="mercurio-login" data-base="/mercurio-login/">
+@* ml-landed de entrada: esa clase es la que hace visible la tarjeta. Puesta en
+   el marcado, el formulario está ahí desde el primer pintado, sin depender de
+   que el motor 3D arranque ni de que el equipo tenga WebGL. *@
+<div class="ml-root ml-landed" id="mercurio-login" data-base="/mercurio-login/">
   <canvas class="ml-canvas" aria-hidden="true"></canvas>
   <div class="ml-lift" aria-hidden="true"></div>
   <div class="ml-vignette" aria-hidden="true"></div>
 
   <header class="ml-header">
     <div class="ml-brand">
-      <svg width="38" height="38" viewBox="0 0 38 38" aria-hidden="true">
-        <ellipse cx="19" cy="19" rx="17" ry="6.5" transform="rotate(-18 19 19)" fill="none" stroke="#00c9ff" stroke-opacity="0.8" stroke-width="1.3"></ellipse>
-        <circle cx="19" cy="19" r="7.5" fill="#c3cfdb"></circle>
-      </svg>
-      <div class="ml-brand-text">
-        <span class="ml-brand-name">Mercurio</span>
-        <span class="ml-brand-sub">por Londoño Gómez</span>
-      </div>
+      @* El logotipo viene sobre fondo blanco, así que va dentro de una pastilla
+         clara: sobre el fondo oscuro, sin ella, se vería un recuadro blanco
+         recortado alrededor del azul. *@
+      <span class="ml-logo">
+        <img src="~/Images/Logo azul 2.jpg" alt="Londoño Gómez" asp-append-version="true"/>
+      </span>
     </div>
     @* El crédito de las texturas es obligatorio por su licencia (CC BY 4.0). *@
     <span class="ml-credit">Texturas planetarias: Solar System Scope · CC BY 4.0 · datos NASA</span>
   </header>
 
   <main class="ml-main">
-    <section class="ml-hero ml-ui">
-      <span class="ml-badge"><span class="ml-dot"></span>Lanzamientos en tiempo real</span>
-      <h1>Cada metro,<br>bajo control.</h1>
-      <p>El inventario de todos tus proyectos, vivo, en una sola plataforma.</p>
-    </section>
-
     <div class="ml-card ml-ui" data-no-orbit>
       <div class="ml-accent"></div>
       <h2>Iniciar sesión</h2>
-      <p class="ml-card-sub">Bienvenido de vuelta. Ingresa para continuar.</p>
 
       @* POST clásico: con action y sin onSubmit, login.js valida que no estén
          vacíos, muestra la animación de carga y deja que el formulario se envíe
@@ -123,23 +139,18 @@
           <span class="ml-when-loading"><span class="ml-spinner" aria-hidden="true"></span>Entrando en órbita…</span>
         </button>
       </form>
-      <p class="ml-foot">Acceso exclusivo para colaboradores de Londoño Gómez.</p>
     </div>
   </main>
 
-  <div class="ml-caption" data-ml="caption" aria-live="polite"></div>
-
+  @* Sin textos del viaje, sin la pista de cómo se mueve y sin los botones de
+     la intro: el fondo se explora solo, arrastrando o con la rueda, y los
+     controles de zoom quedan como única indicación —en iconos, sin letras—. *@
   <div class="ml-controls">
-    <span class="ml-hint">Arrastra para girar 360° · rueda o pellizco para acercar / alejar</span>
     <div class="ml-zoom" role="group" aria-label="Zoom">
       <button type="button" data-ml="zoom-out" aria-label="Alejar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
       <button type="button" data-ml="zoom-reset" aria-label="Volver a la vista inicial"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg></button>
       <button type="button" data-ml="zoom-in" aria-label="Acercar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
     </div>
-  </div>
-  <div class="ml-introbtn">
-    <button type="button" class="ml-ghost ml-skip" data-ml="skip">Saltar intro</button>
-    <button type="button" class="ml-ghost ml-replay" data-ml="replay">Repetir intro</button>
   </div>
   <p class="ml-credit-m">Texturas: Solar System Scope · CC BY 4.0 · datos NASA</p>
 </div>
@@ -152,9 +163,10 @@
 <script>
   MercurioLogin.init(document.getElementById('mercurio-login'), {
     base: '/mercurio-login/',
-    // El viaje desde Neptuno dura un rato. Verlo una vez es bonito; verlo en
-    // cada intento fallido, en mitad de un lanzamiento, es un estorbo.
-    introUnaVezPorSesion: true
+    // Sin viaje de apertura: la pantalla abre ya en Mercurio y el formulario
+    // está disponible desde el primer segundo. El fondo se puede seguir girando
+    // y acercando, pero nadie tiene que esperar a que termine nada.
+    intro: false
     // Sin onSubmit ni onForgot a propósito: el formulario se envía al servidor
     // como siempre y el enlace de recuperación navega solo.
   });
